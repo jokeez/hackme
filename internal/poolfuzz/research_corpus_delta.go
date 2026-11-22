@@ -245,6 +245,17 @@ func (s *Service) AcceptResearchCorpusDelta(ctx context.Context, req ResearchCor
 		if err := s.upsertPoolCorpusSeedsBatch(ctx, campaignID, seeds, now); err != nil {
 			return out, err
 		}
+	}
+	// Claim wire reads campaign seed_byte_corpus (then L2). Pool rows alone are
+	// dropped when claim-light omits corpus_seeds or first-fit keeps boot starters.
+	l2Target := ""
+	if isHunt {
+		l2Target = targetID
+	}
+	if err := s.persistAcceptedClaimSeeds(ctx, campaignID, l2Target, seeds); err != nil {
+		return out, err
+	}
+	if isHunt {
 		// Coverage-guided Hunt: prove edges via coordinator replay (never trust miner counts).
 		if HuntEngineEnabled() && hunt.IsCoverageEngine(hunt.HuntEngineFromConfig(cfg)) {
 			proven, perr := s.ProveHuntCorpusSeedEdges(ctx, campaignID, cfg, seeds, now)
@@ -358,6 +369,57 @@ func (s *Service) AcceptResearchCorpusDelta(ctx context.Context, req ResearchCor
 	return out, nil
 }
 
+// persistAcceptedClaimSeeds writes accepted coverage units to the front of the
+// campaign seed_byte_corpus (wire-capped) and into the L2 import cache so the
+// next miner's claim ships them. Crash-only deltas have an empty seed list and
+// do not touch the cache. Export failure is returned so the worker retries;
+// the corpus upsert above is idempotent.
+func (s *Service) persistAcceptedClaimSeeds(ctx context.Context, campaignID, l2Target string, seeds []fuzzengine.PoolCorpusSeed) error {
+	if s == nil || s.DB == nil || len(seeds) == 0 {
+		return nil
+	}
+	fresh := make([][]byte, 0, len(seeds))
+	for _, seed := range seeds {
+		if seed.Crash || len(seed.InputBytes) == 0 || genericBootSeed(seed.InputBytes) {
+			continue
+		}
+		fresh = append(fresh, seed.InputBytes)
+	}
+	if len(fresh) == 0 {
+		return nil
+	}
+	err := s.withCampaignSettle(campaignID, func() error {
+		var cfgJSON string
+		if err := s.DB.QueryRowContext(ctx, `SELECT config_json FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&cfgJSON); err != nil {
+			return err
+		}
+		cfg := parseConfigJSON(cfgJSON)
+		var existing []any
+		switch raw := cfg["seed_byte_corpus"].(type) {
+		case []any:
+			existing = raw
+		case []string:
+			existing = make([]any, len(raw))
+			for i, item := range raw {
+				existing[i] = item
+			}
+		}
+		cfg["seed_byte_corpus"] = MergeAcceptedSeedByteCorpus(fresh, existing)
+		_, err := s.DB.ExecContext(ctx, `UPDATE fuzz_campaigns SET config_json=? WHERE id=?`, marshalConfigJSON(cfg), campaignID)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(l2Target) == "" || strings.HasPrefix(l2Target, "dig:") {
+		return nil
+	}
+	if _, err := hunt.ExportLibFuzzerSeeds(hunt.RepoRoot(), l2Target, fresh); err != nil {
+		return fmt.Errorf("poolfuzz: export accepted seeds to L2: %w", err)
+	}
+	return nil
+}
+
 func (s *Service) requireResearchLease(ctx context.Context, workerID, campaignID string, itemID int64) error {
 	var owner, status string
 	err := s.DB.QueryRowContext(ctx,
@@ -398,10 +460,9 @@ func defaultResearchCrashReplay(ctx context.Context, s *Service, campaignID stri
 		return false, "", err
 	}
 	defer release()
-	maxB := fuzzengine.ParseMaxInputBytes(cfg)
-	if maxB <= 0 {
-		maxB = 4096
-	}
+	// Native ASAN replay follows libFuzzer -max_len. The WASM 4096 ceil must not
+	// cut length-confusion crashes before prove. This path is Hunt-only.
+	maxB := 65536
 	if len(input) > maxB {
 		input = input[:maxB]
 	}

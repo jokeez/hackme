@@ -1,6 +1,7 @@
 package poolfuzz
 
 import (
+	"encoding/hex"
 	"strings"
 	"testing"
 )
@@ -52,6 +53,51 @@ func TestTrimSeedByteCorpusForWireEmpty(t *testing.T) {
 	}
 	if len(TrimSeedByteCorpusForWire([]any{})) != 0 {
 		t.Fatal("empty")
+	}
+}
+
+func TestTrimSeedByteCorpusForWireKeepsJustAcceptedSeed(t *testing.T) {
+	t.Setenv("HACKME_POOL_SEED_CORPUS_MAX_ITEMS", "4")
+	t.Setenv("HACKME_POOL_SEED_CORPUS_MAX_BYTES", "100000")
+	existing := []any{
+		hex.EncodeToString([]byte("{}")),
+		"aa", "bb", "cc", "dd", "ee",
+	}
+	accepted := [][]byte{[]byte("feature-seed")}
+	out := MergeAcceptedSeedByteCorpus(accepted, existing)
+	want := hex.EncodeToString([]byte("feature-seed"))
+	if len(out) == 0 || out[0] != want {
+		t.Fatalf("just-accepted seed absent from trim head: %#v", out)
+	}
+	if len(out) > 4 {
+		t.Fatalf("trim grew past cap: %d", len(out))
+	}
+	for _, item := range out {
+		if item == hex.EncodeToString([]byte("{}")) {
+			t.Fatalf("generic boot kept ahead of the cap: %#v", out)
+		}
+	}
+}
+
+func TestTrimSeedByteCorpusForWireKeepsAcceptedUnderByteCap(t *testing.T) {
+	t.Setenv("HACKME_POOL_SEED_CORPUS_MAX_ITEMS", "10")
+	t.Setenv("HACKME_POOL_SEED_CORPUS_MAX_BYTES", "80")
+	big := strings.Repeat("ab", 30)
+	existing := []any{big, big + "cd", big + "ef"}
+	accepted := [][]byte{{0x11, 0x22}}
+	out := MergeAcceptedSeedByteCorpus(accepted, existing)
+	want := hex.EncodeToString([]byte{0x11, 0x22})
+	found := false
+	for _, item := range out {
+		if item == want {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("byte budget trim dropped the just-accepted seed: %#v", out)
+	}
+	if len(out) > 10 {
+		t.Fatalf("len=%d", len(out))
 	}
 }
 

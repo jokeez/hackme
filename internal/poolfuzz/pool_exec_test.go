@@ -98,8 +98,23 @@ func TestLeaseSecondsHuntLibFuzzerFleet(t *testing.T) {
 		"hunt_engine":      "libfuzzer",
 		"pool_distributed": true,
 	}
-	// Default LF wall 60s → lease max(2×60, 60+120)=180, capped ≤360.
-	if sec := leaseSecondsForConfig(cfg); sec != 180 {
-		t.Fatalf("LF fleet lease=%d want 180", sec)
+	// Unstamped LF wall is DefaultLibFuzzerLeaseSec (180) → max(360, 300)=360.
+	if sec := leaseSecondsForConfig(cfg); sec != 360 {
+		t.Fatalf("LF fleet lease=%d want 360", sec)
+	}
+}
+
+func TestLeaseSecondsHuntHeavyWallKeepsMergeSlack(t *testing.T) {
+	t.Setenv("HACKME_HUNT_COVERAGE_ENGINE", "1")
+	t.Setenv("HACKME_HUNT_ENGINE_LEASE_SEC", "")
+	cfg := map[string]any{
+		"work_kind":        "hunt_shard",
+		"hunt_engine":      "libfuzzer",
+		"engine_lease_sec": 210,
+		"pool_distributed": true,
+	}
+	// 2×210=420, under the 480s coverage cap, above the old 360s clip.
+	if sec := leaseSecondsForConfig(cfg); sec != 420 {
+		t.Fatalf("heavy LF lease=%d want 420", sec)
 	}
 }

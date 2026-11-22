@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"hackme/internal/fuzzengine"
@@ -15,8 +16,9 @@ import (
 const (
 	libFuzzerSeedMaxBytes = 65536
 	defaultLibFuzzerSeeds = 512
-	// rankedLibFuzzerSeedCap keeps L2 imports lean — dump-all seeds can hurt first-hit.
-	rankedLibFuzzerSeedCap = 64
+	// rankedLibFuzzerSeedCap matches the claim wire item budget (96). A smaller
+	// cap dropped freshly exported coverage units before first-fit trim ran.
+	rankedLibFuzzerSeedCap = 96
 )
 
 // LibFuzzerSeedDir is the on-disk import path for libFuzzer corpus files per catalog target.
@@ -66,12 +68,14 @@ func LoadLibFuzzerSeedFiles(dir string, maxSeeds int) ([][]byte, error) {
 		dir = safeDir
 		root = filepath.Dir(safeDir)
 	}
-	out := make([][]byte, 0, min(len(entries), maxSeeds))
+	type seedHit struct {
+		b   []byte
+		mod int64
+		ord int
+	}
+	hits := make([]seedHit, 0, len(entries))
 	seen := map[string]struct{}{}
 	for _, ent := range entries {
-		if len(out) >= maxSeeds {
-			break
-		}
 		if ent.IsDir() {
 			continue
 		}
@@ -92,15 +96,30 @@ func LoadLibFuzzerSeedFiles(dir string, maxSeeds int) ([][]byte, error) {
 		if rerr != nil || len(b) == 0 {
 			continue
 		}
-		key := hex.EncodeToString(b)
-		if len(key) > 64 {
-			key = key[:64]
-		}
+		// Full-content identity. A 32-byte prefix used to collapse a just-exported
+		// mutant into an older unit, so the newest-first cap never saw it.
+		sum := sha256.Sum256(b)
+		key := hex.EncodeToString(sum[:])
 		if _, ok := seen[key]; ok {
 			continue
 		}
 		seen[key] = struct{}{}
-		out = append(out, b)
+		hits = append(hits, seedHit{b: b, mod: st.ModTime().UnixNano(), ord: len(hits)})
+	}
+	// Directory order is not age. When the cache is over the load cap, keeping
+	// the first readdir entries dropped a unit that was just exported.
+	sort.SliceStable(hits, func(i, j int) bool {
+		if hits[i].mod == hits[j].mod {
+			return hits[i].ord < hits[j].ord
+		}
+		return hits[i].mod > hits[j].mod
+	})
+	if len(hits) > maxSeeds {
+		hits = hits[:maxSeeds]
+	}
+	out := make([][]byte, 0, len(hits))
+	for _, h := range hits {
+		out = append(out, h.b)
 	}
 	return out, nil
 }
@@ -158,14 +177,56 @@ func RankLibFuzzerSeeds(seeds [][]byte, capN int) [][]byte {
 	}
 	rarity := fuzzengine.BuildEdgeHitCounts(pool)
 	order := fuzzengine.RankCorpusForCull(pool, rarity)
-	if len(order) > capN {
-		order = order[:capN]
+	// LoadLibFuzzerSeedFiles returns newest-first. Pin that prefix so a unit
+	// just written to the cache is not discarded for a shorter boot seed.
+	// Energy is neutral on this path; compactness alone used to keep "{}".
+	pinN := capN / 3
+	if pinN < 1 {
+		pinN = 1
 	}
-	out := make([][]byte, 0, len(order))
+	pinned := make([]int, 0, pinN)
+	pinnedSet := map[int]struct{}{}
+	for i := range pool {
+		if len(pinned) >= pinN {
+			break
+		}
+		if genericBootSeed(pool[i].InputBytes) {
+			continue
+		}
+		pinned = append(pinned, i)
+		pinnedSet[i] = struct{}{}
+	}
+	var ranked, boots []int
 	for _, i := range order {
+		if _, ok := pinnedSet[i]; ok {
+			continue
+		}
+		if genericBootSeed(pool[i].InputBytes) {
+			boots = append(boots, i)
+			continue
+		}
+		ranked = append(ranked, i)
+	}
+	merged := make([]int, 0, len(pinned)+len(ranked)+len(boots))
+	merged = append(merged, pinned...)
+	merged = append(merged, ranked...)
+	merged = append(merged, boots...)
+	if len(merged) > capN {
+		merged = merged[:capN]
+	}
+	out := make([][]byte, 0, len(merged))
+	for _, i := range merged {
 		out = append(out, pool[i].InputBytes)
 	}
 	return out
+}
+
+func genericBootSeed(b []byte) bool {
+	switch string(b) {
+	case "{}", "[]", "null":
+		return true
+	}
+	return len(b) == 1 && (b[0] == 0x00 || b[0] == 0x80)
 }
 
 // ApplyLocalCorpusGuidedDefaults enables L2-style scheduling for node-local Hunt runs.
@@ -192,6 +253,9 @@ func ApplyHuntPowerScheduling(cfg map[string]any, pkgKey string) {
 	switch pkgKey {
 	case "hunt_standard", "standard":
 		minCap = 16
+		// v2.10 burst on top of the v2.8 stack ApplyPoolGuidedDefaults already sets.
+		// Unset flag only — in-flight campaigns that pinned havoc_deep_v210 stay put.
+		fuzzengine.EnableDeepHavocV210(cfg)
 	case "hunt_heavy", "heavy":
 		// Heavy opts into higher power_mut_cap/stack unless explicitly disabled.
 		minCap = 18
@@ -208,6 +272,7 @@ func ApplyHuntPowerScheduling(cfg map[string]any, pkgKey string) {
 				}
 			}
 		}
+		fuzzengine.EnableDeepHavocV210(cfg)
 	case "hunt_lite", "lite":
 		minCap = 10
 	}

@@ -10,7 +10,10 @@ const (
 	// MinMaxInputBytes is the smallest allowed byte corpus entry.
 	MinMaxInputBytes = 8
 	// MaxInputBytesHardCeil must stay aligned with sandbox.MaxCheckInputBytes().
+	// WASM/Dig never exceeds this. Native Hunt havoc (v210) may use
+	// NativeHuntMutateCeil so planted seeds can reach libFuzzer -max_len.
 	MaxInputBytesHardCeil = 4096
+	NativeHuntMutateCeil  = 65536
 )
 
 // ParseMaxInputBytes reads campaign max_input_bytes (clamped to platform ceil).

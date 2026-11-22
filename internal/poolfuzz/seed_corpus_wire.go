@@ -1,14 +1,19 @@
 package poolfuzz
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"os"
 	"strconv"
 	"strings"
+
+	"hackme/internal/fuzzengine"
 )
 
 const (
-	defaultSeedCorpusWireMaxItems = 48
+	// Matches hunt.rankedLibFuzzerSeedCap. First-fit keeps the head, so freshly
+	// accepted coverage units are placed ahead of generic boot starters.
+	defaultSeedCorpusWireMaxItems = 96
 	defaultSeedCorpusWireMaxBytes = 256 << 10 // 256 KiB JSON-ish payload budget
 )
 
@@ -45,6 +50,92 @@ func applySeedByteCorpusWireTrim(cfg map[string]any) {
 		return
 	}
 	cfg["seed_byte_corpus"] = TrimSeedByteCorpusForWire(list)
+}
+
+// genericBootSeed is a libFuzzer starter ("{}", "[]", "null", or a one-byte
+// 0x00/0x80). Those must not occupy claim slots ahead of a unit a miner just found.
+func genericBootSeed(b []byte) bool {
+	switch string(b) {
+	case "{}", "[]", "null":
+		return true
+	}
+	return len(b) == 1 && (b[0] == 0x00 || b[0] == 0x80)
+}
+
+func seedItemBytes(item any) ([]byte, bool) {
+	parsed := fuzzengine.ParseByteCorpus(map[string]any{"seed_byte_corpus": []any{item}})
+	if len(parsed) == 0 || len(parsed[0]) == 0 {
+		return nil, false
+	}
+	return parsed[0], true
+}
+
+// MergeAcceptedSeedByteCorpus places just-accepted coverage units ahead of the
+// stored corpus and demotes generic boot starters, then applies the claim wire
+// cap. First-fit trim keeps this head, so a new unit is not evicted by boot
+// junk that already filled the 96-item / 256KiB budget.
+func MergeAcceptedSeedByteCorpus(accepted [][]byte, existing []any) []any {
+	seen := map[string]struct{}{}
+	var head, mid, tail []any
+	add := func(dst *[]any, item any, b []byte) {
+		if len(b) == 0 {
+			return
+		}
+		key := hex.EncodeToString(b)
+		if _, ok := seen[key]; ok {
+			return
+		}
+		seen[key] = struct{}{}
+		*dst = append(*dst, item)
+	}
+	for _, b := range accepted {
+		if len(b) == 0 || genericBootSeed(b) {
+			continue
+		}
+		add(&head, hex.EncodeToString(b), b)
+	}
+	for _, item := range existing {
+		b, ok := seedItemBytes(item)
+		if !ok {
+			// Opaque entry: keep it with the non-boot body so a trim cannot
+			// silently delete a seed we failed to decode.
+			key := strings.TrimSpace(strings.ToLower(strings.TrimPrefix(fmtItem(item), "0x")))
+			if key == "" {
+				continue
+			}
+			if _, dup := seen["raw:"+key]; dup {
+				continue
+			}
+			seen["raw:"+key] = struct{}{}
+			mid = append(mid, item)
+			continue
+		}
+		if genericBootSeed(b) {
+			add(&tail, item, b)
+			continue
+		}
+		add(&mid, item, b)
+	}
+	merged := make([]any, 0, len(head)+len(mid)+len(tail))
+	merged = append(merged, head...)
+	merged = append(merged, mid...)
+	merged = append(merged, tail...)
+	return TrimSeedByteCorpusForWire(merged)
+}
+
+func fmtItem(item any) string {
+	switch x := item.(type) {
+	case string:
+		return x
+	case []byte:
+		return hex.EncodeToString(x)
+	default:
+		b, err := json.Marshal(item)
+		if err != nil {
+			return ""
+		}
+		return string(b)
+	}
 }
 
 // TrimSeedByteCorpusForWire caps seed_byte_corpus for claim/replay wire parity.

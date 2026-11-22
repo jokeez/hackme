@@ -366,19 +366,38 @@ func WorkerSupportsHuntEngine(advertised []string, want string) bool {
 	return false
 }
 
+// resolveCoverageHarness builds (or loads) the showmap binary. Tests replace it:
+// the default compiles afl-cc and must not run on crash-only corpus-delta uploads.
+var resolveCoverageHarness = hunt.ResolveCoverageHarness
+
 // ProveHuntCorpusSeedEdges ASAN-oneshots each seed under the campaign Hunt harness
 // (content_sha256-bound), then records coverage only from coordinator-derived afl-showmap
 // bitmaps. Structural/fingerprint buckets alone never unlock pay (audit H1).
 // Miner edges_touched is never consulted.
-// Cap: HACKME_HUNT_ENGINE_PROVE_MAX (default 16) — extra seeds still store, may not all pay edges (L1).
+// Cap: HACKME_HUNT_ENGINE_PROVE_MAX (default 32) — extra seeds still store, may not all pay edges (L1).
 func (s *Service) ProveHuntCorpusSeedEdges(ctx context.Context, campaignID string, cfg map[string]any, seeds []fuzzengine.PoolCorpusSeed, now int64) (provenEdges int, err error) {
 	if s == nil || !IsHuntCampaign(cfg) {
 		return 0, nil
 	}
-	maxProve := envIntClamped("HACKME_HUNT_ENGINE_PROVE_MAX", 16, 1, 64)
+	maxProve := envIntClamped("HACKME_HUNT_ENGINE_PROVE_MAX", 32, 1, 64)
+	provable := 0
+	for _, seed := range seeds {
+		if len(seed.InputBytes) == 0 {
+			continue
+		}
+		provable++
+		if provable >= maxProve {
+			break
+		}
+	}
+	// Crash-only deltas have nothing to showmap. Resolving the harness here
+	// compiles a catalog afl-cc binary (jsmn and friends) and stalls the upload.
+	if provable == 0 {
+		return 0, nil
+	}
 	targetID := strings.TrimSpace(jsonString(cfg["upstream_target_id"]))
 	hash := strings.TrimSpace(jsonString(cfg["harness_hash"]))
-	covHarness, instrumented, _ := hunt.ResolveCoverageHarness(ctx, hunt.RepoRoot(), targetID, hunt.CoverageHarnessOpts{
+	covHarness, instrumented, _ := resolveCoverageHarness(ctx, hunt.RepoRoot(), targetID, hunt.CoverageHarnessOpts{
 		HarnessHash:          hash,
 		HarnessFetchURL:      huntHarnessFetchURL(cfg),
 		HarnessContentSHA256: huntHarnessContentSHA256(ctx, s, hash, cfg),

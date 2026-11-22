@@ -15,7 +15,7 @@ func Packages() []PackageInfo {
 			LocalTimeLimitSec:  huntLocalSecLite,
 			MinPerShard:        0.002,
 			WallHours:          "6–24h",
-			Summary:            "Pool ASAN Lite · 90s leases · 64 iters/shard · attested CLEAN ≠ CVE",
+			Summary:            "Pool ASAN Lite · 180s leases · 96 iters/shard · profile dict · attested CLEAN ≠ CVE",
 			EscrowSplit:        fuzzescrow.EscrowSplit5050,
 		},
 		{
@@ -28,7 +28,7 @@ func Packages() []PackageInfo {
 			LocalTimeLimitSec:  huntLocalSecStandard,
 			MinPerShard:        0.003,
 			WallHours:          "6–16h on the pool (measured Nov 2026)",
-			Summary:            "Pool ASAN Standard · 150s leases · 224 iters/shard · guided corpus · CLEAN ≠ CVE",
+			Summary:            "Pool ASAN Standard · 180s leases · 288 iters/shard · v210 havoc · guided corpus · CLEAN ≠ CVE",
 			EscrowSplit:        fuzzescrow.EscrowSplit5050,
 		},
 		{
@@ -41,7 +41,7 @@ func Packages() []PackageInfo {
 			LocalTimeLimitSec:  huntLocalSecHeavy,
 			MinPerShard:        0.003,
 			WallHours:          "~1 day on the pool (12k units)",
-			Summary:            "Pool ASAN Heavy · 180s leases · max shard depth · CLEAN ≠ CVE",
+			Summary:            "Pool ASAN Heavy · 210s leases · max shard depth · CLEAN ≠ CVE",
 			EscrowSplit:        fuzzescrow.EscrowSplit5050,
 		},
 	}

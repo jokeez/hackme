@@ -225,27 +225,23 @@ func CampaignConfig(ctx context.Context, repoRoot string, req CreateRequest) (ma
 	// (Previously Standard/Heavy were capped at 90s — too shallow vs local overnight.)
 	if pool {
 		if _, ok := cfg["engine_lease_sec"]; !ok {
-			switch pkgKey {
-			case "hunt_heavy", "heavy":
-				cfg["engine_lease_sec"] = DefaultAFLPPLeaseSec // 180s
-			case "hunt_standard", "standard":
-				cfg["engine_lease_sec"] = 150
-			default:
-				cfg["engine_lease_sec"] = 90 // Lite: above default 60s fleet floor
-			}
+			cfg["engine_lease_sec"] = PoolEngineLeaseSecForPackage(pkgKey)
 		}
-		// Larger persistent corpus shared across miners for Standard/Heavy.
+		// Shared L2 corpus across miners. Lite was stuck at the 384 guided default.
 		switch pkgKey {
-		case "hunt_standard", "standard":
-			if n := intFromAny(cfg["pool_corpus_max"]); n < 512 {
-				cfg["pool_corpus_max"] = 512
-			}
 		case "hunt_heavy", "heavy":
 			if n := intFromAny(cfg["pool_corpus_max"]); n < 768 {
 				cfg["pool_corpus_max"] = 768
 			}
+		default:
+			if n := intFromAny(cfg["pool_corpus_max"]); n < 512 {
+				cfg["pool_corpus_max"] = 512
+			}
 		}
 	}
+	// Catalog targets have no pack *.dict; stamp a profile libFuzzer dict after
+	// inventory packs so a published fuzz/*.dict still wins.
+	EnsureLibFuzzerDict(cfg, targetID)
 
 	if req.Inventory != nil && strings.TrimSpace(req.Inventory.Path) != "" {
 		cfg["hunt_inventory_path"] = strings.TrimSpace(req.Inventory.Path)

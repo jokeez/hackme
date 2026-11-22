@@ -10,6 +10,8 @@ import (
 	"os"
 	"strings"
 	"sync"
+
+	"hackme/internal/poolsync"
 )
 
 // prefetchBuf holds at most one extra leased claim for double-buffer Dig.
@@ -54,12 +56,30 @@ func (p *prefetchBuf) tryPut(cr *ClaimResp) bool {
 }
 
 // FetchCorpusSnapshot loads frozen corpus seeds for a light claim (lease-gated).
+// One transient HTTP failure is retried; the lease's snapshot is not dropped.
 func FetchCorpusSnapshot(ctx context.Context, cl *http.Client, base, token, workerID, campaignID string, itemID int64) ([]map[string]any, string, error) {
 	body, _ := json.Marshal(map[string]any{
 		"worker_id":   workerID,
 		"campaign_id": campaignID,
 		"item_id":     itemID,
 	})
+	var seeds []map[string]any
+	var sha string
+	err := poolsync.RetryTransient(ctx, func() error {
+		s, h, callErr := fetchCorpusSnapshotOnce(ctx, cl, base, token, body)
+		if callErr != nil {
+			return callErr
+		}
+		seeds, sha = s, h
+		return nil
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	return seeds, sha, nil
+}
+
+func fetchCorpusSnapshotOnce(ctx context.Context, cl *http.Client, base, token string, body []byte) ([]map[string]any, string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(base, "/")+"/api/fuzz/work/corpus_snapshot", bytes.NewReader(body))
 	if err != nil {
 		return nil, "", err
@@ -81,7 +101,7 @@ func FetchCorpusSnapshot(ctx context.Context, cl *http.Client, base, token, work
 	_ = json.Unmarshal(raw, &wrap)
 	if res.StatusCode != http.StatusOK || !wrap.OK {
 		if wrap.Reason != "" {
-			return nil, "", fmt.Errorf("%s", wrap.Reason)
+			return nil, "", fmt.Errorf("HTTP %d %s", res.StatusCode, wrap.Reason)
 		}
 		return nil, "", fmt.Errorf("HTTP %d %s", res.StatusCode, shortHTTPBody(res.StatusCode, raw))
 	}

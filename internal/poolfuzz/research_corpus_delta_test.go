@@ -2,12 +2,14 @@ package poolfuzz
 
 import (
 	"context"
+	"encoding/hex"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"hackme/internal/fuzzengine"
+	"hackme/internal/hunt"
 	"hackme/internal/store"
 )
 
@@ -280,9 +282,98 @@ func TestAcceptResearchCorpusDeltaRejectsUnauthedForeignLease(t *testing.T) {
 	}
 }
 
+func TestAcceptResearchCorpusDeltaNextClaimKeepsSeed(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HACKME_REPO_ROOT", dir)
+	t.Setenv("HACKME_POOL_HUNT_REPLAY", "0")
+	t.Setenv("HACKME_POOL_HUNT_REPLAY_ASYNC", "0")
+	prevResolve := resolveCoverageHarness
+	prevExec := huntEngineSeedExec
+	t.Cleanup(func() {
+		resolveCoverageHarness = prevResolve
+		huntEngineSeedExec = prevExec
+	})
+	resolveCoverageHarness = func(context.Context, string, string, ...hunt.CoverageHarnessOpts) (string, bool, error) {
+		return "", false, nil
+	}
+	huntEngineSeedExec = func(context.Context, *Service, string, map[string]any, []byte) (bool, bool, string, error) {
+		return false, false, "", nil
+	}
+
+	db, err := store.Open(filepath.Join(dir, "claim-wire.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	svc := &Service{DB: db}
+	ctx := context.Background()
+
+	// Fill the wire budget with boot starters plus unique fillers. A first-fit
+	// trim of this list drops anything appended after it.
+	existing := make([]any, 0, 110)
+	existing = append(existing, hex.EncodeToString([]byte("{}")))
+	for i := 0; i < 109; i++ {
+		existing = append(existing, hex.EncodeToString([]byte{0xB0, byte(i), byte(i >> 8), 0x11}))
+	}
+	fresh := []byte("feature-unit-from-miner-a")
+	want := hex.EncodeToString(fresh)
+	const hash = "c0ffee00c0ffee00c0ffee00c0ffee00c0ffee00c0ffee00c0ffee00c0ffee00"
+	cfg := map[string]any{
+		"pool_distributed":     true,
+		"work_kind":            "hunt_shard",
+		"campaign_type":        "hunt",
+		"upstream_target_id":   "jsmn",
+		"harness_hash":         hash,
+		"iterations_per_shard": 2,
+		"max_input_bytes":      256,
+		"depth_tier":           "oss_cve",
+		"check_semantics":      "native_crash",
+		"seed_byte_corpus":     existing,
+	}
+	hunt.ApplyPoolGuidedDefaults(cfg, "jsmn")
+	id := "research-delta-claim-wire"
+	if err := svc.RegisterCampaign(ctx, Campaign{ID: id, CampaignType: "hunt", Status: "running", BudgetRuns: 2, Config: cfg}); err != nil {
+		t.Fatal(err)
+	}
+	hunt.SetHarnessObjectDir("")
+	t.Cleanup(func() { hunt.SetHarnessObjectDir("") })
+	if err := hunt.PutHarnessArtifact(ctx, db, hash, []byte("claim-wire-harness"), "jsmn"); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.EnsureWorkItems(ctx, id, time.Now().Unix()); err != nil {
+		t.Fatal(err)
+	}
+	var itemID int64
+	if err := db.QueryRowContext(ctx, `SELECT id FROM fuzz_work_items WHERE campaign_id=? ORDER BY id LIMIT 1`, id).Scan(&itemID); err != nil {
+		t.Fatal(err)
+	}
+	leaseWorkItemForTest(t, ctx, db, id, itemID, "miner-a")
+	out, err := svc.AcceptResearchCorpusDelta(ctx, ResearchCorpusDeltaRequest{
+		WorkerID: "miner-a", CampaignID: id, ItemID: itemID, Namespace: "research:jsmn",
+		Seeds: []fuzzengine.PoolCorpusSeed{{InputBytes: fresh, Energy: 9}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.SeedsAccepted != 1 {
+		t.Fatalf("accepted=%d", out.SeedsAccepted)
+	}
+	w, ok, err := svc.Claim(ctx, "miner-b", time.Now().Unix())
+	if err != nil || !ok {
+		t.Fatalf("next claim ok=%v err=%v", ok, err)
+	}
+	if len(w.SeedByteCorpus) == 0 || len(w.SeedByteCorpus) > defaultSeedCorpusWireMaxItems {
+		t.Fatalf("claim trim len=%d", len(w.SeedByteCorpus))
+	}
+	if w.SeedByteCorpus[0] != want {
+		t.Fatalf("just-accepted seed absent from claim trim head: first=%v want=%s len=%d", w.SeedByteCorpus[0], want, len(w.SeedByteCorpus))
+	}
+}
+
 func researchDeltaHuntCamp(t *testing.T) (*Service, string, int64) {
 	t.Helper()
 	dir := t.TempDir()
+	t.Setenv("HACKME_REPO_ROOT", dir)
 	db, err := store.Open(filepath.Join(dir, "research-delta.db"))
 	if err != nil {
 		t.Fatal(err)
@@ -290,6 +381,20 @@ func researchDeltaHuntCamp(t *testing.T) (*Service, string, int64) {
 	t.Cleanup(func() { _ = db.Close() })
 	svc := &Service{DB: db}
 	ctx := context.Background()
+	// Corpus-delta unit tests must not compile afl-cc / replay the catalog harness.
+	// Crash credit goes through researchCrashReplayer; edge prove is a separate path.
+	prevResolve := resolveCoverageHarness
+	prevExec := huntEngineSeedExec
+	t.Cleanup(func() {
+		resolveCoverageHarness = prevResolve
+		huntEngineSeedExec = prevExec
+	})
+	resolveCoverageHarness = func(context.Context, string, string, ...hunt.CoverageHarnessOpts) (string, bool, error) {
+		return "", false, nil
+	}
+	huntEngineSeedExec = func(context.Context, *Service, string, map[string]any, []byte) (bool, bool, string, error) {
+		return false, false, "", nil
+	}
 	cfg := map[string]any{
 		"pool_distributed":     true,
 		"work_kind":            "hunt_shard",

@@ -19,6 +19,7 @@ import (
 	"hackme/internal/hunt"
 	"hackme/internal/netutil"
 	"hackme/internal/poolfuzz"
+	"hackme/internal/poolsync"
 )
 
 // ResearchSlotConfig is the hybrid worker-local libFuzzer persist window (Stage D).
@@ -328,7 +329,23 @@ func uploadResearchCorpusDelta(ctx context.Context, cl *http.Client, base, token
 	}
 	reqCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
-	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, base+"/api/fuzz/work/corpus_delta", bytes.NewReader(body))
+	var acceptedN, findingsN int
+	err = poolsync.RetryTransient(reqCtx, func() error {
+		n, f, callErr := postCorpusDelta(reqCtx, cl, base, token, body)
+		if callErr != nil {
+			return callErr
+		}
+		acceptedN, findingsN = n, f
+		return nil
+	})
+	if err != nil {
+		return 0, 0, err
+	}
+	return acceptedN, findingsN, nil
+}
+
+func postCorpusDelta(ctx context.Context, cl *http.Client, base, token string, body []byte) (accepted, findings int, err error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+"/api/fuzz/work/corpus_delta", bytes.NewReader(body))
 	if err != nil {
 		return 0, 0, err
 	}

@@ -2,7 +2,9 @@ package hunt
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -29,6 +31,13 @@ type EngineShardResult struct {
 	SkippedReason      string
 	Err                string
 	Ran                bool
+	// Execs is libFuzzer stat::number_of_executed_units for this wall
+	// (the fork parent's running sum when -fork>1). Zero means the process
+	// did not run inputs. It is logged only and does not change pay.
+	Execs int
+	// Subprocess is true when the shard drove a stdin harness instead of an
+	// in-process LLVMFuzzerTestOneInput binary (much lower exec/s).
+	Subprocess bool
 }
 
 // EngineShardOpts configures a coverage-guided Hunt shard (lease = wall seconds).
@@ -139,14 +148,15 @@ func runLibFuzzerEngineShard(ctx context.Context, repoRoot, targetID string, wal
 	out.CorpusCollectRoots = []string{corpusDir}
 	before, _ := countCorpusFilesUnder(corpusDir, corpusDir)
 	out.CorpusBefore = before
-	seeded := 0
-	for i, b := range opts.SeedFiles {
-		if len(b) == 0 || len(b) > 65536 {
-			continue
-		}
-		if err := writeFileBeneath(corpusDir, filepath.Join(corpusDir, fmt.Sprintf("claim-seed-%d.bin", i)), b, 0o600); err == nil {
-			seeded++
-		}
+	// Content-addressed names so a later shard does not depend on slice index, and
+	// so seed_byte_corpus actually occupies files libFuzzer will load (corpus=0
+	// when the claim seeds never landed and only "{}" boot starters remained).
+	seeded, seedErr := InstallEngineSeedFiles(corpusDir, opts.SeedFiles)
+	if seedErr != nil && out.Err == "" {
+		out.Err = seedErr.Error()
+	}
+	if len(opts.SeedFiles) > 0 && seeded == 0 && out.Err == "" {
+		out.Err = "hunt: claim seeds produced no corpus files"
 	}
 	// Defense: empty claim seeds → pull L2 pack cache / tiny boots so TLV targets are not
 	// stuck with only "{}" starters on miners that never saw seed_byte_corpus.
@@ -156,11 +166,12 @@ func runLibFuzzerEngineShard(ctx context.Context, repoRoot, targetID string, wal
 		}
 	}
 	sess := LibFuzzerSessionOpts{
-		RepoRoot:  repoRoot,
-		TargetID:  targetID,
-		WallSec:   wall,
-		Persist:   true,
-		DictBytes: opts.DictBytes,
+		RepoRoot:        repoRoot,
+		TargetID:        targetID,
+		WallSec:         wall,
+		Persist:         true,
+		DictBytes:       opts.DictBytes,
+		SkipGenericBoot: len(opts.SeedFiles) > 0,
 	}
 	// Inventory with in-process LLVMFuzzerTestOneInput (e.g. heavywire fuzz_parse.c).
 	if pin := strings.TrimSpace(opts.PinPath); pin != "" {
@@ -180,12 +191,23 @@ func runLibFuzzerEngineShard(ctx context.Context, repoRoot, targetID string, wal
 				out.SkippedReason = "harness"
 				return out
 			}
-			sess.StdinBin = stdinPath
+			// A published ELF that already links libFuzzer (LLVMFuzzerRunDriver)
+			// runs in-process. Stdin-only ASAN binaries stay on the exec driver.
+			if PublishedHarnessIsLibFuzzer(stdinPath) {
+				sess.FuzzerBin = stdinPath
+				out.Subprocess = false
+			} else {
+				sess.StdinBin = stdinPath
+				out.Subprocess = true
+			}
 		}
 	}
 	started := time.Now()
 	n, err := RunLibFuzzerSession(ctx, sess)
 	_ = n
+	// Stats are written even when the session returns an error after the wall.
+	// A missing file stays 0 so a shard that never executed is visible.
+	out.Execs = readLibFuzzerSessionExecs(corpusDir)
 	elapsed := time.Since(started)
 	after, _ := countCorpusFilesUnder(corpusDir, corpusDir)
 	out.CorpusAfter = after
@@ -200,7 +222,7 @@ func runLibFuzzerEngineShard(ctx context.Context, repoRoot, targetID string, wal
 	}
 	// Soft-skip only on preflight (no clang/build/target/harness) — never after a wall was spent.
 	// Empty corpus after LF ran → CLEAN floor submit + re-seed boot starters (avoid lease churn).
-	if after == 0 {
+	if after == 0 && len(opts.SeedFiles) == 0 {
 		_ = seedPersistentCorpus(repoRoot, targetID, corpusDir)
 		if after2, _ := countCorpusFilesUnder(corpusDir, corpusDir); after2 > after {
 			out.CorpusAfter = after2
@@ -214,8 +236,10 @@ func runLibFuzzerEngineShard(ctx context.Context, repoRoot, targetID string, wal
 	}
 	// Must spend most of the lease wall — claim seeds alone must not unlock CLEAN.
 	minWall := time.Duration(wall) * time.Second * 3 / 4
-	if minWall < time.Duration(MinEngineLeaseSec)*time.Second*3/4 {
-		minWall = time.Duration(MinEngineLeaseSec) * time.Second * 3 / 4
+	// Match coordinator checkHuntEngineWallFloor: floor is a full MinEngineLeaseSec,
+	// not 75% of that minimum (workers were accepting ~11s walls the hub rejects).
+	if minWall < time.Duration(MinEngineLeaseSec)*time.Second {
+		minWall = time.Duration(MinEngineLeaseSec) * time.Second
 	}
 	if elapsed < minWall && len(out.CrashFiles) == 0 {
 		out.SkippedReason = "lf_wall_short"
@@ -229,6 +253,37 @@ func runLibFuzzerEngineShard(ctx context.Context, repoRoot, targetID string, wal
 	}
 	out.Ran = true
 	return out
+}
+
+// InstallEngineSeedFiles writes claim/pack seeds into a libFuzzer corpus directory.
+// Names are content-addressed so index order cannot drop a seed on a later shard,
+// and countCorpusFiles sees them (dotfiles and empty files do not count).
+func InstallEngineSeedFiles(corpusDir string, seeds [][]byte) (int, error) {
+	if strings.TrimSpace(corpusDir) == "" {
+		return 0, fmt.Errorf("hunt: empty corpus dir")
+	}
+	if err := os.MkdirAll(corpusDir, 0o755); err != nil {
+		return 0, err
+	}
+	seen := map[string]struct{}{}
+	n := 0
+	for _, b := range seeds {
+		if len(b) == 0 || len(b) > 65536 {
+			continue
+		}
+		sum := sha256.Sum256(b)
+		key := hex.EncodeToString(sum[:])
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		name := "claim-seed-" + hex.EncodeToString(sum[:8]) + ".bin"
+		if err := writeFileBeneath(corpusDir, filepath.Join(corpusDir, name), b, 0o600); err != nil {
+			return n, err
+		}
+		n++
+	}
+	return n, nil
 }
 
 func isLibFuzzerPreflightErr(err error) bool {
@@ -324,7 +379,7 @@ func runAFLPPEngineShard(ctx context.Context, repoRoot, targetID string, wall in
 	env := append(os.Environ(),
 		"AFL_SKIP_CPUFREQ=1",
 		"AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1",
-		"ASAN_OPTIONS=detect_leaks=0:abort_on_error=1:allocator_may_return_null=1",
+		"ASAN_OPTIONS="+LibFuzzerASANOptions,
 		"UBSAN_OPTIONS=halt_on_error=1",
 	)
 	args := []string{"-i", inDir, "-o", outDir, "-V", fmt.Sprint(wall)}
@@ -392,8 +447,8 @@ func runAFLPPEngineShard(ctx context.Context, repoRoot, targetID string, wall in
 	// the lease wall was mostly spent, or we have crashes / real queue imports.
 	// Early "exit status 1" with empty queue must soft_skip — Deep was lying Ran=true.
 	minWall := time.Duration(wall) * time.Second * 3 / 4
-	if minWall < time.Duration(MinEngineLeaseSec)*time.Second*3/4 {
-		minWall = time.Duration(MinEngineLeaseSec) * time.Second * 3 / 4
+	if minWall < time.Duration(MinEngineLeaseSec)*time.Second {
+		minWall = time.Duration(MinEngineLeaseSec) * time.Second
 	}
 	produced := len(out.CrashFiles) > 0 || imported > 0 || out.NewCorpus > 0
 	if elapsed < minWall && !produced {

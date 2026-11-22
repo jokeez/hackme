@@ -1,13 +1,204 @@
 package hunt
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+func TestLibFuzzerASANOptionsCrashPath(t *testing.T) {
+	if !strings.Contains(LibFuzzerASANOptions, "abort_on_error=1") || !strings.Contains(LibFuzzerASANOptions, "symbolize=0") {
+		t.Fatalf("asan=%s", LibFuzzerASANOptions)
+	}
+	if strings.Contains(LibFuzzerASANOptions, "detect_leaks=1") {
+		t.Fatalf("leak detection hangs short pool walls: %s", LibFuzzerASANOptions)
+	}
+}
+
+func TestLibFuzzerSessionArgsDeeperOnLongWall(t *testing.T) {
+	short := libFuzzerSessionArgs("/tmp/c", "/tmp/c/crash-", 90, "", 1)
+	long := libFuzzerSessionArgs("/tmp/c", "/tmp/c/crash-", 180, "/tmp/c/libfuzzer.dict", 2)
+	joinedShort := strings.Join(short, " ")
+	joinedLong := strings.Join(long, " ")
+	if !strings.Contains(joinedShort, "-mutate_depth=8") || !strings.Contains(joinedShort, "-entropic=1") || !strings.Contains(joinedShort, "-use_value_profile=1") || !strings.Contains(joinedShort, "-len_control=0") || !strings.Contains(joinedShort, "-detect_leaks=0") || !strings.Contains(joinedShort, "-timeout=5") || !strings.Contains(joinedShort, "-ignore_crashes=1") || !strings.Contains(joinedShort, "-reduce_inputs=0") {
+		t.Fatalf("short args=%v", short)
+	}
+	if strings.Contains(joinedShort, "-fork=") {
+		t.Fatalf("short wall must stay single-process: %v", short)
+	}
+	if !strings.Contains(joinedLong, "-mutate_depth=16") || !strings.Contains(joinedLong, "-dict=/tmp/c/libfuzzer.dict") || !strings.Contains(joinedLong, "-fork=2") || !strings.Contains(joinedLong, "-rss_limit_mb=1024") || !strings.Contains(joinedLong, "-timeout=10") || !strings.Contains(joinedLong, "-reduce_inputs=0") {
+		t.Fatalf("long args=%v", long)
+	}
+	heavy := strings.Join(libFuzzerSessionArgs("/tmp/c", "/tmp/c/crash-", 300, "", 1), " ")
+	if !strings.Contains(heavy, "-mutate_depth=20") || !strings.Contains(heavy, "-timeout=10") || !strings.Contains(heavy, "-reduce_inputs=0") {
+		t.Fatalf("heavy=%s", heavy)
+	}
+	heavyFork := strings.Join(libFuzzerSessionArgs("/tmp/c", "/tmp/c/crash-", 300, "", 3), " ")
+	if !strings.Contains(heavyFork, "-fork=3") || !strings.Contains(heavyFork, "-reduce_inputs=0") || !strings.Contains(heavyFork, "-rss_limit_mb=768") {
+		t.Fatalf("in-process heavy fork=%s", heavyFork)
+	}
+	leaseEdge := strings.Join(libFuzzerSessionArgs("/tmp/c", "/tmp/c/crash-", 600, "", 1), " ")
+	if !strings.Contains(leaseEdge, "-reduce_inputs=0") || !strings.Contains(leaseEdge, "-len_control=0") {
+		t.Fatalf("600s lease=%s", leaseEdge)
+	}
+	overnight := strings.Join(libFuzzerSessionArgs("/tmp/c", "/tmp/c/crash-", 3600, "", 1), " ")
+	if strings.Contains(overnight, "-len_control=0") || strings.Contains(overnight, "-ignore_crashes=1") || strings.Contains(overnight, "-reduce_inputs=0") || !strings.Contains(overnight, "-timeout=25") {
+		t.Fatalf("overnight should keep length ramp, input reduction, and stop on crash: %s", overnight)
+	}
+	if libFuzzerTuneForWall(120) != 12 {
+		t.Fatalf("mid depth=%d", libFuzzerTuneForWall(120))
+	}
+}
+
+func TestLibFuzzerForkJobs(t *testing.T) {
+	t.Setenv("HACKME_HUNT_LF_FORK", "")
+	if libFuzzerForkJobs(90) != 1 || libFuzzerForkJobs(180) != 2 || libFuzzerForkJobs(300) != 3 {
+		t.Fatalf("auto fork 90=%d 180=%d 300=%d", libFuzzerForkJobs(90), libFuzzerForkJobs(180), libFuzzerForkJobs(300))
+	}
+	t.Setenv("HACKME_HUNT_LF_FORK", "4")
+	if libFuzzerForkJobs(30) != 4 {
+		t.Fatalf("override=%d", libFuzzerForkJobs(30))
+	}
+	t.Setenv("HACKME_HUNT_LF_FORK", "99")
+	if libFuzzerForkJobs(30) != 4 {
+		t.Fatalf("cap=%d", libFuzzerForkJobs(30))
+	}
+	t.Setenv("HACKME_HUNT_LF_FORK", "0")
+	if libFuzzerForkJobs(180) != 1 {
+		t.Fatalf("zero=%d", libFuzzerForkJobs(180))
+	}
+}
+
+func TestLibFuzzerSessionForkJobsStdinCap(t *testing.T) {
+	t.Setenv("HACKME_HUNT_LF_FORK", "")
+	if libFuzzerSessionForkJobs(300, false) != 3 || libFuzzerSessionForkJobs(180, false) != 2 || libFuzzerSessionForkJobs(90, false) != 1 {
+		t.Fatalf("in-process 300=%d 180=%d 90=%d", libFuzzerSessionForkJobs(300, false), libFuzzerSessionForkJobs(180, false), libFuzzerSessionForkJobs(90, false))
+	}
+	if libFuzzerSessionForkJobs(300, true) != 2 || libFuzzerSessionForkJobs(180, true) != 2 || libFuzzerSessionForkJobs(90, true) != 1 {
+		t.Fatalf("stdin 300=%d 180=%d 90=%d", libFuzzerSessionForkJobs(300, true), libFuzzerSessionForkJobs(180, true), libFuzzerSessionForkJobs(90, true))
+	}
+	t.Setenv("HACKME_HUNT_LF_FORK", "4")
+	if libFuzzerSessionForkJobs(300, false) != 4 {
+		t.Fatalf("in-process override=%d", libFuzzerSessionForkJobs(300, false))
+	}
+	if libFuzzerSessionForkJobs(300, true) != 2 {
+		t.Fatalf("stdin override must stay capped at 2, got %d", libFuzzerSessionForkJobs(300, true))
+	}
+	t.Setenv("HACKME_HUNT_LF_FORK", "1")
+	if libFuzzerSessionForkJobs(300, true) != 1 {
+		t.Fatalf("stdin explicit 1=%d", libFuzzerSessionForkJobs(300, true))
+	}
+}
+
+func TestLibFuzzerExecutedUnits(t *testing.T) {
+	stat := "INFO: seed\nstat::number_of_executed_units: 17\nstat::new_units_added: 2\n"
+	if got := libFuzzerExecutedUnits(stat); got != 17 {
+		t.Fatalf("stat=%d", got)
+	}
+	if got := libFuzzerExecutedUnits("stat::number_of_executed_units: 0\n"); got != 0 {
+		t.Fatalf("explicit zero=%d", got)
+	}
+	if got := libFuzzerExecutedUnits("no stats\n#12\tpulse cov: 1 ft: 1\n"); got != 0 {
+		t.Fatalf("pulse line is not the fork sum, got %d", got)
+	}
+	// Two job logs concatenated: each prints its own final stat.
+	summed := "stat::number_of_executed_units: 10\nstat::number_of_executed_units: 7\n"
+	if got := libFuzzerExecutedUnits(summed); got != 17 {
+		t.Fatalf("sum=%d", got)
+	}
+	// Fork parent reprints a cumulative sum. Later lines are larger; do not add them.
+	fork := "#10: cov: 1 ft: 2 corp: 1 exec/s: 5 oom/timeout/crash: 0/0/0 time: 1s job: 0 dft_time: 0\n" +
+		"#40: cov: 3 ft: 4 corp: 2 exec/s: 8 oom/timeout/crash: 0/0/0 time: 2s job: 1 dft_time: 0\n"
+	if got := libFuzzerExecutedUnits(fork); got != 40 {
+		t.Fatalf("fork aggregate=%d", got)
+	}
+	both := "stat::number_of_executed_units: 9\n#100: cov: 1 ft: 1 corp: 1 exec/s: 1 oom/timeout/crash: 0/0/0 time: 1s job: 0 dft_time: 0\n"
+	if got := libFuzzerExecutedUnits(both); got != 100 {
+		t.Fatalf("fork sum must win over a partial stat, got %d", got)
+	}
+	if libFuzzerExecutedUnits("") != 0 {
+		t.Fatal("empty log must be 0")
+	}
+}
+
+func TestLibFuzzerSessionExecsRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	stats := filepath.Join(dir, ".hunt-run", "session_stats.json")
+	if err := writeLibFuzzerSessionStats(stats, "t", 180, 1, 1, "stat::number_of_executed_units: 0\n"); err != nil {
+		t.Fatal(err)
+	}
+	if got := readLibFuzzerSessionExecs(dir); got != 0 {
+		t.Fatalf("zero execs must round-trip, got %d", got)
+	}
+	if err := writeLibFuzzerSessionStats(stats, "t", 300, 2, 4, "#2500: cov: 9 ft: 12 corp: 4 exec/s: 400 oom/timeout/crash: 0/0/0 time: 8s job: 2 dft_time: 0\n"); err != nil {
+		t.Fatal(err)
+	}
+	if got := readLibFuzzerSessionExecs(dir); got != 2500 {
+		t.Fatalf("fork execs=%d", got)
+	}
+	if got := readLibFuzzerSessionExecs(t.TempDir()); got != 0 {
+		t.Fatalf("missing stats=%d", got)
+	}
+}
+
+func TestPublishedHarnessIsLibFuzzer(t *testing.T) {
+	dir := t.TempDir()
+	stdin := filepath.Join(dir, "stdin.bin")
+	if err := os.WriteFile(stdin, []byte("ASAN stdin target no driver"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if PublishedHarnessIsLibFuzzer(stdin) {
+		t.Fatal("stdin harness must stay on the exec driver")
+	}
+	stub := filepath.Join(dir, "stub.bin")
+	if err := os.WriteFile(stub, []byte("LLVMFuzzerRunDriver HACKME_LF_STDIN_BIN"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if PublishedHarnessIsLibFuzzer(stub) {
+		t.Fatal("subprocess driver must not be treated as the target")
+	}
+	real := filepath.Join(dir, "lf.bin")
+	if err := os.WriteFile(real, []byte("ELF LLVMFuzzerRunDriver fuzzer main"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if !PublishedHarnessIsLibFuzzer(real) {
+		t.Fatal("linked libFuzzer binary should run in-process")
+	}
+}
+
+func TestInstallEngineSeedFilesCounted(t *testing.T) {
+	dir := t.TempDir()
+	seeds := [][]byte{[]byte("HWIR-wrap"), []byte("HWIR-wrap"), []byte{}, bytes.Repeat([]byte("A"), 70000)}
+	n, err := InstallEngineSeedFiles(dir, seeds)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("written=%d want 1 (dup + empty + oversize dropped)", n)
+	}
+	got, err := countCorpusFiles(dir)
+	if err != nil || got != 1 {
+		t.Fatalf("corpus files=%d err=%v", got, err)
+	}
+	ents, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var name string
+	for _, e := range ents {
+		if !e.IsDir() {
+			name = e.Name()
+		}
+	}
+	if !strings.HasPrefix(name, "claim-seed-") || !strings.HasSuffix(name, ".bin") {
+		t.Fatalf("name=%s", name)
+	}
+}
 
 func TestDedicatedLibFuzzerHarness(t *testing.T) {
 	root := RepoRoot()

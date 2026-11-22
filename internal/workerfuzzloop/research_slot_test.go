@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"hackme/internal/fuzzengine"
 )
 
 func TestResearchSlotDefaultOn(t *testing.T) {
@@ -172,6 +174,68 @@ func TestMaybeRunResearchSlotUploadsDelta(t *testing.T) {
 	}
 	if gotNS != "research:jsmn" || gotSeeds != 1 || gotCrashes != 1 {
 		t.Fatalf("upload ns=%q seeds=%d crashes=%d", gotNS, gotSeeds, gotCrashes)
+	}
+}
+
+func TestUploadCorpusDeltaRetriesTransient(t *testing.T) {
+	var n int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n++
+		if r.Header.Get("X-Hackme-Admin-Token") != "tok" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if n == 1 {
+			http.Error(w, "bad gateway", http.StatusBadGateway)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "seeds_accepted": 1, "findings": 0})
+	}))
+	t.Cleanup(srv.Close)
+	acc, findings, err := uploadResearchCorpusDelta(context.Background(), srv.Client(), srv.URL, "tok", "w", "m", "c", 1, "research:jsmn",
+		[]fuzzengine.PoolCorpusSeed{{InputBytes: []byte("unit"), Energy: 2}}, nil, "libfuzzer", "t")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if acc != 1 || findings != 0 || n != 2 {
+		t.Fatalf("acc=%d findings=%d attempts=%d", acc, findings, n)
+	}
+}
+
+func TestUploadCorpusDeltaDoesNotRetryAuth(t *testing.T) {
+	var n int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n++
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+	}))
+	t.Cleanup(srv.Close)
+	_, _, err := uploadResearchCorpusDelta(context.Background(), srv.Client(), srv.URL, "tok", "w", "m", "c", 1, "research:jsmn",
+		[]fuzzengine.PoolCorpusSeed{{InputBytes: []byte("unit")}}, nil, "", "")
+	if err == nil || n != 1 {
+		t.Fatalf("err=%v attempts=%d", err, n)
+	}
+}
+
+func TestFetchCorpusSnapshotRetriesTransient(t *testing.T) {
+	var n int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n++
+		if n == 1 {
+			http.Error(w, "unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"ok": true, "corpus_snapshot_sha256": "abc",
+			"corpus_seeds": []map[string]any{{"input_bytes_hex": "61"}},
+		})
+	}))
+	t.Cleanup(srv.Close)
+	seeds, sha, err := FetchCorpusSnapshot(context.Background(), srv.Client(), srv.URL, "tok", "w", "c", 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sha != "abc" || len(seeds) != 1 || n != 2 {
+		t.Fatalf("sha=%q seeds=%d attempts=%d", sha, len(seeds), n)
 	}
 }
 

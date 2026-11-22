@@ -52,6 +52,20 @@ func TestCorpusSeedBytes(t *testing.T) {
 	}
 }
 
+func TestCollectEngineDeltaSkipsBootStarters(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "boot.bin"), []byte("{}"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "real.bin"), []byte(`{"a":1}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	seeds, _ := collectEngineDelta(hunt.EngineShardResult{CorpusDir: dir}, nil, 32)
+	if len(seeds) != 1 || string(seeds[0].InputBytes) != `{"a":1}` {
+		t.Fatalf("boot starter must not take a delta slot: %#v", seeds)
+	}
+}
+
 func TestCollectEngineDeltaSkipsPreLeaseFiles(t *testing.T) {
 	dir := t.TempDir()
 	old := []byte("old-seed")

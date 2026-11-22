@@ -1,9 +1,11 @@
 package hunt
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestMergeLibFuzzerSeedCorpus(t *testing.T) {
@@ -52,11 +54,90 @@ func TestRankLibFuzzerSeedsCaps(t *testing.T) {
 	}
 }
 
+func TestLoadLibFuzzerSeedFilesPrefersNewestWhenCapped(t *testing.T) {
+	dir := t.TempDir()
+	oldPath := filepath.Join(dir, "old.bin")
+	newPath := filepath.Join(dir, "new.bin")
+	if err := os.WriteFile(oldPath, []byte("old-seed-bytes"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(newPath, []byte("new-feature-unit"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	past := time.Now().Add(-time.Hour)
+	if err := os.Chtimes(oldPath, past, past); err != nil {
+		t.Fatal(err)
+	}
+	got, err := LoadLibFuzzerSeedFiles(dir, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || string(got[0]) != "new-feature-unit" {
+		t.Fatalf("newest unit dropped by load cap: %#v", got)
+	}
+}
+
+func TestLoadLibFuzzerSeedFilesKeepsDistinctLongPrefix(t *testing.T) {
+	dir := t.TempDir()
+	prefix := bytes.Repeat([]byte("A"), 32)
+	old := append(append([]byte{}, prefix...), []byte("-old")...)
+	fresh := append(append([]byte{}, prefix...), []byte("-fresh")...)
+	if err := os.WriteFile(filepath.Join(dir, "old.bin"), old, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "fresh.bin"), fresh, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := LoadLibFuzzerSeedFiles(dir, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("shared 32-byte prefix dropped a distinct seed: %d", len(got))
+	}
+}
+
+func TestRankLibFuzzerSeedsPinsFreshAheadOfBoots(t *testing.T) {
+	feature := []byte("feature-unit-unique-coverage")
+	seeds := make([][]byte, 0, 90)
+	for i := 0; i < 10; i++ {
+		seeds = append(seeds, []byte("{}"))
+	}
+	seeds = append(seeds, feature)
+	for i := 0; i < 80; i++ {
+		seeds = append(seeds, []byte{byte(i + 1), byte(i ^ 0xff)})
+	}
+	got := RankLibFuzzerSeeds(seeds, 8)
+	if len(got) != 8 {
+		t.Fatalf("cap: got %d", len(got))
+	}
+	found := false
+	for _, b := range got {
+		if string(b) == "{}" {
+			t.Fatalf("boot outranked the fresh unit: %#v", got)
+		}
+		if string(b) == string(feature) {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("rank cap dropped the fresh unit: %#v", got)
+	}
+}
+
 func TestApplyHuntPowerScheduling(t *testing.T) {
 	cfg := map[string]any{"power_mut_cap": 2}
 	ApplyHuntPowerScheduling(cfg, "hunt_standard")
 	if cfg["power_mut_cap"] != 16 {
 		t.Fatalf("cap=%v", cfg["power_mut_cap"])
+	}
+	if cfg["havoc_deep_v210"] != true {
+		t.Fatalf("standard v210=%v", cfg["havoc_deep_v210"])
+	}
+	lite := map[string]any{"power_mut_cap": 2}
+	ApplyHuntPowerScheduling(lite, "hunt_lite")
+	if _, ok := lite["havoc_deep_v210"]; ok {
+		t.Fatalf("lite must not force v210, got %#v", lite["havoc_deep_v210"])
 	}
 	heavy := map[string]any{"power_mut_cap": 2}
 	ApplyHuntPowerScheduling(heavy, "hunt_heavy")

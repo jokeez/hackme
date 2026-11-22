@@ -9,10 +9,27 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"hackme/internal/fuzzengine"
 	"hackme/internal/netutil"
 )
+
+// RetryTransient runs op once, and on a single transient HTTP or network
+// failure waits the shared poolsync backoff and tries exactly once more.
+// Auth failures are not retried.
+func RetryTransient(ctx context.Context, op func() error) error {
+	err := op()
+	if err == nil || ctx.Err() != nil || !settleOutboxTransient(err) {
+		return err
+	}
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(retryBackoff(2)):
+	}
+	return op()
+}
 
 // UploadCorpusNamespace POSTs namespace corpus seeds to the coordinator pool API.
 func UploadCorpusNamespace(ctx context.Context, coordURL, token, namespace string, seeds []fuzzengine.PoolCorpusSeed) error {
@@ -47,6 +64,12 @@ func UploadCorpusNamespace(ctx context.Context, coordURL, token, namespace strin
 	if err != nil {
 		return err
 	}
+	return RetryTransient(ctx, func() error {
+		return uploadCorpusNamespaceOnce(ctx, coordURL, token, body)
+	})
+}
+
+func uploadCorpusNamespaceOnce(ctx context.Context, coordURL, token string, body []byte) error {
 	reqCtx, cancel := context.WithTimeout(ctx, timeoutDuration())
 	defer cancel()
 	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, coordURL+"/api/fuzz/pool/corpus/namespace", bytes.NewReader(body))
