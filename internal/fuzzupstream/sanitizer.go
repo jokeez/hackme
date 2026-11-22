@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"hackme/internal/fuzzengine"
 )
 
 // HarnessRunner optionally replaces bare exec. Hunt coordinator prove sets this
@@ -26,6 +28,9 @@ type SanitizerInfo struct {
 	Raw      string `json:"sanitizer_raw,omitempty"`
 	Label    string `json:"sanitizer_label,omitempty"`
 	Security bool   `json:"security"`
+	// PC is the module-relative failing instruction ("+0x..."), set for security
+	// ASAN reports. It is not an absolute address and not a filesystem path.
+	PC string `json:"pc,omitempty"`
 }
 
 // DefaultRunInputOpts returns global Hunt stdin exec defaults.
@@ -62,6 +67,9 @@ func ClassifySanitizer(blob string) SanitizerInfo {
 		return SanitizerInfo{}
 	}
 	info.Label = SanitizerDisplayLabel(info)
+	if info.Security {
+		info.PC = fuzzengine.FirstFailingModulePC(blob)
+	}
 	return info
 }
 
@@ -153,7 +161,10 @@ func asanOptions(detectLeaks bool) string {
 	if detectLeaks {
 		leak = "1"
 	}
-	return "detect_leaks=" + leak + ":halt_on_error=1:allocator_may_return_null=1:print_stacktrace=1"
+	// Match the libFuzzer worker. symbolize=1 invokes llvm-symbolizer and can
+	// hang the 8s prove wall after the ERROR line, which drops the crash.
+	// symbolize=0 still prints (module+0xoffset); abort_on_error makes ASAN exit.
+	return "detect_leaks=" + leak + ":abort_on_error=1:halt_on_error=1:allocator_may_return_null=1:symbolize=0:print_stacktrace=1"
 }
 
 // ClassifySanitizerOutput parses full harness output into class/subtype/tier.
@@ -323,7 +334,11 @@ func HuntTrap(info SanitizerInfo) string {
 		if sub == "" {
 			sub = "address-sanitizer"
 		}
-		return "hunt_crash:" + sub
+		trap := "hunt_crash:" + sub
+		if pc := fuzzengine.CanonicalModulePC(info.PC); pc != "" {
+			trap += " pc=" + pc
+		}
+		return trap
 	}
 	sub := info.Subtype
 	if sub == "" {
@@ -351,8 +366,17 @@ func ParseHuntTrap(trap string) (SanitizerInfo, bool) {
 		info.Label = SanitizerDisplayLabel(info)
 		return info, info.Class != ""
 	case strings.HasPrefix(trap, "hunt_crash:"):
-		sub := strings.TrimPrefix(trap, "hunt_crash:")
-		info := SanitizerInfo{Class: "asan", Subtype: sub, Security: true}
+		rest := strings.TrimPrefix(trap, "hunt_crash:")
+		sub := rest
+		pc := ""
+		if i := strings.IndexAny(rest, " \t\r\n"); i >= 0 {
+			sub = rest[:i]
+			tail := strings.TrimSpace(rest[i+1:])
+			if strings.HasPrefix(strings.ToLower(tail), "pc=") {
+				pc = fuzzengine.CanonicalModulePC(tail)
+			}
+		}
+		info := SanitizerInfo{Class: "asan", Subtype: sub, Security: true, PC: pc}
 		info.Label = SanitizerDisplayLabel(info)
 		return info, true
 	default:

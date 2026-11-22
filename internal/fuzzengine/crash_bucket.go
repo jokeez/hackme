@@ -13,6 +13,9 @@ var (
 	reSanThread  = regexp.MustCompile(`thread T\d+`)
 	reSanBuildID = regexp.MustCompile(`\(BuildId: [^)]+\)`)
 	reSanLineNum = regexp.MustCompile(`:\d+:`)
+	// symbolize=0 still prints (module+0xoffset). The offset is stable across
+	// ASLR; the absolute "at pc 0x..." and the temp path are not.
+	reModuleOff = regexp.MustCompile(`\(([^()\s]+)\+(0x[0-9a-fA-F]+)\)`)
 )
 
 // NormalizeSanitizerMsg extracts stable text from multi-line sanitizer output.
@@ -143,7 +146,122 @@ func frameSiteFromLine(line string) string {
 	return strings.ToLower(strings.TrimSpace(rest))
 }
 
+// CanonicalModulePC normalizes a module-relative offset to "+0x" + lowercase hex
+// with leading zeros stripped. Absolute addresses and empty input return "".
+func CanonicalModulePC(s string) string {
+	s = strings.TrimSpace(strings.ToLower(s))
+	s = strings.TrimPrefix(s, "pc=")
+	s = strings.TrimPrefix(s, "+")
+	if !strings.HasPrefix(s, "0x") {
+		return ""
+	}
+	h := strings.TrimPrefix(s, "0x")
+	if h == "" || len(h) > 16 {
+		return ""
+	}
+	for _, r := range h {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') {
+			return ""
+		}
+	}
+	h = strings.TrimLeft(h, "0")
+	if h == "" {
+		h = "0"
+	}
+	return "+0x" + h
+}
+
+// FirstFailingModulePC is the first target (module+offset) in a symbolize=0
+// ASAN report. SUMMARY wins when it names the target. Frames inside the ASAN
+// runtime, libc, or the dynamic linker are skipped so every memcpy overflow
+// does not share one interceptor offset. A runtime-only stack returns "".
+func FirstFailingModulePC(msg string) string {
+	if strings.TrimSpace(msg) == "" {
+		return ""
+	}
+	type hit struct {
+		pc      string
+		runtime bool
+		summary bool
+	}
+	var hits []hit
+	for _, line := range strings.Split(msg, "\n") {
+		summary := strings.HasPrefix(strings.TrimSpace(line), "SUMMARY:")
+		for _, m := range reModuleOff.FindAllStringSubmatch(line, -1) {
+			pc := CanonicalModulePC(m[2])
+			if pc == "" {
+				continue
+			}
+			hits = append(hits, hit{pc: pc, runtime: runtimeModule(m[1]), summary: summary})
+		}
+	}
+	for _, h := range hits {
+		if h.summary && !h.runtime {
+			return h.pc
+		}
+	}
+	for _, h := range hits {
+		if !h.runtime {
+			return h.pc
+		}
+	}
+	return ""
+}
+
+func runtimeModule(path string) bool {
+	base := path
+	if i := strings.LastIndexAny(path, `/\`); i >= 0 {
+		base = path[i+1:]
+	}
+	low := strings.ToLower(base)
+	if strings.Contains(low, "libclang_rt") || strings.Contains(low, "libasan") {
+		return true
+	}
+	for _, p := range []string{
+		"libc.so", "libc-", "ld-linux", "ld-musl", "linux-vdso",
+		"libdl.so", "libpthread.so", "libgcc_s", "libstdc++", "libm.so",
+	} {
+		if strings.Contains(low, p) {
+			return true
+		}
+	}
+	return false
+}
+
+// huntCrashPC reads "hunt_crash:<subtype> pc=+0x..." stamped by coordinator replay.
+func huntCrashPC(execErr string) (kind, pc string, ok bool) {
+	s := strings.TrimSpace(execErr)
+	if !strings.HasPrefix(s, "hunt_crash:") {
+		return "", "", false
+	}
+	if i := strings.IndexByte(s, '\n'); i >= 0 {
+		s = strings.TrimSpace(s[:i])
+	}
+	rest := strings.TrimPrefix(s, "hunt_crash:")
+	sub := rest
+	tail := ""
+	if i := strings.IndexAny(rest, " \t"); i >= 0 {
+		sub = rest[:i]
+		tail = strings.TrimSpace(rest[i+1:])
+	}
+	if !strings.HasPrefix(strings.ToLower(tail), "pc=") {
+		return "", "", false
+	}
+	pc = CanonicalModulePC(tail)
+	if pc == "" {
+		return "", "", false
+	}
+	kind = sanitizerKindFromLine(strings.ToLower(sub))
+	if kind == "" {
+		kind = "asan"
+	}
+	return kind, pc, true
+}
+
 // StableCrashBucket returns a dedup key for crash-class outcomes (one bug ≈ one bucket).
+// symbolize=0 reports key on error kind + module-relative PC, so two heap-buffer-overflows
+// at different instructions pay separately and the same instruction does not pay twice
+// when the PID, absolute address, or temp binary path changes.
 func StableCrashBucket(findingType, execErr string) string {
 	_ = findingType
 	if execErr == "" {
@@ -155,7 +273,13 @@ func StableCrashBucket(findingType, execErr string) string {
 			return "crash|silent|" + parts[1]
 		}
 	}
+	if kind, pc, ok := huntCrashPC(execErr); ok {
+		return stableCrashKey(kind, pc)
+	}
 	kind, site := parseSanitizerMsg(execErr)
+	if pc := FirstFailingModulePC(execErr); pc != "" && kind != "" {
+		return stableCrashKey(kind, pc)
+	}
 	if kind != "" {
 		if site == "" {
 			site = inferSiteFromMsg(execErr)

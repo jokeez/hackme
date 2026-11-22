@@ -124,6 +124,12 @@ func classifyHarnessRun(runCtx context.Context, runErr error, blob string) (cras
 		tail = strings.TrimSpace(blob)
 	}
 	if runErr != nil && runCtx.Err() == context.DeadlineExceeded {
+		// The ERROR line is already in the blob when the symbolizer (or anything
+		// after it) stalls. Keep a real ASAN abort. A hang with no security
+		// banner, including unsigned-overflow noise, stays a timeout.
+		if info := ClassifySanitizer(blob); info.Class == "asan" && info.Security && hasASANBanner(blob) {
+			return true, info, tail, nil
+		}
 		return false, SanitizerInfo{}, tail, fmt.Errorf("fuzzupstream: exec timeout: %w", runErr)
 	}
 	ee, isExit := runErr.(*exec.ExitError)

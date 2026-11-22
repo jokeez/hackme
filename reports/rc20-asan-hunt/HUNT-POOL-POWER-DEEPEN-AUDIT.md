@@ -228,3 +228,42 @@ Uncommitted work on `00aad9af` kept. No pull request.
 - `go test -count=1 -timeout 180s ./internal/workerfuzzloop/` → ok (2.4s).
 - `go test -count=1 -timeout 300s ./internal/poolfuzz/ -skip 'BuildInventoryRust'` → ok (187.5s).
 - `go test -count=1 -timeout 90s ./internal/poolsync/ -run 'TestUploadCorpusNamespace|TestSettleOutbox'` → ok (1.1s).
+
+---
+
+## ASAN product pass — 2026-11-22
+
+Branch `feat/hunt-pool-power-deepen` after `e4495256`. No pull request.
+
+### Options
+
+A. Deeper ASAN (`detect_stack_use_after_return=1`, maybe `alloc_dealloc_mismatch`) on heavy/standard only. Rejected. One shard already loses to a 12h local libFuzzer; the pool only wins as a concurrent in-process fleet that shares a corpus. A fake stack slows that fleet and can false-hang inside the 5/10/25s unit timeout. Lite would have to stay on the fast option set, so this is a split config for a rare class that a local run can turn on itself. Not this turn.
+
+B. Stable crash bucket under `symbolize=0`. Winner. `ignore_crashes=1` keeps writing crash artifacts, but the stored trap was only `hunt_crash:<subtype>`. `StableCrashBucket` then hashed that whole string, so every heap-buffer-overflow was one bucket and the second distinct bug was `CrashesRejected` (no finding, no pay). A symbolize=0 report has no `in function` site; the old fallback (`crash|heap_oob|heap`, `crash|stack_oob|memset`) would collapse the same way if the raw text were used. The absolute `at pc` and the temp path change every replay, so hashing those would double-pay.
+
+C. Informational UBSan stays unpaid. Rejected as already the rule. `TestEvalHuntSubmitInformationalUBSan` records a note (`sanitizer_informational`, severity `info`). Unsigned overflow is the same class (`Security: false`, severity `info`). Hunt bounty eligibility is critical/high only, and a research delta returns before `insertFinding` when the trap is not security. Pay amounts were not changed. A prove timeout that only printed unsigned-overflow noise is still not a crash.
+
+D. Replay dropping a real ASAN artifact. Real, and folded into B as the guard that makes the PC visible. Worker sessions already use `abort_on_error=1:symbolize=0`. Coordinator `asanOptions` did not: default `symbolize=1` calls `llvm-symbolizer`, and `classifyHarnessRun` treated the 8s deadline as a hard error even after `==ERROR: AddressSanitizer` was printed. The 1 MiB output cap is not the drop. Research replay already allows 65536 bytes. Showmap stays non-abort.
+
+### What shipped
+
+- A security ASAN bucket is error kind + the first target `(module+0xoffset)`. SUMMARY wins when it names the target. Frames in `libclang_rt` / `libasan` / libc / ld are skipped, so memcpy overflows do not share one interceptor offset. PID, absolute address, and temp path are ignored. The same offset is one pay; a different offset still pays. A symbolized report with no module offset still buckets by function (`crash|stack_oob|memset`).
+- Replay stamps `hunt_crash:<subtype> pc=+0x...`. `ParseHuntTrap` keeps the subtype, so heap-buffer-overflow / UAF stay critical and stack-buffer-overflow stays high. A trap with no `pc=` still hashes as before, so an already-paid subtype-only finding does not suddenly match every new PC.
+- Prove `ASAN_OPTIONS` now include `abort_on_error=1` and `symbolize=0` (leak bit still follows `hunt_detect_leaks`). If the wall fires after a security ASAN banner, the crash is kept. An unsigned-overflow hang is not.
+
+### Tests
+
+`ASAN_OPTIONS` unset. `TestBuildInventoryRustHarnessFuzzTarget` not run.
+
+- `go test -count=1 -timeout 90s ./internal/fuzzengine/ -run 'TestStableCrashBucket|TestStableFindingKey'` → ok (0.092s).
+- `go test -count=1 -timeout 90s ./internal/fuzzupstream/ -run 'TestClassify|TestFormat|TestAsan|TestDetect'` → ok (0.209s).
+- `go test -count=1 -timeout 180s ./internal/workerfuzzloop/` → ok (2.468s).
+- `go test -count=1 -timeout 180s ./internal/hunt/ -skip 'BuildInventoryRust'` → ok (21.463s).
+- `go test -count=1 -timeout 300s ./internal/poolfuzz/ -skip 'BuildInventoryRust'` → ok (112.062s). Includes `TestCrashFindingDifferentPCIsNovel` and the same-trap mutant test.
+
+### Residual gap
+
+- One 180–300s shard still does not beat a 12h local libFuzzer. The pool is better only while several in-process shards share the corpus.
+- A finding stored before this change has no PC. The next input of that same bug can pay once more; after that the PC key sticks. A rebuilt harness moves the offset, so the same bug can pay again. A report whose only offset is inside the ASAN runtime still falls back to kind or function name and can collapse.
+- Prove still honors `hunt_detect_leaks` (default on in campaign config). A fatal ASAN abort exits before LSan. UBSan prove still sets `print_stacktrace=1` while the worker uses `0`; a hung UBSan note is dropped and was not paid anyway.
+- `detect_stack_use_after_return` is still off, same as default local libFuzzer. This pass does not find a bug class that a default local run cannot.
