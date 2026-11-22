@@ -23,8 +23,9 @@ func TestPublicWASMMutateClampsWhileV210UsesNativeCeil(t *testing.T) {
 	if n := len(MutateBytes(base, 0, 1, 100000)); n > 4096 {
 		t.Fatalf("MutateBytes len=%d", n)
 	}
-	if n := len(MutateBytesForConfig(huge, 0, 1, 100000, nil)); n != 4096 {
-		t.Fatalf("MutateBytesForConfig len=%d want 4096", n)
+	v210 := map[string]any{"havoc_deep_v210": true}
+	if n := len(MutateBytesForConfig(huge, 0, 1, 100000, v210)); n != 4096 {
+		t.Fatalf("WASM MutateBytesForConfig honored v210: len=%d", n)
 	}
 	if n := len(MutateBytesWithDict(huge, 0, 1, 100000, nil)); n != 4096 {
 		t.Fatalf("MutateBytesWithDict len=%d want 4096", n)
@@ -32,7 +33,6 @@ func TestPublicWASMMutateClampsWhileV210UsesNativeCeil(t *testing.T) {
 	if n := len(MutateBytesForHunt(huge, 0, 1, 100000, nil, nil)); n != 4096 {
 		t.Fatalf("hunt without v210 len=%d want 4096", n)
 	}
-	v210 := map[string]any{"havoc_deep_v210": true}
 	got := MutateBytesForHunt(base, 0, 1, 100000, v210, nil)
 	if len(got) <= 4096 || len(got) > NativeHuntMutateCeil {
 		t.Fatalf("v210 5k seed len=%d want (4096, 65536]", len(got))

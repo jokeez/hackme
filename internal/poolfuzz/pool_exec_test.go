@@ -168,4 +168,18 @@ func TestStoredEngineLeaseStaysAndCoverageLeaseCaps(t *testing.T) {
 	if sec := leaseSecondsForConfig(unstamped); sec != 360 {
 		t.Fatalf("unstamped reclaim=%d want 360", sec)
 	}
+	// Campaign JSON reloads numbers as float64. A stored 90s wall stays 90s.
+	jsonStored := map[string]any{
+		"work_kind":        "hunt_shard",
+		"hunt_engine":      "libfuzzer",
+		"hunt_package":     "hunt_heavy",
+		"engine_lease_sec": float64(90),
+		"pool_distributed": true,
+	}
+	if got := hunt.EngineLeaseSecFromConfig(jsonStored, "libfuzzer"); got != 90 {
+		t.Fatalf("json stored wall=%d want 90", got)
+	}
+	if sec := leaseSecondsForConfig(jsonStored); sec != 210 {
+		t.Fatalf("json stored reclaim=%d want 210", sec)
+	}
 }

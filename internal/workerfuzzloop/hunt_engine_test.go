@@ -94,6 +94,33 @@ func TestCollectEngineDeltaSkipsBootStarters(t *testing.T) {
 	}
 }
 
+func TestCollectEngineDeltaDedupsFullSHA256(t *testing.T) {
+	dir := t.TempDir()
+	prefix := []byte("0123456789abcdef0123456789abcdef")
+	same := append(append([]byte{}, prefix...), []byte("-same")...)
+	other := append(append([]byte{}, prefix...), []byte("-other")...)
+	if err := os.WriteFile(filepath.Join(dir, "a.bin"), same, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "b.bin"), append([]byte(nil), same...), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "c.bin"), other, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	seeds, _ := collectEngineDelta(hunt.EngineShardResult{CorpusDir: dir}, nil, 32)
+	if len(seeds) != 2 {
+		t.Fatalf("full-hash dedup got %d seeds: %#v", len(seeds), seeds)
+	}
+	got := map[string]int{}
+	for _, s := range seeds {
+		got[string(s.InputBytes)]++
+	}
+	if got[string(same)] != 1 || got[string(other)] != 1 {
+		t.Fatalf("shared 32-byte prefix collapsed a distinct unit: %#v", got)
+	}
+}
+
 func TestCollectEngineDeltaSkipsPreLeaseFiles(t *testing.T) {
 	dir := t.TempDir()
 	old := []byte("old-seed")

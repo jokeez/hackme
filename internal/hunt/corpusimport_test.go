@@ -100,6 +100,45 @@ func TestLoadLibFuzzerSeedFilesKeepsDistinctLongPrefix(t *testing.T) {
 	}
 }
 
+func TestLoadLibFuzzerSeedFilesDedupsFullSHA256(t *testing.T) {
+	dir := t.TempDir()
+	body := append(bytes.Repeat([]byte("A"), 32), []byte("-same")...)
+	if err := os.WriteFile(filepath.Join(dir, "a.bin"), body, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "b.bin"), append([]byte(nil), body...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	other := append(bytes.Repeat([]byte("A"), 32), []byte("-other")...)
+	if err := os.WriteFile(filepath.Join(dir, "c.bin"), other, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := LoadLibFuzzerSeedFiles(dir, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("identical bytes must collapse to one seed, got %d", len(got))
+	}
+}
+
+func TestRankPinsBoringFreshUnitAheadOfRarerSeeds(t *testing.T) {
+	fresh := []byte("aaaa")
+	seeds := [][]byte{fresh, []byte("{}"), []byte("[]"), []byte{0x00}}
+	for i := 0; i < 40; i++ {
+		seeds = append(seeds, []byte(fmt.Sprintf(`{"uniq":%d,"pad":"coverage-unit"}`, i)))
+	}
+	got := RankLibFuzzerSeeds(seeds, 4)
+	if len(got) != 4 || string(got[0]) != string(fresh) {
+		t.Fatalf("boring newest unit not pinned front: %#v", got)
+	}
+	for _, b := range got {
+		if genericBootSeed(b) {
+			t.Fatalf("boot took a capped slot ahead of fresh units: %#v", got)
+		}
+	}
+}
+
 func TestLoadLibFuzzerSeedFilesEmptyDir(t *testing.T) {
 	got, err := LoadLibFuzzerSeedFiles(t.TempDir(), 8)
 	if err != nil {

@@ -86,6 +86,36 @@ func TestCollectResearchDeltaNewUnitsAndCrashes(t *testing.T) {
 	}
 }
 
+func TestCollectResearchDeltaDedupsFullSHA256AndSkipsBoots(t *testing.T) {
+	dir := t.TempDir()
+	prefix := []byte("0123456789abcdef0123456789abcdef")
+	same := append(append([]byte{}, prefix...), []byte("-same")...)
+	other := append(append([]byte{}, prefix...), []byte("-other")...)
+	if err := os.WriteFile(filepath.Join(dir, "a.bin"), same, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "b.bin"), append([]byte(nil), same...), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "c.bin"), other, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "boot.json"), []byte("{}"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	seeds, _, err := collectResearchDelta(dir, nil, 32)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]int{}
+	for _, s := range seeds {
+		got[string(s.InputBytes)]++
+	}
+	if got[string(same)] != 1 || got[string(other)] != 1 || len(seeds) != 2 {
+		t.Fatalf("research delta dedup: %#v", got)
+	}
+}
+
 func TestCollectResearchDeltaFindsHuntRunCrashes(t *testing.T) {
 	dir := t.TempDir()
 	crashDir := filepath.Join(dir, ".hunt-run", "crashes")
@@ -229,6 +259,29 @@ func TestUploadCorpusDeltaRetriesOneDroppedConnection(t *testing.T) {
 	}
 	if acc != 1 || findings != 0 || n != 2 {
 		t.Fatalf("dropped connection must retry once: acc=%d findings=%d attempts=%d", acc, findings, n)
+	}
+}
+
+func TestUploadCorpusDeltaDroppedConnectionStopsAfterOneRetry(t *testing.T) {
+	var n int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n++
+		hj, ok := w.(http.Hijacker)
+		if !ok {
+			http.Error(w, "no hijack", http.StatusInternalServerError)
+			return
+		}
+		conn, _, err := hj.Hijack()
+		if err != nil {
+			return
+		}
+		_ = conn.Close()
+	}))
+	t.Cleanup(srv.Close)
+	acc, findings, err := uploadResearchCorpusDelta(context.Background(), srv.Client(), srv.URL, "tok", "w", "m", "c", 1, "research:jsmn",
+		[]fuzzengine.PoolCorpusSeed{{InputBytes: []byte("unit"), Energy: 2}}, nil, "libfuzzer", "t")
+	if err == nil || acc != 0 || findings != 0 || n != 2 {
+		t.Fatalf("dropped connection retried more than once: acc=%d findings=%d attempts=%d err=%v", acc, findings, n, err)
 	}
 }
 

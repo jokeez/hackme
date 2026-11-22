@@ -356,6 +356,7 @@ func TestProveHuntCorpusSeedEdgesSkipsHarnessOnCrashOnly(t *testing.T) {
 	n, err := svc.ProveHuntCorpusSeedEdges(context.Background(), "c-crash-only", cfg, []fuzzengine.PoolCorpusSeed{
 		{InputBytes: nil},
 		{},
+		{Input: 0x4c},
 	}, 1)
 	if err != nil || n != 0 || called != 0 {
 		t.Fatalf("n=%d err=%v called=%d", n, err, called)

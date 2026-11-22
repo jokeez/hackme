@@ -183,6 +183,65 @@ func TestLibFuzzerSessionArgsDeeperOnLongWall(t *testing.T) {
 	}
 }
 
+func TestLibFuzzerWallAtMost600KeepsLeaseFlags(t *testing.T) {
+	t.Setenv("HACKME_HUNT_LF_FORK", "")
+	cases := []struct {
+		wall, fork, stdinFork, timeout, depth int
+		leaseFlags                            bool
+	}{
+		{179, 1, 1, 5, 12, true},
+		{180, 2, 2, 10, 16, true},
+		{240, 2, 2, 10, 16, true},
+		{299, 2, 2, 10, 16, true},
+		{300, 3, 2, 10, 20, true},
+		{600, 3, 2, 10, 20, true},
+		{601, 3, 2, 25, 20, false},
+	}
+	for _, tc := range cases {
+		if got := libFuzzerForkJobs(tc.wall); got != tc.fork {
+			t.Fatalf("wall %d fork=%d want %d", tc.wall, got, tc.fork)
+		}
+		if got := libFuzzerSessionForkJobs(tc.wall, false); got != tc.fork {
+			t.Fatalf("wall %d in-process fork=%d want %d", tc.wall, got, tc.fork)
+		}
+		if got := libFuzzerSessionForkJobs(tc.wall, true); got != tc.stdinFork {
+			t.Fatalf("wall %d stdin fork=%d want %d", tc.wall, got, tc.stdinFork)
+		}
+		if got := libFuzzerUnitTimeoutSec(tc.wall); got != tc.timeout {
+			t.Fatalf("wall %d timeout=%d want %d", tc.wall, got, tc.timeout)
+		}
+		if got := libFuzzerTuneForWall(tc.wall); got != tc.depth {
+			t.Fatalf("wall %d mutate_depth=%d want %d", tc.wall, got, tc.depth)
+		}
+		argv := strings.Join(libFuzzerSessionArgs("/tmp/c", "/tmp/c/crash-", tc.wall, "", libFuzzerSessionForkJobs(tc.wall, false)), " ")
+		stdin := strings.Join(libFuzzerSessionArgs("/tmp/c", "/tmp/c/crash-", tc.wall, "", libFuzzerSessionForkJobs(tc.wall, true)), " ")
+		for _, flag := range []string{"-len_control=0", "-ignore_crashes=1", "-reduce_inputs=0", "-detect_leaks=0"} {
+			if tc.leaseFlags && !strings.Contains(argv, flag) {
+				t.Fatalf("wall %d missing %s: %s", tc.wall, flag, argv)
+			}
+			// detect_leaks=0 is also how an overnight run skips the LSan shutdown pass.
+			if !tc.leaseFlags && flag != "-detect_leaks=0" && strings.Contains(argv, flag) {
+				t.Fatalf("wall %d kept %s: %s", tc.wall, flag, argv)
+			}
+		}
+		if !strings.Contains(argv, fmt.Sprintf("-timeout=%d", tc.timeout)) || !strings.Contains(argv, fmt.Sprintf("-mutate_depth=%d", tc.depth)) {
+			t.Fatalf("wall %d argv=%s", tc.wall, argv)
+		}
+		if tc.fork > 1 && !strings.Contains(argv, fmt.Sprintf("-fork=%d", tc.fork)) {
+			t.Fatalf("wall %d argv=%s", tc.wall, argv)
+		}
+		if tc.fork == 1 && strings.Contains(argv, "-fork=") {
+			t.Fatalf("wall %d single-process argv=%s", tc.wall, argv)
+		}
+		if strings.Contains(stdin, "-fork=3") {
+			t.Fatalf("wall %d stdin argv forked 3: %s", tc.wall, stdin)
+		}
+		if tc.stdinFork > 1 && !strings.Contains(stdin, fmt.Sprintf("-fork=%d", tc.stdinFork)) {
+			t.Fatalf("wall %d stdin argv=%s", tc.wall, stdin)
+		}
+	}
+}
+
 func TestLibFuzzerForkJobs(t *testing.T) {
 	t.Setenv("HACKME_HUNT_LF_FORK", "")
 	if libFuzzerForkJobs(90) != 1 || libFuzzerForkJobs(180) != 2 || libFuzzerForkJobs(300) != 3 {

@@ -233,6 +233,7 @@ func collectEngineDelta(res hunt.EngineShardResult, before map[string]string, ma
 	if err != nil {
 		return nil, nil
 	}
+	seenBatch := map[string]struct{}{}
 	for _, e := range ents {
 		if e.IsDir() || strings.HasPrefix(e.Name(), ".") {
 			continue
@@ -245,6 +246,11 @@ func collectEngineDelta(res hunt.EngineShardResult, before map[string]string, ma
 		}
 		sum := sha256.Sum256(b)
 		hexSum := hex.EncodeToString(sum[:])
+		// Two names, one input: a 32-byte prefix used to collapse a new unit
+		// into an older one. Identity is the full hash, including this batch.
+		if _, ok := seenBatch[hexSum]; ok {
+			continue
+		}
 		if old, ok := before[e.Name()]; ok && old == hexSum {
 			continue // unchanged from pre-lease snapshot
 		}
@@ -259,6 +265,7 @@ func collectEngineDelta(res hunt.EngineShardResult, before map[string]string, ma
 		if dup || trivialCorpusUnit(b) {
 			continue
 		}
+		seenBatch[hexSum] = struct{}{}
 		info, _ := e.Info()
 		mod := time.Time{}
 		if info != nil {

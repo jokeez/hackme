@@ -235,6 +235,8 @@ func collectResearchDelta(dir string, before map[string]string, maxFiles int) (s
 	if maxFiles < 1 {
 		maxFiles = 32
 	}
+	seenSeed := map[string]struct{}{}
+	seenCrash := map[string]struct{}{}
 	for _, e := range ents {
 		if e.IsDir() || strings.HasPrefix(e.Name(), ".") {
 			continue
@@ -251,6 +253,9 @@ func collectResearchDelta(dir string, before map[string]string, maxFiles int) (s
 		if strings.HasPrefix(low, "crash-") || strings.HasPrefix(low, "oom-") || strings.HasPrefix(low, "timeout-") ||
 			strings.HasPrefix(low, "leak-") {
 			// Mirror seed dedupe: unchanged/pre-lease crash-* must not re-upload.
+			if _, ok := seenCrash[h]; ok {
+				continue
+			}
 			if prev, ok := before[name]; ok && prev == h {
 				continue
 			}
@@ -264,14 +269,29 @@ func collectResearchDelta(dir string, before map[string]string, maxFiles int) (s
 			if dup {
 				continue
 			}
+			seenCrash[h] = struct{}{}
 			if len(crashes) < 16 {
 				crashes = append(crashes, b)
 			}
 			continue
 		}
+		if _, ok := seenSeed[h]; ok {
+			continue
+		}
 		if prev, ok := before[name]; ok && prev == h {
 			continue
 		}
+		dup := false
+		for _, old := range before {
+			if old == h {
+				dup = true
+				break
+			}
+		}
+		if dup || trivialCorpusUnit(b) {
+			continue
+		}
+		seenSeed[h] = struct{}{}
 		if len(seeds) >= maxFiles {
 			continue
 		}
@@ -288,6 +308,12 @@ func collectResearchDelta(dir string, before map[string]string, maxFiles int) (s
 			if rerr != nil || len(b) == 0 {
 				continue
 			}
+			sum := sha256.Sum256(b)
+			h := hex.EncodeToString(sum[:])
+			if _, ok := seenCrash[h]; ok {
+				continue
+			}
+			seenCrash[h] = struct{}{}
 			crashes = append(crashes, b)
 			if len(crashes) >= 16 {
 				break
