@@ -26,16 +26,16 @@ import (
 //
 //	HACKME_ORDERS_PUBLISH_MAX_BUDGET_RUNS     default 16384 (covers hunt_heavy 12000)
 //	HACKME_ORDERS_PUBLISH_MAX_BUDGET_SECONDS  default 86400
-//	HACKME_ORDERS_PUBLISH_MAX_PER_HOUR        default 36 (multi catalog Dig/Hunt waves)
-//	HACKME_ORDERS_PUBLISH_MAX_PER_DAY         default 150
+//	HACKME_ORDERS_PUBLISH_MAX_PER_HOUR        default 600 (catalog Dig/Hunt + harness; per client IP)
+//	HACKME_ORDERS_PUBLISH_MAX_PER_DAY         default 3000
 //	HACKME_ORDERS_PUBLISH_MAX_BUDGET_HMC      default 500
 //
 // Harness upload (POST /api/fuzz/pool/hunt/harness) and Dig/Hunt campaign register
 // share the publish hourly/daily limiter. Settle-outbox ACK uses a separate bucket
 // so publish/harness traffic cannot starve escrow finalize/refund (and vice versa):
 //
-//	HACKME_ORDERS_SETTLE_MAX_PER_HOUR         default 600
-//	HACKME_ORDERS_SETTLE_MAX_PER_DAY          default 10000
+//	HACKME_ORDERS_SETTLE_MAX_PER_HOUR         default 1200 (escrow finalize/refund drain)
+//	HACKME_ORDERS_SETTLE_MAX_PER_DAY          default 20000
 
 type publishCampaignReq struct {
 	ID            string
@@ -105,11 +105,11 @@ func publishMaxBudgetSeconds() int {
 }
 
 func publishMaxPerHour() int {
-	return envIntDefaultPositive("HACKME_ORDERS_PUBLISH_MAX_PER_HOUR", 36)
+	return envIntDefaultPositive("HACKME_ORDERS_PUBLISH_MAX_PER_HOUR", 600)
 }
 
 func publishMaxPerDay() int {
-	return envIntDefaultPositive("HACKME_ORDERS_PUBLISH_MAX_PER_DAY", 150)
+	return envIntDefaultPositive("HACKME_ORDERS_PUBLISH_MAX_PER_DAY", 3000)
 }
 
 func publishMaxBudgetHMC() float64 {
@@ -238,11 +238,11 @@ func coordPublishRouteOK(r *http.Request, expected string) bool {
 
 func settleMaxPerHour() int {
 	// Default covers ~15s settle-pull ACKs with headroom for multi-campaign drain.
-	return envIntDefaultPositive("HACKME_ORDERS_SETTLE_MAX_PER_HOUR", 600)
+	return envIntDefaultPositive("HACKME_ORDERS_SETTLE_MAX_PER_HOUR", 1200)
 }
 
 func settleMaxPerDay() int {
-	return envIntDefaultPositive("HACKME_ORDERS_SETTLE_MAX_PER_DAY", 10000)
+	return envIntDefaultPositive("HACKME_ORDERS_SETTLE_MAX_PER_DAY", 20000)
 }
 
 func coordPublishOK(r *http.Request, publishToken string) bool {
