@@ -388,6 +388,11 @@ func (s *Service) persistAcceptedClaimSeeds(ctx context.Context, campaignID, l2T
 	if len(fresh) == 0 {
 		return nil
 	}
+	// Bound the JSON rewrite to the claim wire budget before hex-copying.
+	fresh = capAcceptedSeedBytes(fresh)
+	if len(fresh) == 0 {
+		return nil
+	}
 	err := s.withCampaignSettle(campaignID, func() error {
 		var cfgJSON string
 		if err := s.DB.QueryRowContext(ctx, `SELECT config_json FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&cfgJSON); err != nil {

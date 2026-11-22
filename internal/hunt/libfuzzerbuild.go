@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"hackme/internal/fuzzupstream"
@@ -84,8 +85,62 @@ func DedicatedLibFuzzerHarness(repoRoot, targetID string) string {
 	return ""
 }
 
+const (
+	libFuzzerBinKindDedicated = "dedicated"
+	libFuzzerBinKindStub      = "stub"
+)
+
+var libFuzzerImportMu sync.Map
+
+func lockLibFuzzerImport(binPath string) func() {
+	v, _ := libFuzzerImportMu.LoadOrStore(binPath, &sync.Mutex{})
+	mu := v.(*sync.Mutex)
+	mu.Lock()
+	return mu.Unlock
+}
+
+func libFuzzerBinKindPath(binPath string) string {
+	return binPath + ".kind"
+}
+
+func readLibFuzzerBinKind(binPath string) string {
+	b, err := os.ReadFile(libFuzzerBinKindPath(binPath))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
+}
+
+func writeLibFuzzerBinKind(binPath, kind string) error {
+	return writeFileBeneath(filepath.Dir(binPath), libFuzzerBinKindPath(binPath), []byte(kind+"\n"), 0o644)
+}
+
+// cachedDedicatedLibFuzzerBin is a reusable in-process catalog binary.
+// The sidecar avoids re-reading the ELF on every shard. A symlink is never a hit,
+// so a planted link cannot be executed as the fuzzer or skip clang into a stub.
+func cachedDedicatedLibFuzzerBin(binPath string) bool {
+	st, err := os.Lstat(binPath)
+	if err != nil || !st.Mode().IsRegular() || st.Size() <= 0 {
+		return false
+	}
+	switch readLibFuzzerBinKind(binPath) {
+	case libFuzzerBinKindDedicated:
+		return true
+	case libFuzzerBinKindStub:
+		return false
+	}
+	if isSubprocessStubLibFuzzerBin(binPath) {
+		_ = writeLibFuzzerBinKind(binPath, libFuzzerBinKindStub)
+		return false
+	}
+	_ = writeLibFuzzerBinKind(binPath, libFuzzerBinKindDedicated)
+	return true
+}
+
 // BuildLibFuzzerImport compiles (or reuses) a libFuzzer binary for L2 seed generation.
 // Returns the fuzzer binary path and stdin driver path (subprocess mode only).
+// A dedicated catalog binary is reused across shards with no clang and no manifest
+// load. The worker still installs claim seeds before this binary is exec'd.
 func BuildLibFuzzerImport(ctx context.Context, repoRoot, targetID string) (binPath, stdinBin string, err error) {
 	if repoRoot == "" {
 		repoRoot = RepoRoot()
@@ -95,10 +150,20 @@ func BuildLibFuzzerImport(ctx context.Context, repoRoot, targetID string) (binPa
 		return "", "", fmt.Errorf("hunt: libfuzzer import: invalid target id %q", targetID)
 	}
 	targetID = id
+	binPath = LibFuzzerImportBinPath(repoRoot, targetID)
+	harness := DedicatedLibFuzzerHarness(repoRoot, targetID)
+	// Fast path: later shards must not LookPath("clang") or parse the manifest.
+	if harness != "" && cachedDedicatedLibFuzzerBin(binPath) {
+		return binPath, "", nil
+	}
+	unlock := lockLibFuzzerImport(binPath)
+	defer unlock()
+	if harness != "" && cachedDedicatedLibFuzzerBin(binPath) {
+		return binPath, "", nil
+	}
 	if _, err := exec.LookPath("clang"); err != nil {
 		return "", "", fmt.Errorf("hunt: libfuzzer import: clang required")
 	}
-	binPath = LibFuzzerImportBinPath(repoRoot, targetID)
 	manifest, err := fuzzupstream.LoadManifest(repoRoot)
 	if err != nil {
 		return "", "", err
@@ -107,20 +172,14 @@ func BuildLibFuzzerImport(ctx context.Context, repoRoot, targetID string) (binPa
 	if err != nil {
 		return "", "", err
 	}
-	harness := DedicatedLibFuzzerHarness(repoRoot, targetID)
-	if st, err := os.Lstat(binPath); err == nil && st.Mode().IsRegular() && st.Size() > 0 {
-		// Dedicated harness: never reuse a cached stdin_subprocess stub under the same name.
-		if harness != "" && !isSubprocessStubLibFuzzerBin(binPath) {
-			return binPath, "", nil
-		}
-		if harness == "" {
-			stdinBin, _, err := fuzzupstream.BuildTarget(ctx, repoRoot, t)
-			return binPath, stdinBin, err
-		}
-		// fall through → rebuild dedicated over stub cache
+	if st, err := os.Lstat(binPath); err == nil && st.Mode().IsRegular() && st.Size() > 0 && harness == "" {
+		// Stdin driver cache. BuildTarget stats its own ASAN binary before clang.
+		stdinBin, _, err := fuzzupstream.BuildTarget(ctx, repoRoot, t)
+		return binPath, stdinBin, err
 	}
 	if harness != "" {
-		if _, _, err := fuzzupstream.BuildTarget(ctx, repoRoot, t); err != nil {
+		// Sources only. BuildTarget would also clang the unused stdin driver.
+		if _, err := fuzzupstream.EnsureClone(ctx, repoRoot, t); err != nil {
 			return "", "", err
 		}
 		if err := buildDedicatedLibFuzzer(ctx, repoRoot, t, harness, binPath); err != nil {
@@ -422,6 +481,46 @@ func libFuzzerForkJobs(wallSec int) int {
 	return 1
 }
 
+// InProcessShardsToMatchLocal is how many concurrent in-process pool shards
+// equal one local libFuzzer process's job-seconds.
+//
+// Assumption, not a measured overnight run: each in-process job on the same
+// harness executes at the same rate, and the next claim already carries units
+// the previous miner accepted, so the execs compound instead of restarting
+// from boot starters. wallSec/forkJobs are the pool shard (libFuzzerSessionArgs).
+// localSec/localJobs are one local process (overnight budget, fork 1).
+//
+//	shards = ceil(localSec * localJobs / (wallSec * forkJobs))
+//
+// This number does not apply to a stdin exec driver. That driver fork/execs
+// the harness per unit. A measured trivial ASAN reader on this class of
+// driver is tens of exec/s; an in-process parser is 10^4. Adding shards at
+// the stdin rate does not match one local in-process process.
+func InProcessShardsToMatchLocal(wallSec, forkJobs, localSec, localJobs int) int {
+	if wallSec < 1 {
+		wallSec = 1
+	}
+	if forkJobs < 1 {
+		forkJobs = 1
+	}
+	if localSec < 1 {
+		localSec = 1
+	}
+	if localJobs < 1 {
+		localJobs = 1
+	}
+	num := int64(localSec) * int64(localJobs)
+	den := int64(wallSec) * int64(forkJobs)
+	n := (num + den - 1) / den
+	if n < 1 {
+		return 1
+	}
+	if n > 1_000_000 {
+		return 1_000_000
+	}
+	return int(n)
+}
+
 // libFuzzerSessionForkJobs is the -fork count for one wall.
 // In-process LLVMFuzzer binaries use libFuzzerForkJobs (3 at >=300s).
 // The stdin driver fork/execs the harness for every unit in every job;
@@ -712,7 +811,8 @@ func BuildLibFuzzerSubprocessDriver(ctx context.Context, repoRoot string) (strin
 		return "", fmt.Errorf("hunt: libfuzzer import: clang required")
 	}
 	outPath := filepath.Join(repoRoot, ".cache", "hunt-lf-import", "_subprocess-libfuzzer-asan")
-	if st, err := os.Stat(outPath); err == nil && st.Mode().IsRegular() && st.Size() > 0 {
+	// Lstat: a symlink to some other ELF must not be executed as the driver.
+	if st, err := os.Lstat(outPath); err == nil && st.Mode().IsRegular() && st.Size() > 0 {
 		return outPath, nil
 	}
 	if err := buildSubprocessLibFuzzer(ctx, repoRoot, outPath); err != nil {
@@ -751,7 +851,23 @@ func buildSubprocessLibFuzzer(ctx context.Context, repoRoot, outPath string) err
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(outPath, in, 0o755)
+	if err := writeLibFuzzerCacheBin(outPath, in); err != nil {
+		return err
+	}
+	_ = writeLibFuzzerBinKind(outPath, libFuzzerBinKindStub)
+	return nil
+}
+
+func writeLibFuzzerCacheBin(outPath string, data []byte) error {
+	parent := filepath.Dir(outPath)
+	if st, err := os.Lstat(parent); err == nil && st.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("hunt: refusing symlink libfuzzer cache dir %s", parent)
+	}
+	if err := os.MkdirAll(parent, 0o755); err != nil {
+		return err
+	}
+	// Replaces a planted file symlink in place. os.WriteFile would follow it.
+	return writeFileBeneath(parent, outPath, data, 0o755)
 }
 
 func buildDedicatedLibFuzzer(ctx context.Context, repoRoot string, t fuzzupstream.Target, harness, outPath string) error {
@@ -817,5 +933,9 @@ func buildDedicatedLibFuzzer(ctx context.Context, repoRoot string, t fuzzupstrea
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(outPath, in, 0o755)
+	if err := writeLibFuzzerCacheBin(outPath, in); err != nil {
+		return err
+	}
+	_ = writeLibFuzzerBinKind(outPath, libFuzzerBinKindDedicated)
+	return nil
 }

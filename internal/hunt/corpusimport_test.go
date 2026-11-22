@@ -2,6 +2,9 @@ package hunt
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -198,6 +201,66 @@ func TestLoadLibFuzzerSeedFiles(t *testing.T) {
 	}
 	if len(seeds) != 1 || string(seeds[0]) != "ok" {
 		t.Fatalf("seeds=%v", seeds)
+	}
+}
+
+func TestExportLibFuzzerSeedsRefusesSymlinkEscape(t *testing.T) {
+	dir := t.TempDir()
+	outside := filepath.Join(dir, "outside.txt")
+	if err := os.WriteFile(outside, []byte("secret"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	seedDir := LibFuzzerSeedDir(dir, "jsmn")
+	if err := os.MkdirAll(seedDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	payload := []byte("owned-by-miner")
+	sum := sha256.Sum256(payload)
+	name := fmt.Sprintf("lf-%s.bin", hex.EncodeToString(sum[:16]))
+	link := filepath.Join(seedDir, name)
+	if err := os.Symlink(outside, link); err != nil {
+		t.Fatal(err)
+	}
+	n, err := ExportLibFuzzerSeeds(dir, "jsmn", [][]byte{payload})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("written=%d", n)
+	}
+	got, err := os.ReadFile(outside)
+	if err != nil || string(got) != "secret" {
+		t.Fatalf("symlink write escaped: %q err=%v", got, err)
+	}
+	st, err := os.Lstat(link)
+	if err != nil || st.Mode()&os.ModeSymlink != 0 || !st.Mode().IsRegular() {
+		t.Fatalf("cache entry mode=%v err=%v", st, err)
+	}
+	body, err := os.ReadFile(link)
+	if err != nil || string(body) != string(payload) {
+		t.Fatalf("cache body=%q err=%v", body, err)
+	}
+}
+
+func TestExportLibFuzzerSeedsRefusesDirSymlink(t *testing.T) {
+	dir := t.TempDir()
+	outside := filepath.Join(dir, "outside")
+	if err := os.MkdirAll(outside, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	parent := filepath.Join(dir, ".cache", "hunt-lf-seeds")
+	if err := os.MkdirAll(parent, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(parent, "jsmn")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ExportLibFuzzerSeeds(dir, "jsmn", [][]byte{[]byte("x")}); err == nil {
+		t.Fatal("dir symlink must not be a seed cache")
+	}
+	ents, err := os.ReadDir(outside)
+	if err != nil || len(ents) != 0 {
+		t.Fatalf("wrote through dir symlink: %v err=%v", ents, err)
 	}
 }
 

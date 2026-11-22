@@ -147,3 +147,84 @@ Verified: `ClaimedWork.SeedByteCorpus`, `LibFuzzerDict`, `EngineLeaseSec`, havoc
 1. **Medium (fixed).** `LoadLibFuzzerSeedFiles` deduped on the first 32 bytes. A newer unit that shared that prefix with an older file was discarded before the newest-first cap, so the sort never saw it. Dedup is now SHA-256 of the full input. `TestLoadLibFuzzerSeedFilesKeepsDistinctLongPrefix` passes.
 
 Checked, not findings: `-len_control=0`, `-reduce_inputs=0`, `-ignore_crashes=1`, and `-detect_leaks=0` apply only on walls ≤600s; `-fork` is 1 below 180s, 2 from 180s, 3 from 300s in-process, and stdin stays capped at 2 even when `HACKME_HUNT_LF_FORK` is higher. Child libFuzzer still writes `artifact_prefix` before the fork parent honors `-ignore_crashes`. `PublishedHarnessIsLibFuzzer` keeps `HACKME_LF_STDIN_BIN` on the stdin driver. Execs are log-only. Accepted units are pinned to the front of `seed_byte_corpus` and boot starters go to the tail. Corpus upload and snapshot retry once on transient HTTP; 401/403 are not transient. Crash-only `ProveHuntCorpusSeedEdges` still returns before harness resolve. `MaxInputBytesHardCeil` and the WASM check ceiling stay 4096.
+
+---
+
+## In-process fleet vs one local libFuzzer — 2026-11-22
+
+Uncommitted on `feat/hunt-pool-power-deepen` (HEAD `00aad9af`). No PR, no push, no commit.
+
+### What changed
+
+- A pool lease still materializes the published harness (content-sha bind stays fail-closed). If that ELF exports `LLVMFuzzerRunDriver`, it runs in-process. If the repo already has `LLVMFuzzerTestOneInput` for the catalog id (`cjson`, `libucl`, `mpack`, `cwalk`, `tinycbor`, `nghttp2`), the lease builds that dedicated binary and does not fork/exec the stdin ELF. Build failure falls back to the published stdin driver. `jsmn` has no dedicated source and stays on the stdin driver. `-fork` for stdin stays capped at 2.
+- Miner A's accepted units are already written to the front of `seed_byte_corpus`. The next claim's bytes parse to those units, and the worker puts them first in the engine seed list even when the fat corpus snapshot was omitted (`CorpusLight`). No second fetch is required for that unit.
+- `ExportLibFuzzerSeeds` no longer uses `os.Stat` / `os.WriteFile`. A planted file symlink is replaced in place; a directory symlink where the cache should be is refused. Neither writes the unit outside the cache.
+- `InProcessShardsToMatchLocal` is the job-second break-even from the argv, not a measured overnight run. Assumption: equal exec/s per in-process job, and the next wall already holds the previous miner's units. Heavy 300s × `-fork=3` vs one 43200s process = **48** concurrent shards. Standard 240s × 2 vs 28800s = **60**. Lite 180s × 2 vs 3600s = **10**. One shard is 1/N of that budget.
+
+### Comparison (this machine)
+
+Same flags: `-max_total_time=3 -timeout=5 -detect_leaks=0 -print_final_stats=1 -rss_limit_mb=2048`, no `-fork`. `ASAN_OPTIONS=detect_leaks=0:abort_on_error=1:halt_on_error=1:allocator_may_return_null=1:symbolize=0`.
+
+| Loop | Binary | Executed units | Final pulse | Wall clock |
+|---|---|---|---|---|
+| In-process | cached `mpack-libfuzzer-asan` | 40196 | 10049 exec/s | 4.32s |
+| Stdin driver | `_subprocess-libfuzzer-asan` + a trivial ASAN reader | 85 | 21 exec/s | 4.17s |
+
+The stdin number is the driver ceiling (the child only reads and exits). A catalog parser behind it is not faster. `-fork=2` doubles that storm; it does not turn it into the in-process rate. The 48/60/10 shard counts are not a 12-hour measurement and do not apply to jsmn.
+
+**When the pool is faster:** several miners, each running an in-process harness, at or above that shard count, and each claim loads the units the previous miner just had accepted. Forty-eight concurrent heavy in-process shards cover the job-seconds of one 12-hour local process in a 300s wall.
+
+**When it is not:** one 180–300s shard against a local process that already holds the corpus; any stdin-only target (jsmn); a fleet that does not load the previous wall's units.
+
+### Audit of this diff
+
+Pay rules, WASM 4096, crash-only prove (no AFL compile), and the single transient HTTP retry (not 401/403) are unchanged. No new outbound host: the catalog in-process build uses the existing `BuildLibFuzzerImport` clone URL, and a clone/compile error falls back to the published stdin binary. Crash artifacts are still collected from the session crash dir. Seed eviction via a 32-byte prefix stays fixed; the symlink follow in the L2 export was the write-side hole in this pass.
+
+### Residual
+
+- Stdin-only catalog targets stay at tens of exec/s. There is no in-process source to select.
+- The first in-process catalog shard may spend lease time cloning and compiling. Later shards use the cache. `-fork` scaling (2 or 3 jobs) was not measured; the break-even assumes each job matches one local job.
+- A miner that drops `seed_byte_corpus` still starts from whatever is already on its disk.
+
+### Tests
+
+- `go test -count=1 -timeout 180s ./internal/hunt/ -skip 'BuildInventoryRust'` → ok (71.0s). An earlier parallel run with `./internal/poolfuzz` failed `TestReplayShardDetectsIntentionalCrash` on the 8s isolate wall; alone it passed (16.8s).
+- `go test -count=1 -timeout 180s ./internal/workerfuzzloop/` → ok (2.9s).
+- `go test -count=1 -timeout 180s ./internal/poolfuzz/ -skip 'BuildInventoryRust'` → killed at 180.1s while a later test was inside sqlite migrate (`TestAcceptResearchCorpusDeltaNextClaimKeepsSeed` had run 0s). Not an AFL compile. Not skipped.
+- Same package with `-timeout 300s` → ok (180.9s).
+- `go test -count=1 -timeout 90s ./internal/poolsync/ -run 'TestUploadCorpusNamespace|TestSettleOutbox'` → ok (1.2s).
+- `TestBuildInventoryRustHarnessFuzzTarget` was not run.
+
+---
+
+## Coordinator stays light, catalog binary stays cached — 2026-11-22
+
+Uncommitted work on `00aad9af` kept. No pull request.
+
+### Coordinator stays light because
+
+- A Hunt claim does not walk the L2 seed directory once `seed_byte_corpus` already holds a coverage unit. Delta accept pinned that unit at the front. Empty or boot-only campaigns still merge once. Replay uses the same check, so claim and replay stay on the same bytes. No compiler runs in `EnsureGuidedCorpusSeeded`.
+- `corpus_delta` still stores seeds, then prove. Crash-only prove returns before `ResolveCoverageHarness`. When seeds exist, `BuildTargetAFL` / `BuildTarget` stat the cached binary before `git fetch` or clang/afl-cc. The showmap/replay loop stops after 12s (`HACKME_HUNT_ENGINE_PROVE_BUDGET_MS`, 1s–30s). Seeds past that stay stored. There is no extra queue.
+- Fresh units copied into campaign JSON are capped at the existing wire budget (96 items / 256KiB) before the hex copy. The merge stops once that head is full.
+- A CLEAN coverage submit returns before ASAN replay. It does not compile a harness or run showmap.
+
+### Power change
+
+- An in-process catalog binary (`cjson`, `libucl`, `mpack`, `cwalk`, `tinycbor`, `nghttp2`) is reused from `.cache/hunt-lf-import/<id>-libfuzzer-asan`. A hit does not call clang and does not load the manifest. A miss clones sources only (`EnsureClone`); it does not also compile the unused stdin ASAN driver. Shards share one build lock so two leases do not clang the same path. `jsmn` stays on the stdin driver.
+- The worker still writes `seed_byte_corpus` first. The cached binary does not reorder those files.
+
+### Bug pass
+
+- `catalogInProcessBinUsable` required a non-stub read. A symlink failed that read and was then treated as the in-process target. It now requires a regular file. Cache writes (`writeCachedBin`, `writeLibFuzzerCacheBin`) unlink a planted symlink instead of following it.
+- Auth retry is unchanged: one transient HTTP retry, and 401/403 are not transient.
+- Pay functions are unchanged. A proven edge still full-pays; CLEAN without one stays on the floor.
+- The pinned unit stays at the front of `seed_byte_corpus`. A later L2 file is not merged ahead of it on the next claim.
+
+### Tests
+
+`ASAN_OPTIONS` unset. `TestBuildInventoryRustHarnessFuzzTarget` not run.
+
+- `go test -count=1 -timeout 180s ./internal/hunt/ -skip 'BuildInventoryRust'` → ok (77.3s).
+- `go test -count=1 -timeout 180s ./internal/workerfuzzloop/` → ok (2.4s).
+- `go test -count=1 -timeout 300s ./internal/poolfuzz/ -skip 'BuildInventoryRust'` → ok (187.5s).
+- `go test -count=1 -timeout 90s ./internal/poolsync/ -run 'TestUploadCorpusNamespace|TestSettleOutbox'` → ok (1.1s).

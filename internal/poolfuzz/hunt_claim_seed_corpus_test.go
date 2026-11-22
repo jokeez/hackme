@@ -2,6 +2,7 @@ package poolfuzz
 
 import (
 	"context"
+	"encoding/hex"
 	"os"
 	"path/filepath"
 	"testing"
@@ -116,5 +117,67 @@ func TestClaimShipsSeedByteCorpusAfterL2Merge(t *testing.T) {
 	}
 	if len(w.CorpusSeeds) < 2 {
 		t.Fatalf("expected guided corpus snapshot, got %d seeds", len(w.CorpusSeeds))
+	}
+}
+
+// A campaign that already has a coverage unit must not re-read L2 on claim.
+// The pinned head stays first; an on-disk-only file is not merged in front of it.
+func TestClaimSkipsL2MergeWhenCoverageSeedPresent(t *testing.T) {
+	t.Setenv("HACKME_POOL_HUNT_REPLAY", "0")
+	t.Setenv("HACKME_POOL_HUNT_REPLAY_ASYNC", "0")
+	dir := t.TempDir()
+	t.Setenv("HACKME_REPO_ROOT", dir)
+	seedDir := filepath.Join(dir, ".cache", "hunt-lf-seeds", "jsmn")
+	if err := os.MkdirAll(seedDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(seedDir, "only-l2.bin"), []byte("only-on-disk-l2"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fresh := "feature-from-miner-a"
+	db, err := store.Open(filepath.Join(dir, "r21-skip.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	svc := &Service{DB: db}
+	ctx := context.Background()
+	hash := "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+	cfg := map[string]any{
+		"pool_distributed":     true,
+		"work_kind":            "hunt_shard",
+		"campaign_type":        "hunt",
+		"upstream_target_id":   "jsmn",
+		"harness_hash":         hash,
+		"iterations_per_shard": 4,
+		"max_input_bytes":      256,
+		"depth_tier":           "oss_cve",
+		"check_semantics":      "native_crash",
+		"seed_byte_corpus":     []any{fresh},
+	}
+	hunt.ApplyPoolGuidedDefaults(cfg, "jsmn")
+	id := "r21-skip-l2"
+	if err := svc.RegisterCampaign(ctx, Campaign{ID: id, CampaignType: "hunt", Status: "running", BudgetRuns: 1, Config: cfg}); err != nil {
+		t.Fatal(err)
+	}
+	hunt.SetHarnessObjectDir("")
+	t.Cleanup(func() { hunt.SetHarnessObjectDir("") })
+	if err := hunt.PutHarnessArtifact(ctx, db, hash, []byte("r21-skip-harness"), "jsmn"); err != nil {
+		t.Fatal(err)
+	}
+	_ = svc.EnsureWorkItems(ctx, id, time.Now().Unix())
+	w, ok, err := svc.Claim(ctx, "w21-skip", time.Now().Unix())
+	if err != nil || !ok {
+		t.Fatalf("claim ok=%v err=%v", ok, err)
+	}
+	if len(w.SeedByteCorpus) == 0 || w.SeedByteCorpus[0] != fresh {
+		t.Fatalf("pinned seed not first: %#v", w.SeedByteCorpus)
+	}
+	l2Hex := hex.EncodeToString([]byte("only-on-disk-l2"))
+	for _, item := range w.SeedByteCorpus {
+		s, _ := item.(string)
+		if s == "only-on-disk-l2" || s == l2Hex {
+			t.Fatalf("L2 file was merged on the claim path: %#v", w.SeedByteCorpus)
+		}
 	}
 }

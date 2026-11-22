@@ -11,6 +11,121 @@ import (
 	"testing"
 )
 
+func TestPoolVsLocalInProcessBreakEven(t *testing.T) {
+	// Same corpus argv shape. Pool heavy wall vs one local overnight process.
+	// Numbers come from the flags, not from a fabricated exec count.
+	wall := PoolEngineLeaseSecHeavy
+	forks := libFuzzerSessionForkJobs(wall, false)
+	localSec := LocalOvernightTimeLimitSec("hunt_heavy")
+	pool := strings.Join(libFuzzerSessionArgs("/tmp/c", "/tmp/c/crash-", wall, "", forks), " ")
+	local := strings.Join(libFuzzerSessionArgs("/tmp/c", "/tmp/c/crash-", localSec, "", 1), " ")
+	if !strings.Contains(pool, "-max_total_time=300") || !strings.Contains(pool, "-fork=3") || !strings.Contains(pool, "-len_control=0") || !strings.Contains(pool, "-ignore_crashes=1") || !strings.Contains(pool, "-reduce_inputs=0") {
+		t.Fatalf("pool heavy argv=%s", pool)
+	}
+	if strings.Contains(local, "-fork=") || strings.Contains(local, "-len_control=0") || !strings.Contains(local, "-max_total_time=43200") || !strings.Contains(local, "-timeout=25") {
+		t.Fatalf("local overnight argv=%s", local)
+	}
+	// Job-seconds: 43200*1 / (300*3) = 48. One heavy shard is 1/48 of that budget.
+	if got := InProcessShardsToMatchLocal(wall, forks, localSec, 1); got != 48 {
+		t.Fatalf("heavy break-even=%d want 48", got)
+	}
+	if got := InProcessShardsToMatchLocal(PoolEngineLeaseSecStandard, libFuzzerSessionForkJobs(PoolEngineLeaseSecStandard, false), LocalOvernightTimeLimitSec("hunt_standard"), 1); got != 60 {
+		t.Fatalf("standard break-even=%d want 60", got)
+	}
+	if got := InProcessShardsToMatchLocal(PoolEngineLeaseSecLite, libFuzzerSessionForkJobs(PoolEngineLeaseSecLite, false), LocalOvernightTimeLimitSec("hunt_lite"), 1); got != 10 {
+		t.Fatalf("lite break-even=%d want 10", got)
+	}
+	// Stdin heavy stays at 2 jobs. Do not plug that into the in-process formula
+	// and call it a win: the exec rate is a different class.
+	if got := libFuzzerSessionForkJobs(wall, true); got != 2 {
+		t.Fatalf("stdin heavy fork=%d", got)
+	}
+}
+
+func TestLibFuzzerDriverPlan(t *testing.T) {
+	t.Setenv("HACKME_REPO_ROOT", "")
+	root := RepoRoot()
+	if in, reason := libFuzzerDriverPlan(root, "jsmn", false, false); in || reason != "stdin" {
+		t.Fatalf("jsmn in=%v reason=%s", in, reason)
+	}
+	if DedicatedLibFuzzerHarness(root, "jsmn") != "" {
+		t.Fatal("jsmn must stay stdin-only; no dedicated LLVMFuzzerTestOneInput harness")
+	}
+	if in, reason := libFuzzerDriverPlan(root, "cjson", false, false); !in || reason != "catalog" {
+		t.Fatalf("cjson in=%v reason=%s", in, reason)
+	}
+	if in, reason := libFuzzerDriverPlan(root, "jsmn", false, true); !in || reason != "published" {
+		t.Fatalf("published ELF in=%v reason=%s", in, reason)
+	}
+	if in, reason := libFuzzerDriverPlan(root, "jsmn", true, false); !in || reason != "inventory" {
+		t.Fatalf("inventory in=%v reason=%s", in, reason)
+	}
+	if catalogInProcessBinUsable("", "", nil) || catalogInProcessBinUsable("/no/such", "/stdin", nil) {
+		t.Fatal("missing or stdin-paired bin must stay on the exec driver")
+	}
+	stub := filepath.Join(t.TempDir(), "stub")
+	if err := os.WriteFile(stub, []byte("stdin_subprocess_libfuzzer.c"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if catalogInProcessBinUsable(stub, "", nil) {
+		t.Fatal("subprocess stub must not count as in-process")
+	}
+	link := filepath.Join(t.TempDir(), "via-link")
+	if err := os.Symlink(stub, link); err != nil {
+		t.Fatal(err)
+	}
+	if catalogInProcessBinUsable(link, "", nil) {
+		t.Fatal("symlink must not be selected as the in-process target")
+	}
+}
+
+func TestBuildLibFuzzerImportReusesDedicatedCacheWithoutClang(t *testing.T) {
+	root := t.TempDir()
+	id := "cjson"
+	harnessDir := filepath.Join(root, "tasks", "sources", "fuzz", "benchmark")
+	if err := os.MkdirAll(harnessDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(harnessDir, id+"_libfuzzer.c"), []byte("int LLVMFuzzerTestOneInput(){return 0;}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	bin := LibFuzzerImportBinPath(root, id)
+	if err := os.MkdirAll(filepath.Dir(bin), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(bin, []byte("dedicated-catalog-bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(bin+".kind", []byte("dedicated\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", t.TempDir())
+	got, stdin, err := BuildLibFuzzerImport(context.Background(), root, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != bin || stdin != "" {
+		t.Fatalf("bin=%s stdin=%s", got, stdin)
+	}
+	outside := filepath.Join(root, "outside")
+	if err := os.WriteFile(outside, []byte("secret"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(bin); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, bin); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := BuildLibFuzzerImport(context.Background(), root, id); err == nil {
+		t.Fatal("symlink cache bin must not skip clang")
+	}
+	body, err := os.ReadFile(outside)
+	if err != nil || string(body) != "secret" {
+		t.Fatalf("symlink followed: %q err=%v", body, err)
+	}
+}
+
 func TestLibFuzzerASANOptionsCrashPath(t *testing.T) {
 	if !strings.Contains(LibFuzzerASANOptions, "abort_on_error=1") || !strings.Contains(LibFuzzerASANOptions, "symbolize=0") {
 		t.Fatalf("asan=%s", LibFuzzerASANOptions)

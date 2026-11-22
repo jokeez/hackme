@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"hackme/internal/fuzzengine"
 	"hackme/internal/hunt"
@@ -413,5 +414,37 @@ func TestProveHuntCorpusSeedEdgesRequiresHarnessExec(t *testing.T) {
 	}
 	if n != 0 {
 		t.Fatalf("crash seeds must not count as edge prove, got %d", n)
+	}
+}
+
+func TestProveHuntCorpusSeedEdgesStopsAtBudget(t *testing.T) {
+	prevBudget := proveBudget
+	prevExec := huntEngineSeedExec
+	prevResolve := resolveCoverageHarness
+	t.Cleanup(func() {
+		proveBudget = prevBudget
+		huntEngineSeedExec = prevExec
+		resolveCoverageHarness = prevResolve
+	})
+	proveBudget = func() time.Duration { return time.Millisecond }
+	resolveCoverageHarness = func(context.Context, string, string, ...hunt.CoverageHarnessOpts) (string, bool, error) {
+		return "", false, nil
+	}
+	execs := 0
+	huntEngineSeedExec = func(context.Context, *Service, string, map[string]any, []byte) (bool, bool, string, error) {
+		execs++
+		time.Sleep(20 * time.Millisecond)
+		return true, false, "", nil
+	}
+	seeds := make([]fuzzengine.PoolCorpusSeed, 6)
+	for i := range seeds {
+		seeds[i] = fuzzengine.PoolCorpusSeed{InputBytes: []byte{byte(i + 1)}}
+	}
+	cfg := map[string]any{"campaign_type": "hunt", "hunt_engine": "libfuzzer", "upstream_target_id": "jsmn"}
+	if _, err := (&Service{}).ProveHuntCorpusSeedEdges(context.Background(), "c-budget", cfg, seeds, 1); err != nil {
+		t.Fatal(err)
+	}
+	if execs < 1 || execs >= len(seeds) {
+		t.Fatalf("prove execs=%d want stopped before %d", execs, len(seeds))
 	}
 }

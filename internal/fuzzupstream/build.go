@@ -21,6 +21,79 @@ import (
 
 var buildMu sync.Mutex
 
+// regularCachedBin is a non-symlink regular file. Prove and claim must stat
+// this before git fetch or clang: a symlink is not a cache hit.
+func regularCachedBin(path string) bool {
+	st, err := os.Lstat(path)
+	return err == nil && st.Mode().IsRegular() && st.Size() > 0
+}
+
+func aflCachedBinPath(repoRoot string, t Target) string {
+	sumInput := "aflasan|" + t.ID + t.Repo + t.Ref + t.Driver + strings.Join(t.UpstreamSrc, ",") + strings.Join(t.BuildFlags, ",")
+	sum := sha256.Sum256([]byte(sumInput))
+	return filepath.Join(repoRoot, ".cache", "hunt-afl-bin", t.ID+"-aflasan-"+hex.EncodeToString(sum[:6])+".bin")
+}
+
+func asanCachedBinPath(repoRoot string, t Target, sanitize, suffix string) string {
+	sumInput := t.ID + t.Repo + t.Ref + t.Driver + sanitize + strings.Join(t.UpstreamSrc, ",") + strings.Join(t.BuildFlags, ",")
+	sum := sha256.Sum256([]byte(sumInput))
+	name := t.ID + "-" + hex.EncodeToString(sum[:6])
+	if suffix != "" {
+		name += "-" + suffix
+	}
+	return filepath.Join(repoRoot, ".cache", "oss-cve-bin", name+".bin")
+}
+
+// writeCachedBin replaces path with data. A planted symlink is removed, not followed.
+func writeCachedBin(path string, data []byte) error {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	if st, err := os.Lstat(dir); err != nil {
+		return err
+	} else if st.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("fuzzupstream: refusing symlink cache dir %s", dir)
+	}
+	if _, err := os.Lstat(path); err == nil {
+		if err := os.Remove(path); err != nil {
+			return err
+		}
+	}
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL|oNoFollow, 0o755)
+	if err != nil {
+		return err
+	}
+	_, werr := f.Write(data)
+	cerr := f.Close()
+	if werr != nil {
+		_ = os.Remove(path)
+		return werr
+	}
+	return cerr
+}
+
+// EnsureClone checks out t and applies OSS stubs. It does not run clang.
+// Dedicated in-process libFuzzer builds need the sources only. BuildTarget
+// also compiles the stdin ASAN driver and must not be used for that.
+func EnsureClone(ctx context.Context, repoRoot string, t Target) (string, error) {
+	if repoRoot == "" {
+		repoRoot = "."
+	}
+	cacheDir := filepath.Join(repoRoot, ".cache", "oss-cve-clones")
+	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
+		return "", err
+	}
+	clonePath := filepath.Join(cacheDir, t.ID)
+	if err := cloneRepo(ctx, t.Repo, t.Ref, clonePath); err != nil {
+		return "", err
+	}
+	if err := injectOSSCveBuildStubs(repoRoot, t.ID, clonePath); err != nil {
+		return "", err
+	}
+	return clonePath, nil
+}
+
 // BuildTarget clones upstream (if needed) and compiles ASAN stdin fuzz driver.
 func BuildTarget(ctx context.Context, repoRoot string, t Target) (binPath, clonePath string, err error) {
 	if repoRoot == "" {
@@ -51,18 +124,24 @@ func BuildTargetAFL(ctx context.Context, repoRoot string, t Target) (binPath, cl
 	if TargetLanguage(t) == "rust" {
 		return "", "", fmt.Errorf("fuzzupstream: AFL lane is C/C++ only")
 	}
+	if repoRoot == "" {
+		repoRoot = "."
+	}
+	// Request path (prove): stat the cached afl-cc binary before git fetch or
+	// a compiler. A hit returns here. A miss compiles once under buildMu.
+	binPath = aflCachedBinPath(repoRoot, t)
+	clonePath = filepath.Join(repoRoot, ".cache", "oss-cve-clones", t.ID)
+	if regularCachedBin(binPath) {
+		return binPath, clonePath, nil
+	}
 	aflCC, err := lookAFLClangFast()
 	if err != nil {
 		return "", "", err
-	}
-	if repoRoot == "" {
-		repoRoot = "."
 	}
 	cacheDir := filepath.Join(repoRoot, ".cache", "oss-cve-clones")
 	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
 		return "", "", err
 	}
-	clonePath = filepath.Join(cacheDir, t.ID)
 	if err := cloneRepo(ctx, t.Repo, t.Ref, clonePath); err != nil {
 		return "", "", err
 	}
@@ -73,17 +152,13 @@ func BuildTargetAFL(ctx context.Context, repoRoot string, t Target) (binPath, cl
 	if _, err := os.Stat(driverSrc); err != nil {
 		return "", "", fmt.Errorf("fuzzupstream: driver %s: %w", driverSrc, err)
 	}
-	outDir := filepath.Join(repoRoot, ".cache", "hunt-afl-bin")
-	if err := os.MkdirAll(outDir, 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(binPath), 0o755); err != nil {
 		return "", "", err
 	}
-	sumInput := "aflasan|" + t.ID + t.Repo + t.Ref + t.Driver + strings.Join(t.UpstreamSrc, ",") + strings.Join(t.BuildFlags, ",")
-	sum := sha256.Sum256([]byte(sumInput))
-	binPath = filepath.Join(outDir, t.ID+"-aflasan-"+hex.EncodeToString(sum[:6])+".bin")
 
 	buildMu.Lock()
 	defer buildMu.Unlock()
-	if st, err := os.Stat(binPath); err == nil && st.Mode().IsRegular() {
+	if regularCachedBin(binPath) {
 		return binPath, clonePath, nil
 	}
 
@@ -128,7 +203,7 @@ func BuildTargetAFL(ctx context.Context, repoRoot string, t Target) (binPath, cl
 	if err != nil {
 		return "", "", err
 	}
-	if err := os.WriteFile(binPath, in, 0o755); err != nil {
+	if err := writeCachedBin(binPath, in); err != nil {
 		return "", "", err
 	}
 	return binPath, clonePath, nil
@@ -163,6 +238,15 @@ func lookAFLClangFast() (string, error) {
 }
 
 func buildTargetCSanitize(ctx context.Context, repoRoot string, t Target, sanitize, suffix string) (binPath, clonePath string, err error) {
+	if repoRoot == "" {
+		repoRoot = "."
+	}
+	// Same guard as BuildTargetAFL: a cached stdin binary must not clone or clang.
+	binPath = asanCachedBinPath(repoRoot, t, sanitize, suffix)
+	clonePath = filepath.Join(repoRoot, ".cache", "oss-cve-clones", t.ID)
+	if regularCachedBin(binPath) {
+		return binPath, clonePath, nil
+	}
 	if _, err := exec.LookPath("clang"); err != nil {
 		return "", "", fmt.Errorf("fuzzupstream: clang required")
 	}
@@ -170,7 +254,6 @@ func buildTargetCSanitize(ctx context.Context, repoRoot string, t Target, saniti
 	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
 		return "", "", err
 	}
-	clonePath = filepath.Join(cacheDir, t.ID)
 	if err := cloneRepo(ctx, t.Repo, t.Ref, clonePath); err != nil {
 		return "", "", err
 	}
@@ -181,21 +264,13 @@ func buildTargetCSanitize(ctx context.Context, repoRoot string, t Target, saniti
 	if _, err := os.Stat(driverSrc); err != nil {
 		return "", "", fmt.Errorf("fuzzupstream: driver %s: %w", driverSrc, err)
 	}
-	outDir := filepath.Join(repoRoot, ".cache", "oss-cve-bin")
-	if err := os.MkdirAll(outDir, 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(binPath), 0o755); err != nil {
 		return "", "", err
 	}
-	sumInput := t.ID + t.Repo + t.Ref + t.Driver + sanitize + strings.Join(t.UpstreamSrc, ",") + strings.Join(t.BuildFlags, ",")
-	sum := sha256.Sum256([]byte(sumInput))
-	name := t.ID + "-" + hex.EncodeToString(sum[:6])
-	if suffix != "" {
-		name += "-" + suffix
-	}
-	binPath = filepath.Join(outDir, name+".bin")
 
 	buildMu.Lock()
 	defer buildMu.Unlock()
-	if st, err := os.Stat(binPath); err == nil && st.Mode().IsRegular() {
+	if regularCachedBin(binPath) {
 		return binPath, clonePath, nil
 	}
 
@@ -236,7 +311,7 @@ func buildTargetCSanitize(ctx context.Context, repoRoot string, t Target, saniti
 	if err != nil {
 		return "", "", err
 	}
-	if err := os.WriteFile(binPath, in, 0o755); err != nil {
+	if err := writeCachedBin(binPath, in); err != nil {
 		return "", "", err
 	}
 	return binPath, clonePath, nil

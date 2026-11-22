@@ -1,6 +1,7 @@
 package poolfuzz
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"path/filepath"
@@ -367,6 +368,12 @@ func TestAcceptResearchCorpusDeltaNextClaimKeepsSeed(t *testing.T) {
 	}
 	if w.SeedByteCorpus[0] != want {
 		t.Fatalf("just-accepted seed absent from claim trim head: first=%v want=%s len=%d", w.SeedByteCorpus[0], want, len(w.SeedByteCorpus))
+	}
+	// Same parser the worker uses. The bytes are on the claim; miner B does not
+	// need a corpus-snapshot round trip to load them.
+	parsed := fuzzengine.ParseByteCorpus(map[string]any{"seed_byte_corpus": w.SeedByteCorpus})
+	if len(parsed) == 0 || !bytes.Equal(parsed[0], fresh) {
+		t.Fatalf("miner B seed bytes=%q want %q", parsed, fresh)
 	}
 }
 

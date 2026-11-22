@@ -62,6 +62,49 @@ func genericBootSeed(b []byte) bool {
 	return len(b) == 1 && (b[0] == 0x00 || b[0] == 0x80)
 }
 
+// claimSeedCorpusNeedsL2Merge is true only when the campaign config has no
+// coverage unit yet. Delta accept already pinned fresh units at the front of
+// seed_byte_corpus (96 items / 256KiB). Re-reading the L2 directory on every
+// claim and replay re-hashes that cache on the request path. Empty or
+// boot-only corpora still merge once so the first claim is not seedless.
+func claimSeedCorpusNeedsL2Merge(cfg map[string]any) bool {
+	for _, b := range fuzzengine.ParseByteCorpus(cfg) {
+		if len(b) > 0 && !genericBootSeed(b) {
+			return false
+		}
+	}
+	return true
+}
+
+// capAcceptedSeedBytes bounds a delta's fresh units to the claim wire budget
+// before they are hex-copied into campaign JSON.
+func capAcceptedSeedBytes(in [][]byte) [][]byte {
+	maxItems, maxBytes := seedCorpusWireCaps()
+	out := make([][]byte, 0, min(len(in), maxItems))
+	total := 0
+	for _, b := range in {
+		if len(b) == 0 {
+			continue
+		}
+		if len(out) >= maxItems {
+			break
+		}
+		if total+len(b) > maxBytes && len(out) > 0 {
+			break
+		}
+		if len(b) > maxBytes && len(out) == 0 {
+			if len(b) > 1<<20 {
+				continue
+			}
+			out = append(out, b)
+			break
+		}
+		out = append(out, b)
+		total += len(b)
+	}
+	return out
+}
+
 func seedItemBytes(item any) ([]byte, bool) {
 	parsed := fuzzengine.ParseByteCorpus(map[string]any{"seed_byte_corpus": []any{item}})
 	if len(parsed) == 0 || len(parsed[0]) == 0 {
@@ -94,7 +137,17 @@ func MergeAcceptedSeedByteCorpus(accepted [][]byte, existing []any) []any {
 		}
 		add(&head, hex.EncodeToString(b), b)
 	}
+	maxItems, _ := seedCorpusWireCaps()
+	examined := 0
 	for _, item := range existing {
+		// First-fit trim keeps head+mid+tail up to maxItems. Stop once that
+		// prefix is full, and cap how many legacy entries we decode per request.
+		// Tail boots sit after real units. Counting them toward the cap would
+		// stop before mid filled and let a "{}" survive first-fit trim.
+		if len(head)+len(mid) >= maxItems || examined >= maxItems*8 {
+			break
+		}
+		examined++
 		b, ok := seedItemBytes(item)
 		if !ok {
 			// Opaque entry: keep it with the non-boot body so a trim cannot

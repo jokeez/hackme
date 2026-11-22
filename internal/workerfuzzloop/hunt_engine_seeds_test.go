@@ -113,6 +113,26 @@ func TestCorpusSeedBytesRawNotHex(t *testing.T) {
 	}
 }
 
+func TestCollectCoverageEngineSeedsLoadsAcceptedUnitWithoutSnapshot(t *testing.T) {
+	fresh := []byte("feature-unit-from-miner-a")
+	fillers := make([]map[string]any, 0, 96)
+	for i := 0; i < 96; i++ {
+		fillers = append(fillers, map[string]any{
+			"input_bytes_hex": hex.EncodeToString([]byte{0xB0, byte(i), 0x11}),
+		})
+	}
+	// CorpusLight means the fat snapshot was omitted. The claim's seed_byte_corpus
+	// head is miner A's unit; it must occupy the first engine file anyway.
+	got := collectCoverageEngineSeeds(ClaimResp{
+		SeedByteCorpus: []any{hex.EncodeToString(fresh)},
+		CorpusSeeds:    fillers,
+		CorpusLight:    true,
+	})
+	if len(got) == 0 || !bytes.Equal(got[0], fresh) {
+		t.Fatalf("engine seeds head=%q len=%d", got, len(got))
+	}
+}
+
 func TestCollectCoverageEngineSeedsEmpty(t *testing.T) {
 	if got := collectCoverageEngineSeeds(ClaimResp{}); len(got) != 0 {
 		t.Fatalf("empty claim should yield 0 seeds, got %d", len(got))

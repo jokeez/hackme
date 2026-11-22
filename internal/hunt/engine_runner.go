@@ -136,6 +136,37 @@ func RunEngineShard(ctx context.Context, opts EngineShardOpts) EngineShardResult
 	}
 }
 
+// libFuzzerDriverPlan chooses the fuzz loop for one lease.
+// inventory: the pin source exports LLVMFuzzerTestOneInput.
+// published: the materialized ELF exports LLVMFuzzerRunDriver (not the stdin stub).
+// catalog: the repo already has tasks/sources/.../<id>_libfuzzer.c (or oss <id>_fuzzer.c).
+// stdin: a published ASAN binary and no in-process source (catalog jsmn).
+// Stdin is not comparable to one local in-process libFuzzer process.
+func libFuzzerDriverPlan(repoRoot, targetID string, inventoryEntry, publishedIsLibFuzzer bool) (inProcess bool, reason string) {
+	if inventoryEntry {
+		return true, "inventory"
+	}
+	if publishedIsLibFuzzer {
+		return true, "published"
+	}
+	if DedicatedLibFuzzerHarness(repoRoot, targetID) != "" {
+		return true, "catalog"
+	}
+	return false, "stdin"
+}
+
+// catalogInProcessBinUsable is true when BuildLibFuzzerImport returned a
+// target libFuzzer binary. The generic stdin stub exports LLVMFuzzerRunDriver
+// too; it must not be selected as the in-process target.
+func catalogInProcessBinUsable(bin, stdin string, err error) bool {
+	if err != nil || strings.TrimSpace(bin) == "" || strings.TrimSpace(stdin) != "" {
+		return false
+	}
+	// Regular dedicated binary only. A symlink used to pass the stub check
+	// (the read fails closed, and the negation then treated it as in-process).
+	return cachedDedicatedLibFuzzerBin(bin)
+}
+
 func runLibFuzzerEngineShard(ctx context.Context, repoRoot, targetID string, wall int, opts EngineShardOpts) EngineShardResult {
 	out := EngineShardResult{Engine: EngineLibFuzzer, EngineVersion: LibFuzzerVersionHint(), WallSec: wall}
 	corpusDir := PersistentLibFuzzerCorpusDir(repoRoot, targetID)
@@ -179,10 +210,16 @@ func runLibFuzzerEngineShard(ctx context.Context, repoRoot, targetID string, wal
 			lfBin, lerr := BuildInventoryInProcessLibFuzzer(ctx, repoRoot, &RepoPinResult{Path: pin, CommitSHA: "engine-shard"}, src)
 			if lerr == nil {
 				sess.FuzzerBin = lfBin
+				out.Subprocess = false
 			}
 		}
 	}
-	// Published stdin ASAN harness + subprocess LF driver when no in-process LF.
+	// Published harness is still materialized so the content-sha bind fails closed.
+	// A stdin ELF is not the fuzz loop when this repo already has LLVMFuzzerTestOneInput
+	// for the catalog id: that driver fork/execs every unit (~tens of exec/s) and
+	// -fork=2 only doubles the storm. The dedicated binary is in-process (~10^4 exec/s).
+	// Build failure falls back to the published stdin driver. jsmn has no dedicated
+	// source and stays on that driver.
 	if sess.FuzzerBin == "" {
 		if hash := strings.TrimSpace(opts.HarnessHash); hash != "" {
 			stdinPath, merr := MaterializeHarness(ctx, repoRoot, hash, opts.HarnessFetchURL, opts.HarnessContentSHA256, opts.ArtifactDB)
@@ -191,12 +228,24 @@ func runLibFuzzerEngineShard(ctx context.Context, repoRoot, targetID string, wal
 				out.SkippedReason = "harness"
 				return out
 			}
-			// A published ELF that already links libFuzzer (LLVMFuzzerRunDriver)
-			// runs in-process. Stdin-only ASAN binaries stay on the exec driver.
-			if PublishedHarnessIsLibFuzzer(stdinPath) {
+			_, reason := libFuzzerDriverPlan(repoRoot, targetID, false, PublishedHarnessIsLibFuzzer(stdinPath))
+			switch reason {
+			case "published":
 				sess.FuzzerBin = stdinPath
 				out.Subprocess = false
-			} else {
+			case "catalog":
+				// BuildLibFuzzerImport reuses .cache/hunt-lf-import/<id>-libfuzzer-asan.
+				// Claim seeds were written above and stay first; this does not reorder them.
+				// Clang runs only on a cache miss, on the worker, never on the coordinator.
+				bin, stdin, berr := BuildLibFuzzerImport(ctx, repoRoot, targetID)
+				if catalogInProcessBinUsable(bin, stdin, berr) {
+					sess.FuzzerBin = bin
+					out.Subprocess = false
+				} else {
+					sess.StdinBin = stdinPath
+					out.Subprocess = true
+				}
+			default:
 				sess.StdinBin = stdinPath
 				out.Subprocess = true
 			}

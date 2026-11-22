@@ -549,8 +549,10 @@ func (s *Service) runHuntReplayJob(ctx context.Context, job huntReplayJob, now i
 	}
 	// Match claim-time L2 merge so mutating execs that prefer seed_byte_corpus stay
 	// byte-identical to workers that received the post-merge corpus on the claim.
+	// The same cheap check as claim: skip the directory walk when a coverage
+	// unit is already in the campaign config.
 	if hunt.HuntCorpusGuided(cfg) {
-		if targetID := strings.TrimSpace(jsonString(cfg["upstream_target_id"])); targetID != "" {
+		if targetID := strings.TrimSpace(jsonString(cfg["upstream_target_id"])); targetID != "" && claimSeedCorpusNeedsL2Merge(cfg) {
 			if _, err := hunt.MergeLibFuzzerSeedCorpus(cfg, hunt.RepoRoot(), targetID); err != nil {
 				return err
 			}

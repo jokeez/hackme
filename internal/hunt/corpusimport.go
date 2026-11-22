@@ -323,9 +323,16 @@ func min(a, b int) int {
 
 // ExportLibFuzzerSeeds writes seed files into the libFuzzer import cache for a target.
 // Content-addressed names — merges without wiping AFL/MSAN artifacts already in the cache.
+// Names are a single hex segment under the catalog id directory. A planted symlink
+// (file or directory) is not followed: os.WriteFile would write the untrusted unit
+// outside the cache.
 func ExportLibFuzzerSeeds(repoRoot, targetID string, seeds [][]byte) (int, error) {
 	dir := LibFuzzerSeedDir(repoRoot, targetID)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	parent := filepath.Dir(dir)
+	if err := os.MkdirAll(parent, 0o755); err != nil {
+		return 0, err
+	}
+	if err := mkdirAllBeneath(parent, dir, 0o755); err != nil {
 		return 0, err
 	}
 	written := 0
@@ -336,10 +343,11 @@ func ExportLibFuzzerSeeds(repoRoot, targetID string, seeds [][]byte) (int, error
 		h := sha256.Sum256(b)
 		name := fmt.Sprintf("lf-%s.bin", hex.EncodeToString(h[:16]))
 		path := filepath.Join(dir, name)
-		if _, err := os.Stat(path); err == nil {
+		// Lstat, not Stat: a symlink whose target exists must not count as "already stored".
+		if st, err := os.Lstat(path); err == nil && st.Mode().IsRegular() {
 			continue
 		}
-		if err := os.WriteFile(path, b, 0o600); err != nil {
+		if err := writeFileBeneath(dir, path, b, 0o600); err != nil {
 			return written, err
 		}
 		written++
