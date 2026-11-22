@@ -244,13 +244,13 @@ func TestLibFuzzerExecutedUnits(t *testing.T) {
 func TestLibFuzzerSessionExecsRoundTrip(t *testing.T) {
 	dir := t.TempDir()
 	stats := filepath.Join(dir, ".hunt-run", "session_stats.json")
-	if err := writeLibFuzzerSessionStats(stats, "t", 180, 1, 1, "stat::number_of_executed_units: 0\n"); err != nil {
+	if err := writeLibFuzzerSessionStats(dir, stats, "t", 180, 1, 1, "stat::number_of_executed_units: 0\n"); err != nil {
 		t.Fatal(err)
 	}
 	if got := readLibFuzzerSessionExecs(dir); got != 0 {
 		t.Fatalf("zero execs must round-trip, got %d", got)
 	}
-	if err := writeLibFuzzerSessionStats(stats, "t", 300, 2, 4, "#2500: cov: 9 ft: 12 corp: 4 exec/s: 400 oom/timeout/crash: 0/0/0 time: 8s job: 2 dft_time: 0\n"); err != nil {
+	if err := writeLibFuzzerSessionStats(dir, stats, "t", 300, 2, 4, "#2500: cov: 9 ft: 12 corp: 4 exec/s: 400 oom/timeout/crash: 0/0/0 time: 8s job: 2 dft_time: 0\n"); err != nil {
 		t.Fatal(err)
 	}
 	if got := readLibFuzzerSessionExecs(dir); got != 2500 {

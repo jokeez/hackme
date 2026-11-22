@@ -402,7 +402,7 @@ func RunLibFuzzerSession(ctx context.Context, opts LibFuzzerSessionOpts) (int, e
 		}
 	}
 	statsPath := filepath.Join(sessionDir, "session_stats.json")
-	_ = writeLibFuzzerSessionStats(statsPath, targetID, wallSec, before, after, sessionLog)
+	_ = writeLibFuzzerSessionStats(corpusDir, statsPath, targetID, wallSec, before, after, sessionLog)
 
 	if persist && after == 0 && wallSec >= 90 {
 		msg := strings.TrimSpace(sessionLog)
@@ -697,8 +697,7 @@ func seedPersistentCorpus(repoRoot, targetID, corpusDir string) error {
 	return nil
 }
 
-func writeLibFuzzerSessionStats(path, targetID string, wall, before, after int, stderr string) error {
-	_ = os.MkdirAll(filepath.Dir(path), 0o755)
+func writeLibFuzzerSessionStats(corpusDir, path, targetID string, wall, before, after int, stderr string) error {
 	feat := 0
 	newUnits := 0
 	execs := libFuzzerExecutedUnits(stderr)
@@ -727,7 +726,13 @@ func writeLibFuzzerSessionStats(path, targetID string, wall, before, after int, 
 	}
 	body := fmt.Sprintf("{\n  \"target\": %q,\n  \"wall_sec\": %d,\n  \"corpus_before\": %d,\n  \"corpus_after\": %d,\n  \"features_hint\": %d,\n  \"new_units_added\": %d,\n  \"execs\": %d,\n  \"updated_at\": %q\n}\n",
 		targetID, wall, before, after, feat, newUnits, execs, time.Now().UTC().Format(time.RFC3339))
-	return os.WriteFile(path, []byte(body), 0o644)
+	// .hunt-run is inside the RW corpus bind. A harness can plant
+	// session_stats.json (or replace .hunt-run) with a symlink after the wall;
+	// os.WriteFile / MkdirAll would follow it and truncate a host file.
+	if err := mkdirAllBeneath(corpusDir, filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	return writeFileBeneath(corpusDir, path, []byte(body), 0o644)
 }
 
 // libFuzzerExecutedUnits is how many inputs this wall actually ran.
@@ -768,7 +773,7 @@ func readLibFuzzerSessionExecs(corpusDir string) int {
 	if strings.TrimSpace(corpusDir) == "" {
 		return 0
 	}
-	b, err := os.ReadFile(filepath.Join(corpusDir, ".hunt-run", "session_stats.json"))
+	b, err := ReadRegularCorpusFileUnder(corpusDir, filepath.Join(corpusDir, ".hunt-run", "session_stats.json"), 1<<20)
 	if err != nil || len(b) == 0 {
 		return 0
 	}

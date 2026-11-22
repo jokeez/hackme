@@ -80,6 +80,65 @@ func TestWriteBeneathNeverFollowsPlantedLinks(t *testing.T) {
 	check("outside root")
 }
 
+// Session stats are written after the cage exits. The harness can leave
+// session_stats.json, or .hunt-run itself, as a symlink. The host write and
+// the later execs read must not follow either one.
+func TestSessionStatsIgnoresPlantedSymlink(t *testing.T) {
+	victimDir := t.TempDir()
+	secret := filepath.Join(victimDir, "token")
+	const secretBody = "TOKEN=keep\n\"execs\": 999\n"
+	if err := os.WriteFile(secret, []byte(secretBody), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	check := func() {
+		t.Helper()
+		b, err := os.ReadFile(secret)
+		if err != nil || string(b) != secretBody {
+			t.Fatalf("victim changed: %q %v", b, err)
+		}
+	}
+
+	corpus := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(corpus, ".hunt-run"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	stats := filepath.Join(corpus, ".hunt-run", "session_stats.json")
+	if err := os.Symlink(secret, stats); err != nil {
+		t.Fatal(err)
+	}
+	if n := readLibFuzzerSessionExecs(corpus); n != 0 {
+		t.Fatalf("execs read followed the symlink: %d", n)
+	}
+	log := "#10: cov: 1 ft: 1 corp: 1 exec/s: 1 oom/timeout/crash: 0/0/0 time: 1s job: 0 dft_time: 0\n"
+	if err := writeLibFuzzerSessionStats(corpus, stats, "t", 180, 1, 2, log); err != nil {
+		t.Fatal(err)
+	}
+	check()
+	st, err := os.Lstat(stats)
+	if err != nil || !st.Mode().IsRegular() {
+		t.Fatalf("stats should be a regular file: %v", err)
+	}
+	if n := readLibFuzzerSessionExecs(corpus); n != 10 {
+		t.Fatalf("execs=%d", n)
+	}
+
+	corpus2 := t.TempDir()
+	if err := os.Symlink(victimDir, filepath.Join(corpus2, ".hunt-run")); err != nil {
+		t.Fatal(err)
+	}
+	stats2 := filepath.Join(corpus2, ".hunt-run", "session_stats.json")
+	if err := writeLibFuzzerSessionStats(corpus2, stats2, "t", 180, 0, 0, ""); err == nil {
+		t.Fatal("write through symlinked .hunt-run must fail")
+	}
+	if _, err := os.Stat(filepath.Join(victimDir, "session_stats.json")); !os.IsNotExist(err) {
+		t.Fatal("stats file escaped into the victim directory")
+	}
+	if n := readLibFuzzerSessionExecs(corpus2); n != 0 {
+		t.Fatalf("dir symlink execs=%d", n)
+	}
+	check()
+}
+
 // The root's own path may legitimately contain a symlink (macOS /tmp, symlinked data
 // disk). Containment checks must still accept children of such a root.
 func TestCorpusPathConfinedAcceptsSymlinkedRoot(t *testing.T) {

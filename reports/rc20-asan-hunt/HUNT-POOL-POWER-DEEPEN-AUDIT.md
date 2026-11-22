@@ -267,3 +267,29 @@ D. Replay dropping a real ASAN artifact. Real, and folded into B as the guard th
 - A finding stored before this change has no PC. The next input of that same bug can pay once more; after that the PC key sticks. A rebuilt harness moves the offset, so the same bug can pay again. A report whose only offset is inside the ASAN runtime still falls back to kind or function name and can collapse.
 - Prove still honors `hunt_detect_leaks` (default on in campaign config). A fatal ASAN abort exits before LSan. UBSan prove still sets `print_stacktrace=1` while the worker uses `0`; a hung UBSan note is dropped and was not paid anyway.
 - `detect_stack_use_after_return` is still off, same as default local libFuzzer. This pass does not find a bug class that a default local run cannot.
+
+---
+
+## Hardening pass — 2026-11-22
+
+Branch `feat/hunt-pool-power-deepen` after `723f138d`. No pull request.
+
+### Fixed
+
+Session stats were the remaining host write inside the RW corpus bind. `writeLibFuzzerSessionStats` used `os.MkdirAll` + `os.WriteFile` on `.hunt-run/session_stats.json` after the cage exited, and `readLibFuzzerSessionExecs` used `os.ReadFile`. A harness can plant that file as a symlink, or replace `.hunt-run` with one. The write now goes through `mkdirAllBeneath` / `writeFileBeneath`. The read uses `ReadRegularCorpusFileUnder`. `TestSessionStatsIgnoresPlantedSymlink` covers both.
+
+### Checked, not findings
+
+- Claim and `corpus_delta` bodies stay on the 2 MiB coordinator cap. Seed wire stays 96 items / 256KiB. Crash artifacts stay at 16 × 65536.
+- HTTP retry is still one transient attempt. 401/403 are not transient.
+- Crash-only prove still returns before AFL resolve. CLEAN coverage submit still returns before replay. Catalog cache hit still skips clang. Fresh units stay at the front of `seed_byte_corpus`.
+- Kind + module-relative PC is unchanged. Informational UBSan stays unpaid. WASM ceil stays 4096. Walls stay 180/240/300. Stdin `-fork` stays capped at 2. `len_control=0`, `ignore_crashes=1`, `reduce_inputs=0`, `detect_leaks=0`, `symbolize=0`, `abort_on_error=1` are unchanged.
+- Package blurbs still say 180s/210s. The lease values in config are 180/240/300. Copy only; not retargeted.
+- The `.kind` sidecar read can follow a symlink. That file lives in the host cache, not the cage bind. A writer there can already replace the binary.
+
+### Tests
+
+`ASAN_OPTIONS` unset. `TestBuildInventoryRustHarnessFuzzTarget` not run.
+
+- `go test -count=1 -timeout 90s ./internal/hunt/ -run 'TestSessionStatsIgnoresPlantedSymlink|TestLibFuzzerSessionExecsRoundTrip|TestWriteBeneathNeverFollowsPlantedLinks'` → ok (0.375s).
+- `go test -count=1 -timeout 180s ./internal/hunt/ -skip 'BuildInventoryRust'` → ok (21.216s).
