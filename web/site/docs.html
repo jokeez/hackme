@@ -61,7 +61,8 @@
         <summary>Security audits &amp; fuzz reports</summary>
         <div class="details-body">
           <p><strong>B2B fuzz:</strong> <code>hackme-fuzzing wizard --pack secrets --package audit</code> (or <code>--wasm guard.wasm</code>) on your local node → report token + CI <code>gate</code> URL. Packs: <code>secrets</code> · <code>script_bounds</code> · <code>filter_utf8</code> · <code>parser_expat</code>.</p>
-          <p>Packages: scan ~1 HMC · audit ~5/256 · deep ~40/2048 (512 exec/unit local; <strong>256 cap</strong> on hub pool; Deep escrow <strong>40/60</strong>). Dig <code>wasm_edge_bitmap</code> @ offset 8192 is scheduling — not AFL; Dig never runs AFL/libFuzzer. Hunt is coverage-guided (libFuzzer fleet · AFL++ Deep) — see <a href="./fuzz-guide.html">fuzz guide</a>.</p>
+          <p><strong>Dig</strong> (WASM packs): scan ~1 HMC · audit ~5 HMC / 256 runs · deep ~40 HMC / 2048 runs. Smoke escrow is 20/80, Deep escrow is 40/60. The hub pool caps one unit at 256 exec. Dig does not run AFL or libFuzzer.</p>
+          <p><strong>Hunt</strong> (coverage ASAN): lite ~20 HMC · standard ~60 HMC / 4,000 units · heavy ~150 HMC / 12,000 units. Escrow is 50/50. The fleet runs libFuzzer; heavy can use AFL++. See the <a href="./fuzz-guide.html">fuzz guide</a>.</p>
           <p><a href="./developers.html">Developers</a> · <a href="./fuzz-guide.html">Fuzz guide</a> · <a href="./reports/l1-crypto-stack-v4.html">L1 v4 live</a></p>
         </div>
       </details>
