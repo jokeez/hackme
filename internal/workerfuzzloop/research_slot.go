@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -131,6 +132,13 @@ func MaybeRunResearchSlot(ctx context.Context, run ResearchSlotRun) ResearchSlot
 		// Empty dir is fine — session may create it.
 		before = map[string]string{}
 	}
+	// Crash artifacts live under .hunt-run, which the corpus snapshot skips.
+	// Without this, a failed wipe re-uploads the same crash every window.
+	if crashBefore, cerr := snapshotHuntCrashHashes(corpusDir); cerr == nil {
+		for k, v := range crashBefore {
+			before[".hunt-crash:"+k] = v
+		}
+	}
 
 	if _, err := researchLFRunner(ctx, repoRoot, targetID, cfg.WindowSec); err != nil {
 		// LF missing / harness build failure: skip without failing the claim path.
@@ -237,6 +245,11 @@ func collectResearchDelta(dir string, before map[string]string, maxFiles int) (s
 	}
 	seenSeed := map[string]struct{}{}
 	seenCrash := map[string]struct{}{}
+	type seedHit struct {
+		mod time.Time
+		b   []byte
+	}
+	var hits []seedHit
 	for _, e := range ents {
 		if e.IsDir() || strings.HasPrefix(e.Name(), ".") {
 			continue
@@ -253,25 +266,19 @@ func collectResearchDelta(dir string, before map[string]string, maxFiles int) (s
 		if strings.HasPrefix(low, "crash-") || strings.HasPrefix(low, "oom-") || strings.HasPrefix(low, "timeout-") ||
 			strings.HasPrefix(low, "leak-") {
 			// Mirror seed dedupe: unchanged/pre-lease crash-* must not re-upload.
+			// A seed that shares these bytes is not a crash snapshot.
 			if _, ok := seenCrash[h]; ok {
 				continue
 			}
 			if prev, ok := before[name]; ok && prev == h {
 				continue
 			}
-			dup := false
-			for _, old := range before {
-				if old == h {
-					dup = true
-					break
-				}
-			}
-			if dup {
+			if crashSnapshotKnown(before, h) {
 				continue
 			}
 			seenCrash[h] = struct{}{}
 			if len(crashes) < 16 {
-				crashes = append(crashes, b)
+				crashes = append(crashes, append([]byte(nil), b...))
 			}
 			continue
 		}
@@ -292,12 +299,21 @@ func collectResearchDelta(dir string, before map[string]string, maxFiles int) (s
 			continue
 		}
 		seenSeed[h] = struct{}{}
-		if len(seeds) >= maxFiles {
-			continue
+		info, _ := e.Info()
+		mod := time.Time{}
+		if info != nil {
+			mod = info.ModTime()
 		}
+		hits = append(hits, seedHit{mod: mod, b: append([]byte(nil), b...)})
+	}
+	sort.SliceStable(hits, func(i, j int) bool { return hits[i].mod.After(hits[j].mod) })
+	if len(hits) > maxFiles {
+		hits = hits[:maxFiles]
+	}
+	for _, h := range hits {
 		seeds = append(seeds, fuzzengine.PoolCorpusSeed{
-			Input:      fuzzengine.PackInputBytesToU64(b),
-			InputBytes: b,
+			Input:      fuzzengine.PackInputBytesToU64(h.b),
+			InputBytes: h.b,
 			Energy:     2,
 		})
 	}
@@ -310,7 +326,7 @@ func collectResearchDelta(dir string, before map[string]string, maxFiles int) (s
 			}
 			sum := sha256.Sum256(b)
 			h := hex.EncodeToString(sum[:])
-			if _, ok := seenCrash[h]; ok {
+			if _, ok := seenCrash[h]; ok || crashSnapshotKnown(before, h) {
 				continue
 			}
 			seenCrash[h] = struct{}{}

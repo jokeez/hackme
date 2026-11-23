@@ -57,15 +57,20 @@ func LibFuzzerImportCorpusDir(repoRoot, targetID string) string {
 	return filepath.Join(repoRoot, ".cache", "hunt-lf-import", id+"-corpus")
 }
 
-// isSubprocessStubLibFuzzerBin reports whether bin was built from stdin_subprocess_libfuzzer.c
-// (generic stub). Those are not in-process target fuzzers — "hits" are harness noise.
+// isSubprocessStubLibFuzzerBin reports whether bin was built from the generic
+// stdin driver. Those are not in-process target fuzzers — "hits" are harness noise.
+// The .c filename is only a comment plus DWARF, so a -g0 or stripped driver does
+// not contain it. The getenv key is in .rodata either way.
 func isSubprocessStubLibFuzzerBin(binPath string) bool {
 	// O_NOFOLLOW: never follow a harness-planted symlink over the cache bin.
 	raw, err := ReadRegularCorpusFile(binPath, 64<<20)
 	if err != nil || len(raw) == 0 {
 		return false
 	}
-	return bytes.Contains(raw, []byte("stdin_subprocess_libfuzzer.c"))
+	if bytes.Contains(raw, []byte("stdin_subprocess_libfuzzer.c")) {
+		return true
+	}
+	return bytes.Contains(raw, []byte("HACKME_LF_STDIN_BIN"))
 }
 
 // DedicatedLibFuzzerHarness returns a target-specific libFuzzer harness if present.

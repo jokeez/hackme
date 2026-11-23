@@ -183,3 +183,34 @@ func TestStoredEngineLeaseStaysAndCoverageLeaseCaps(t *testing.T) {
 		t.Fatalf("json stored reclaim=%d want 210", sec)
 	}
 }
+
+func TestCoverageLeaseBoundaryWalls(t *testing.T) {
+	t.Setenv("HACKME_HUNT_COVERAGE_ENGINE", "1")
+	t.Setenv("HACKME_HUNT_ENGINE_LEASE_SEC", "")
+	// JSON campaign config reloads the wall as float64. 600 and 601 are past
+	// MaxEngineLeaseSec, so the stored wall clamps to 300 before the
+	// max(2×wall, wall+120) cap of 480. 179 stays 179 (reclaim 358). 299
+	// still clamps the reclaim at 480.
+	cases := []struct{ wall, wantWall, wantLease int }{
+		{179, 179, 358},
+		{180, 180, 360},
+		{299, 299, 480},
+		{300, 300, 480},
+		{600, hunt.MaxEngineLeaseSec, 480},
+		{601, hunt.MaxEngineLeaseSec, 480},
+	}
+	for _, tc := range cases {
+		cfg := map[string]any{
+			"work_kind":        "hunt_shard",
+			"hunt_engine":      "libfuzzer",
+			"engine_lease_sec": float64(tc.wall),
+			"pool_distributed": true,
+		}
+		if got := hunt.EngineLeaseSecFromConfig(cfg, "libfuzzer"); got != tc.wantWall {
+			t.Fatalf("wall %d stored as %d want %d", tc.wall, got, tc.wantWall)
+		}
+		if sec := leaseSecondsForConfig(cfg); sec != int64(tc.wantLease) {
+			t.Fatalf("wall %d reclaim=%d want %d", tc.wall, sec, tc.wantLease)
+		}
+	}
+}

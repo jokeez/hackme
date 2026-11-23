@@ -196,6 +196,17 @@ func trivialCorpusUnit(b []byte) bool {
 	return len(b) == 1 && (b[0] == 0x00 || b[0] == 0x80)
 }
 
+// crashSnapshotKnown reports whether this content hash was already a crash
+// artifact before the lease. A seed with the same bytes is not a crash
+// snapshot: the first time those bytes crash they still have to upload.
+func crashSnapshotKnown(before map[string]string, hexSum string) bool {
+	if before == nil || hexSum == "" {
+		return false
+	}
+	_, ok := before[".hunt-crash:"+hexSum]
+	return ok
+}
+
 func corpusReadRoot(roots []string, path string) string {
 	for _, r := range roots {
 		if r != "" && hunt.CorpusPathConfined(r, path) {
@@ -299,19 +310,10 @@ func collectEngineDelta(res hunt.EngineShardResult, before map[string]string, ma
 		}
 		sum := sha256.Sum256(b)
 		hexSum := hex.EncodeToString(sum[:])
-		// Same content-dedupe as seeds: a pre-lease snapshot hash or duplicate
-		// in this batch must not re-enter crash credit (stale .hunt-run/crashes).
-		if _, ok := seenCrash[hexSum]; ok {
-			continue
-		}
-		stale := false
-		for _, h := range before {
-			if h == hexSum {
-				stale = true
-				break
-			}
-		}
-		if stale {
+		// Duplicate in this batch, or a crash artifact that already existed
+		// before the lease. A pre-lease seed with the same bytes is not a
+		// crash snapshot — those bytes still upload once as a crash.
+		if _, ok := seenCrash[hexSum]; ok || crashSnapshotKnown(before, hexSum) {
 			continue
 		}
 		seenCrash[hexSum] = struct{}{}
