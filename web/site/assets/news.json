@@ -1,6 +1,47 @@
 {
   "items": [
     {
+      "id": "2026-11-23-free-fuzz-week",
+      "date": "2026-11-23",
+      "title": "Free Fuzz Week — seven days of Dig/Hunt on a public OSS repo",
+      "summary": "From 23 November through 30 November 2026 the pool runs Dig or Hunt for free on a public open-source repository you bring. On 1 December we name the top 3 repos and pay 300 / 150 / 50 HMC on-chain.",
+      "impact": "Three repositories per person. The repo must be public, with a clear license, and the campaign has to actually run. We rank the target and the run. A detector counter does not win. This is not a CVE promise.",
+      "action": "Install from https://hackme.tech/downloads.html and place Dig or Hunt at https://hackme.tech/orders.html. Send the repo, what to fuzz, the campaign id, and an HMC wallet to Discord https://discord.gg/QMxSeaTSrQ, Telegram https://t.me/hackme_tech, or support@hackme.tech.",
+      "tags": [
+        "announcement",
+        "orders",
+        "hunt",
+        "dig",
+        "free-fuzz-week"
+      ],
+      "status": "published",
+      "featured": true,
+      "social": {
+        "lead": "Free Fuzz Week is open through 30 Nov. Top 3 public repos: 300 / 150 / 50 HMC on 1 Dec.",
+        "bullets": [
+          "Dig or Hunt on a public OSS repo, free this week",
+          "1st 300 HMC · 2nd 150 HMC · 3rd 50 HMC",
+          "Results 1 December, paid on-chain",
+          "Three repos per person",
+          "Orders: https://hackme.tech/orders.html"
+        ],
+        "body": "**Free Fuzz Week**\n\n23–30 Nov: bring a public open-source repo and the pool runs Dig or Hunt on it.\n\n1 Dec, top 3 repos:\n• **300 HMC**\n• **150 HMC**\n• **50 HMC**\n\nhttps://hackme.tech/orders.html",
+        "headline": "Free Fuzz Week — 300 / 150 / 50 HMC",
+        "github": "https://github.com/jokeez/hackme"
+      },
+      "telegram": {
+        "headline": "Free Fuzz Week is open",
+        "body": "**Free Fuzz Week**\n\n23–30 Nov. Public OSS repo, Dig or Hunt, no invoice.\n\n1 Dec:\n• 1st 300 HMC\n• 2nd 150 HMC\n• 3rd 50 HMC\n\nhttps://hackme.tech/orders.html\nhttps://t.me/hackme_tech"
+      },
+      "links": {
+        "news": "https://hackme.tech/news.html#2026-11-23-free-fuzz-week",
+        "orders": "https://hackme.tech/orders.html",
+        "downloads": "https://hackme.tech/downloads.html",
+        "discord": "https://discord.gg/QMxSeaTSrQ",
+        "telegram": "https://t.me/hackme_tech"
+      }
+    },
+    {
       "id": "2026-11-17-rc20",
       "date": "2026-11-17",
       "title": "0.1.0-rc20 — Paid pool Orders · hub escrow Dig/Hunt · authoritative reports",
@@ -15,7 +56,7 @@
         "release"
       ],
       "status": "published",
-      "featured": true,
+      "featured": false,
       "social": {
         "lead": "0.1.0-rc20 — paid pool Dig/Hunt with hub prepaid escrow and live hub reports.",
         "bullets": [
