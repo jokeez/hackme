@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-21",
+  "updated": "2026-11-23",
   "program": {
     "asset": "HMC",
     "monthly_budget_hmc": 500,
@@ -14,9 +14,9 @@
     "note": "Pre-fork hardening month: the November cap was raised from 200 to 1000 HMC to close findings before Economics v2 (block 550,000)."
   },
   "stats": {
-    "total_paid_hmc": 2267,
+    "total_paid_hmc": 2277,
     "researchers": 9,
-    "reports_accepted": 76
+    "reports_accepted": 77
   },
   "researchers": [
     {
@@ -135,8 +135,19 @@
       "id": "fimasw",
       "name": "fimasw",
       "handle": "fimasw",
-      "total_paid_hmc": 1180,
+      "total_paid_hmc": 1190,
       "findings": [
+        {
+          "title": "Withdrawal TOTP looks like an off-by-one right after enrolment (HACKME-2026-TOTP-01)",
+          "severity": "low",
+          "paid_hmc": 10,
+          "date": "2026-11-23",
+          "reported": "2026-11-22",
+          "commit": "",
+          "txid": "43262d53a5db5e80eeeff64046f735c9141f63a7204dd064c17a52bc6e854c3c",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "Info/low: confirm and withdraw share one TOTP step, so the code that just enabled 2FA is rejected until the app rolls. Not a counter off-by-one and not a bypass. No code change. Paid 10 HMC → HMC-a6d09759a4c12019 tx 43262d53… @572151."
+        },
         {
           "title": "Unauthenticated relay amplification on GET /api/status (no allowRate; incomplete bf9d8a8 / c38a810 / f18285a parent miss)",
           "severity": "medium",
