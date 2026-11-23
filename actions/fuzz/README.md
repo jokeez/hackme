@@ -5,10 +5,12 @@ it through the **same sandbox gate the pool uses** (`sandbox.ValidateCheckWasm`)
 and posts what the Dig order would look like — preset, guard pack, package,
 budget, wasm hash — as a sticky PR comment and in the job summary.
 
-> **Status: dry-run MVP.** Nothing is sent to the pool and no secrets are
-> needed, so it is safe on PRs from forks. Real publish (prepaid / org escrow
-> or a scoped publish token) comes later — see [Roadmap](#roadmap).
-> Hunt is intentionally **not** run per PR (too slow); it will be opt-in.
+> **Status.** Dry-run is the default: nothing is sent and no secret is
+> required, so it stays safe on PRs from forks. `gate` and `publish` are
+> implemented (see below). Publish spends a capped local Dig on your Orders
+> node and is refused unless the event is `workflow_dispatch`, a push to a
+> protected branch, or a same-repo PR carrying `publish-label`. Hunt is
+> intentionally **not** run per PR.
 
 ## Usage
 
@@ -185,9 +187,10 @@ Exit codes: `0` ok · `1` rejected by the gate / build failed · `2` bad inputs.
 ## Roadmap
 
 1. ✅ Dry-run: build, gate, plan, PR comment.
-2. 🚧 Publish behind an explicit opt-in through the Orders node's scoped CI
-   token; prepaid `hubv1:` + `escrow_fingerprint` on the pool path — never
-   the shared fleet publish token in a public repo (`mode: publish`, preview).
-3. 🚧 Poll `GET /api/fuzz/campaigns/{id}/gate` and turn `pass` / `reasons[]`
-   into the job verdict (`mode: gate`, preview).
+2. ✅ Publish behind an explicit opt-in through the Orders node's scoped CI
+   token; prepaid `hubv1:` + `escrow_fingerprint` only when the node sets
+   `HACKME_CI_ALLOW_POOL` — never the shared fleet publish token in a public
+   repo (`mode: publish`).
+3. ✅ Poll `GET /api/fuzz/campaigns/{id}/gate` and turn `pass` / `reasons[]`
+   into the job verdict (`mode: gate`). A running campaign never passes.
 4. Hunt via `workflow_dispatch` or a PR label, not on every push.

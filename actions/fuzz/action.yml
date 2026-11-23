@@ -1,8 +1,10 @@
 name: HackMe Fuzz (Dig)
 description: >-
-  Build a guard wasm on every PR, check it with the same sandbox gate the
-  HackMe pool uses and show the Dig plan (preset / guard_pack / package) as a
-  PR comment. Dry-run only for now: nothing is sent, no secrets needed.
+  Build a guard wasm, check it with the same sandbox gate the HackMe pool
+  uses, and show the Dig plan as a PR comment. Default is dry-run: nothing
+  is sent and no secret is required. gate waits for an existing campaign.
+  publish creates one capped Dig order, and only on workflow_dispatch, a
+  protected-branch push, or a labelled same-repo pull request.
 author: HackMe contributors
 branding:
   icon: shield
@@ -42,7 +44,7 @@ inputs:
     required: false
     default: dry-run
   hackme-url:
-    description: "Gate mode: base URL of the node that serves the campaign report (https)."
+    description: "gate and publish: base URL of the node (https, or http on loopback)."
     required: false
     default: ""
   campaign-id:
