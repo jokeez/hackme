@@ -944,7 +944,8 @@ func tryFlock(path string) (unlock func(), held bool, err error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil && filepath.Dir(path) != "." {
 		return nil, false, err
 	}
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600)
+	// O_NOFOLLOW matches tryFlockShared: a planted symlink must not be flocked.
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR|syscall.O_NOFOLLOW, 0o600)
 	if err != nil {
 		return nil, false, err
 	}

@@ -71,6 +71,24 @@ func TestPayerLockRefusesSymlink(t *testing.T) {
 	}
 }
 
+func TestStateFlockRefusesSymlink(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "secret")
+	if err := os.WriteFile(target, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, "state.json.flock")
+	if err := os.Symlink(target, link); err != nil {
+		t.Fatal(err)
+	}
+	if _, held, err := tryFlock(link); err == nil || held {
+		t.Fatalf("symlinked state flock accepted: held=%v err=%v", held, err)
+	}
+	if st, _ := os.Stat(target); st.Mode().Perm() != 0o600 {
+		t.Fatalf("symlink target mode changed to %o", st.Mode().Perm())
+	}
+}
+
 func TestPayerLockHonorsContext(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("HACKME_SETTLE_PAYER_LOCK_DIR", dir)
