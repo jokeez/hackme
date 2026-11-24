@@ -111,8 +111,13 @@ func MergeMinimizeCorpus(ctx context.Context, fuzzerBin, corpusDir string) (befo
 	})
 
 	after, _ = countCorpusFiles(corpusDir)
+	// A merge that keeps almost nothing is not a minimization, it is a loss: the pool's
+	// shared corpus is the asset miners are paid to grow, and a binary whose coverage
+	// does not reflect the target (the fork wrapper, a mis-instrumented build) makes
+	// every input look redundant. Treat a collapse as a failed merge and restore raw.
+	collapsed := after > 0 && corpusMergeCollapsed(before, after)
 	// Cancelled/errored/empty merge must restore raw — never delete partial minimize.
-	if isoErr != nil || runCtx.Err() != nil || after == 0 {
+	if isoErr != nil || runCtx.Err() != nil || after == 0 || collapsed {
 		_ = os.RemoveAll(corpusDir)
 		if rerr := os.Rename(rawDir, corpusDir); rerr != nil {
 			// Never strand the raw inputs: fold them back file by file.
@@ -131,6 +136,9 @@ func MergeMinimizeCorpus(ctx context.Context, fuzzerBin, corpusDir string) (befo
 		}
 		if runCtx.Err() != nil {
 			return before, after, fmt.Errorf("hunt: merge cancelled (restored raw): %w", runCtx.Err())
+		}
+		if collapsed {
+			return before, after, fmt.Errorf("hunt: merge kept %d of %d inputs — refused as a collapse (restored raw)", after, before)
 		}
 		return before, after, fmt.Errorf("hunt: merge failed (restored raw): %s", truncateMergeLog(out.String()))
 	}
@@ -279,4 +287,20 @@ func keepSessionDirs(rawDir, corpusDir string) {
 		}
 		_ = os.Rename(src, dst)
 	}
+}
+
+// corpusMergeCollapsed reports whether a -merge=1 result is too small to believe.
+// Floor: eight inputs, or five per cent of what went in, whichever is larger. A
+// genuinely redundant corpus can legitimately shrink a long way, so the bar is low —
+// it only has to catch the pathological case, where a binary with no target coverage
+// reduces a corpus to a single file.
+func corpusMergeCollapsed(before, after int) bool {
+	if before <= 8 {
+		return false
+	}
+	floor := before / 20
+	if floor < 8 {
+		floor = 8
+	}
+	return after < floor
 }
