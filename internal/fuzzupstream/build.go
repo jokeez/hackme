@@ -625,7 +625,11 @@ func checkoutCloneRef(ctx context.Context, dest, ref string) error {
 func buildTimeout(t Target) time.Duration {
 	switch t.ID {
 	case "libxml2", "duktape", "nghttp2":
-		return 300 * time.Second
+		// Measured on the hub (2026-11-24): duktape's ASAN build under bwrap exceeded
+		// 300s and the harness rebuild gave up every time, so the campaign stayed
+		// stuck with its escrow locked. These amalgamated sources need the same room
+		// the rust bucket gets.
+		return 600 * time.Second
 	case "serde_json", "memchr", "quick_xml":
 		return 600 * time.Second
 	default:
