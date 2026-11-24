@@ -60,10 +60,17 @@ prim_bal = float((prim or {}).get("balance_hmc") or 0)
 leg_bal = float((leg or {}).get("balance_hmc") or 0)
 # Settler pays from primary (node wallet). Legacy is observability-only — do not treat it as cover.
 combined = prim_bal + leg_bal
+# The settlement view says when the coordinator's counters are still warming up after
+# a restart. Measured on 2026-11-24: during a node deploy this endpoint reported
+# fleet_unpaid 3573.79 while the settled value was 8.28, and the watch raised HARD
+# "fleet_unpaid>200 / primary_covers=False" on it. An alarm that fires on every deploy
+# is an alarm the operator learns to ignore, so the unpaid checks wait for fresh stats.
+stats_stale = bool(settle.get("coordinator_stats_stale"))
 local_poh = status.get("chain_leader_local_poh")
 tip = status.get("canonical_tip_height") or stats.get("tip_height")
 row = {
     "ts": int(time.time()),
+    "coordinator_stats_stale": stats_stale,
     "tip": tip,
     "local_poh": local_poh,
     "relay_mode": stats.get("baseline_relay_mode"),
@@ -93,7 +100,10 @@ if reject_pct is not None and reject_pct > max_rej:
     else:
         soft.append(f"reject_pct>{max_rej}_warmup_n={int(tot)}")
 if unpaid > max_unpaid:
-    hard.append(f"fleet_unpaid>{max_unpaid}")
+    if stats_stale:
+        soft.append(f"fleet_unpaid>{max_unpaid}_stats_stale")
+    else:
+        hard.append(f"fleet_unpaid>{max_unpaid}")
 if stats.get("share_strict") is not True and str(stats.get("share_strict")).lower() not in ("1", "true"):
     soft.append("share_strict_off")
 # Prefer primary: settler cannot spend legacy. combined-only cover is a soft WARN.
