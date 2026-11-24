@@ -50,9 +50,11 @@ echo "[vast-worker] id=$WORKER_ID coord=$COORD_URL batch=$BATCH_SIZE chunk=$GPU_
 echo "[vast-worker] log=$LOG"
 nvidia-smi -L 2>/dev/null || true
 
+# A rented GPU box is shared: argv is world-readable through /proc, so the token goes
+# in the environment (workerpoh defaults -token from COORD_TOKEN) and never on argv.
+export COORD_TOKEN
 timeout --signal=INT "${RUN_SECONDS}" "$BIN" \
   -coord "$COORD_URL" \
-  -token "$COORD_TOKEN" \
   -worker "$WORKER_ID" \
   -batch "$BATCH_SIZE" \
   -gpu-chunk "${GPU_CHUNK}" \

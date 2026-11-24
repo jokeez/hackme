@@ -11,4 +11,8 @@ if [[ -z "${COORD_TOKEN:-}" && -f .secrets/hackme_coordinator_worker_token ]]; t
 fi
 export COORD_TOKEN
 export HACKME_WORKER_HUNT_TIMEOUT_MS="${HACKME_WORKER_HUNT_TIMEOUT_MS:-300000}"
-exec "$ROOT/bin/workerfuzz" -coord "$COORD_URL" -token "$COORD_TOKEN" -worker "${WORKER_ID:?}" -timeout-ms "${WORKERFUZZ_TIMEOUT_MS:-2000}"
+# COORD_TOKEN is exported above: workerfuzz defaults -token from it, and keeping the
+# token off argv keeps it out of /proc/<pid>/cmdline, which any local account can read
+# (CWE-214 — same class as the workerpoh argv finding, which was fixed in Go but left
+# this shipped unit passing the flag).
+exec "$ROOT/bin/workerfuzz" -coord "$COORD_URL" -worker "${WORKER_ID:?}" -timeout-ms "${WORKERFUZZ_TIMEOUT_MS:-2000}"

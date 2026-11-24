@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"hackme/internal/fuzzupstream"
+	"hackme/internal/logsafe"
 )
 
 const (
@@ -25,6 +27,21 @@ const (
 // symbolize=1 (and no abort) hangs some inventory harnesses after the ERROR line
 // → wall timeout → crashes=0 → no Hunt bounty.
 const LibFuzzerASANOptions = "detect_leaks=0:abort_on_error=1:halt_on_error=1:allocator_may_return_null=1:symbolize=0"
+
+// leakDetectWallSec is the wall from which a session also hunts leaks. Measured on
+// the selftest target (20s walls, three seeds): with no leak present the throughput
+// median is unchanged, and on the run that did hit one the cost was about a third of
+// the execs — for a whole bug class that is otherwise invisible. Short walls keep it
+// off so the merge window stays intact, which is why it was disabled everywhere.
+const leakDetectWallSec = 180
+
+// LibFuzzerASANOptionsForWall is the session sanitizer env for a given wall.
+func LibFuzzerASANOptionsForWall(wallSec int) string {
+	if wallSec >= leakDetectWallSec {
+		return strings.Replace(LibFuzzerASANOptions, "detect_leaks=0", "detect_leaks=1", 1)
+	}
+	return LibFuzzerASANOptions
+}
 
 // ShowmapASANOptions keeps afl-showmap alive through a crashing input so the
 // edge map is written. Session libFuzzer stays abort_on_error=1.
@@ -324,12 +341,41 @@ func RunLibFuzzerSession(ctx context.Context, opts LibFuzzerSessionOpts) (int, e
 	if err := resetHuntSessionCrashDir(corpusDir, crashDir); err != nil {
 		return 0, err
 	}
+	// The profile dict is keyed off the target id, so an unrecognised catalog id or a
+	// customer repo would run on eleven generic boundary tokens. The harness binary
+	// carries the target's own vocabulary in its read-only data; lifting it costs one
+	// file read and measurably changes what the wall reaches. The target's own tokens
+	// also give the stdin driver something to work with, where the dict is all there is.
+	dictBytes := opts.DictBytes
+	dictSource := "profile"
+	harnessForDict := stdinBin
+	if harnessForDict == "" {
+		harnessForDict = binPath
+	}
+	// Sources first when the catalog clone is on disk: the target's own literals with
+	// none of the sanitizer runtime's tables mixed in. The binary scan is the fallback
+	// for a published harness that arrives without sources.
+	derived := DeriveDictTokensFromSources(fuzzupstream.CloneDirForTarget(repoRoot, targetID), 0)
+	derivedFrom := "sources"
+	if len(derived) == 0 {
+		derived = DeriveDictTokensFromBinary(harnessForDict, 0)
+		derivedFrom = "binary"
+	}
+	if len(derived) > 0 {
+		dictBytes = AugmentLibFuzzerDict(dictBytes, derived)
+		if len(opts.DictBytes) == 0 {
+			dictSource = derivedFrom
+		} else {
+			dictSource = "profile+" + derivedFrom
+		}
+	}
 	dictPath := ""
-	if len(opts.DictBytes) > 0 {
+	if len(dictBytes) > 0 {
 		dictPath = filepath.Join(sessionDir, "libfuzzer.dict")
-		if err := writeFileBeneath(corpusDir, dictPath, opts.DictBytes, 0o600); err != nil {
+		if err := writeFileBeneath(corpusDir, dictPath, dictBytes, 0o600); err != nil {
 			return 0, fmt.Errorf("hunt: libfuzzer dict write: %w", err)
 		}
+		log.Printf("hunt libfuzzer: dict %s (%d bytes) for %s", dictSource, len(dictBytes), logsafe.ID(targetID))
 	}
 	// -fork runs extra libFuzzer jobs in this process. In-process
 	// LLVMFuzzer binaries keep the full schedule (3 at >=300s). The stdin
@@ -338,7 +384,7 @@ func RunLibFuzzerSession(ctx context.Context, opts LibFuzzerSessionOpts) (int, e
 	forkJobs := libFuzzerSessionForkJobs(wallSec, stdinBin != "")
 	args := libFuzzerSessionArgs(corpusDir, filepath.Join(crashDir, "crash-"), wallSec, dictPath, forkJobs)
 	env := append(os.Environ(),
-		"ASAN_OPTIONS="+LibFuzzerASANOptions,
+		"ASAN_OPTIONS="+LibFuzzerASANOptionsForWall(wallSec),
 		"UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=0",
 	)
 	if stdinBin != "" {
@@ -600,8 +646,10 @@ func libFuzzerSessionArgs(corpusDir, crashPrefix string, wallSec int, dictPath s
 		"-timeout=" + fmt.Sprint(libFuzzerUnitTimeoutSec(wallSec)),
 		"-rss_limit_mb=" + fmt.Sprint(rss),
 		// libFuzzer runs LSan at shutdown unless this is set, even when
-		// ASAN_OPTIONS already has detect_leaks=0. That pass eats the merge window.
-		"-detect_leaks=0",
+		// ASAN_OPTIONS already has detect_leaks=0. That pass eats the merge window,
+		// so a short wall keeps it off; a standard/heavy wall has the budget and a
+		// leak is a finding a customer pays for.
+		"-detect_leaks=" + leakDetectFlag(wallSec),
 		"-max_len=65536",
 		"-mutate_depth=" + fmt.Sprint(libFuzzerTuneForWall(wallSec)),
 		"-entropic=1",
@@ -763,9 +811,14 @@ func libFuzzerExecutedUnits(stderr string) int {
 			}
 			continue
 		}
-		if strings.HasPrefix(line, "#") {
+		// libFuzzer progress lines are "#2<TAB>INITED cov: 4 ft: 5 ..." — there is no
+		// colon after the unit number, so the old "#%d: cov:" scan never matched and
+		// this fallback was dead. It is the only execs signal a fork run leaves in the
+		// parent's stderr (per-job final stats go to the job logs), which is why a
+		// stdin-driver lease reported execs=0 while its corpus was visibly growing.
+		if strings.HasPrefix(line, "#") && strings.Contains(line, "cov:") {
 			var n int
-			if _, err := fmt.Sscanf(line, "#%d: cov:", &n); err == nil && n > forkMax {
+			if _, err := fmt.Sscanf(line, "#%d", &n); err == nil && n > forkMax {
 				forkMax = n
 			}
 		}
@@ -952,4 +1005,11 @@ func buildDedicatedLibFuzzer(ctx context.Context, repoRoot string, t fuzzupstrea
 	}
 	_ = writeLibFuzzerBinKind(outPath, libFuzzerBinKindDedicated)
 	return nil
+}
+
+func leakDetectFlag(wallSec int) string {
+	if wallSec >= leakDetectWallSec {
+		return "1"
+	}
+	return "0"
 }

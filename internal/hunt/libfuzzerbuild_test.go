@@ -215,14 +215,24 @@ func TestLibFuzzerWallAtMost600KeepsLeaseFlags(t *testing.T) {
 		}
 		argv := strings.Join(libFuzzerSessionArgs("/tmp/c", "/tmp/c/crash-", tc.wall, "", libFuzzerSessionForkJobs(tc.wall, false)), " ")
 		stdin := strings.Join(libFuzzerSessionArgs("/tmp/c", "/tmp/c/crash-", tc.wall, "", libFuzzerSessionForkJobs(tc.wall, true)), " ")
-		for _, flag := range []string{"-len_control=0", "-ignore_crashes=1", "-reduce_inputs=0", "-detect_leaks=0"} {
+		for _, flag := range []string{"-len_control=0", "-ignore_crashes=1", "-reduce_inputs=0"} {
 			if tc.leaseFlags && !strings.Contains(argv, flag) {
 				t.Fatalf("wall %d missing %s: %s", tc.wall, flag, argv)
 			}
-			// detect_leaks=0 is also how an overnight run skips the LSan shutdown pass.
-			if !tc.leaseFlags && flag != "-detect_leaks=0" && strings.Contains(argv, flag) {
+			if !tc.leaseFlags && strings.Contains(argv, flag) {
 				t.Fatalf("wall %d kept %s: %s", tc.wall, flag, argv)
 			}
+		}
+		// Leak hunting is wall-gated: a short wall protects the merge window, a
+		// standard/heavy wall (>=180s) has the budget and a leak is a payable finding.
+		// Measured on the selftest target: no leak present costs nothing, and the run
+		// that hit one gave up about a third of its execs for the whole class.
+		wantLeaks := "-detect_leaks=0"
+		if tc.wall >= 180 {
+			wantLeaks = "-detect_leaks=1"
+		}
+		if !strings.Contains(argv, wantLeaks) {
+			t.Fatalf("wall %d missing %s: %s", tc.wall, wantLeaks, argv)
 		}
 		if !strings.Contains(argv, fmt.Sprintf("-timeout=%d", tc.timeout)) || !strings.Contains(argv, fmt.Sprintf("-mutate_depth=%d", tc.depth)) {
 			t.Fatalf("wall %d argv=%s", tc.wall, argv)
@@ -290,8 +300,13 @@ func TestLibFuzzerExecutedUnits(t *testing.T) {
 	if got := libFuzzerExecutedUnits("stat::number_of_executed_units: 0\n"); got != 0 {
 		t.Fatalf("explicit zero=%d", got)
 	}
-	if got := libFuzzerExecutedUnits("no stats\n#12\tpulse cov: 1 ft: 1\n"); got != 0 {
-		t.Fatalf("pulse line is not the fork sum, got %d", got)
+	// The number after '#' is libFuzzer's executed-input counter at that milestone,
+	// so with no final stats in reach it is a valid lower bound — and a lower bound
+	// beats 0. A fork run leaves only these lines in the parent's stderr (per-job
+	// stats go to the job logs), which is why a stdin-driver lease used to report
+	// execs=0 while its corpus was visibly growing. Final stats still win when present.
+	if got := libFuzzerExecutedUnits("no stats\n#12\tpulse cov: 1 ft: 1\n"); got != 12 {
+		t.Fatalf("progress line should give a lower bound of 12, got %d", got)
 	}
 	// Two job logs concatenated: each prints its own final stat.
 	summed := "stat::number_of_executed_units: 10\nstat::number_of_executed_units: 7\n"
