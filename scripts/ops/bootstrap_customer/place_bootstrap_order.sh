@@ -76,7 +76,7 @@ http_code="$(curl -sS --max-time 120 -o "$LOG_DIR/${STAMP}-audit.raw.json" -w '%
   -H "X-Hackme-Admin-Token: $ADMIN" \
   -d "$(jq -nc \
     --arg title "$TITLE" \
-    --arg payer "bootstrap:hackme:89.150.41.40" \
+    --arg payer "${PAYER_REF:-HMC-23336d92da342724}" \
     --arg oid "$OID" \
     --arg cid "$CID" \
     --arg hex "$WASM_HEX" \

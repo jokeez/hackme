@@ -153,7 +153,9 @@ func (s *Service) openFuzzEscrowWithFee(ctx context.Context, campaignID, payerAd
 		return nil, err
 	}
 	debitUnits := split.TotalUnits + fee.HMCUnits()
-	feePayer := payerAddr
+	// Both branches assign the fee payer before applyOrderFeeV2Tx. The prepaid
+	// path debits the customer, then the fee itself is drawn from DevFee custody.
+	var feePayer string
 	if payerAddr != "" {
 		if asset != FeeAssetHMC {
 			return nil, errors.New("chain: tenant prepaid escrow requires HMC fee_asset")

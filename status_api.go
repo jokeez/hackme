@@ -187,7 +187,11 @@ func (a *app) handleStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if statusQueryLite(r) {
-		writeJSON(w, a.buildStatusLite(r.Context()))
+		lite := a.buildStatusLite(r.Context())
+		if !statusCallerSeesInternalDetail(r) {
+			redactPoolSyncFailureDetail(lite)
+		}
+		writeJSON(w, lite)
 		return
 	}
 	ctx := r.Context()
@@ -393,6 +397,12 @@ func (a *app) handleStatus(w http.ResponseWriter, r *http.Request) {
 		a.chain.SetNetworkTipHeight(ct)
 	}
 	redactInternalCoordinatorURLs(statusBody)
+	// fimasw-class info disclosure: pool_sync.failed_campaigns published internal
+	// campaign ids, local harness hashes and hub-only env hints to anyone polling
+	// public /api/status. Operators keep the detail; the public sees counts.
+	if !statusCallerSeesInternalDetail(r) {
+		redactPoolSyncFailureDetail(statusBody)
+	}
 
 	writeJSON(w, statusBody)
 }
@@ -401,4 +411,19 @@ func (a *app) handleStatus(w http.ResponseWriter, r *http.Request) {
 // tell an Orders node — which never mines by design — to "Start pool worker".
 func desktopProfile() string {
 	return strings.ToLower(strings.TrimSpace(os.Getenv("DESKTOP_PROFILE")))
+}
+
+// statusCallerSeesInternalDetail reports whether this /api/status caller may read
+// operator-only fields (admin token or loopback/desktop owner).
+func statusCallerSeesInternalDetail(r *http.Request) bool {
+	if r == nil {
+		return false
+	}
+	// Fail closed when no admin token is configured: adminRequestAuthed fail-opens
+	// in that case (same trap as the paid network/stats finding), so a token-less
+	// public node would otherwise publish the operator detail to everyone.
+	if adminAuthEnabled() && adminRequestAuthed(r) {
+		return true
+	}
+	return requestFromLoopback(r)
 }

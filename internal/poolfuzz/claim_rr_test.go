@@ -13,6 +13,9 @@ func TestCampaignClaimTier(t *testing.T) {
 	if got := campaignClaimTier("campaign-bootstrap-expat-x", "HackMe Bootstrap", ""); got != "bootstrap" {
 		t.Fatalf("bootstrap id: %q", got)
 	}
+	if got := campaignClaimTier("campaign-bootstrap-cjson-x", "HackMe Bootstrap Audit", "hmc-23336d92da342724"); got != "customer" {
+		t.Fatalf("prepaid HMC owner beats bootstrap id: %q", got)
+	}
 	if got := campaignClaimTier("campaign-audit-1", "cust", "acme-corp"); got != "customer" {
 		t.Fatalf("customer: %q", got)
 	}

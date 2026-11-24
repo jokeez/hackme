@@ -2,7 +2,7 @@
  * Live OSS disclosure + pool pulse banner — data from disclosure-ticker.json
  */
 (() => {
-  const CACHE = "20261117rc20";
+  const CACHE = "20261123ffw";
   const JSON_URL = `/assets/disclosure-ticker.json?v=${CACHE}`;
   const CSS_URL = `/assets/disclosure-ticker.css?v=${CACHE}`;
   const POOL_URL = "/pool/coordinator/api/pool/stats";

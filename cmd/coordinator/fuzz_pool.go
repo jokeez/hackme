@@ -96,6 +96,11 @@ func verifySettleAckReceipts(ctx context.Context, pf *poolfuzz.Service, publishT
 // (harness_too_large / publish_rate_limited) instead of opaque HTML/plain 413/429.
 func writeHarnessUploadAPIError(w http.ResponseWriter, status int, code, msg string) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	if status == http.StatusTooManyRequests {
+		// Clients / CF caches: retry window for publish hourly bucket.
+		w.Header().Set("Retry-After", "60")
+	}
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"ok": false, "code": code, "error": msg,
@@ -1017,7 +1022,9 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 				req.Status = "running"
 			}
 			if !publishRateAllow(r) {
-				http.Error(w, "orders publish rate limit exceeded", http.StatusTooManyRequests)
+				// JSON through CF/nginx — clients parse code, not HTML/plain 429 bodies.
+				writeHarnessUploadAPIError(w, http.StatusTooManyRequests, "publish_rate_limited",
+					"orders publish rate limit exceeded")
 				return
 			}
 		}

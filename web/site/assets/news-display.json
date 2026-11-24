@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-11-23-free-fuzz-week",
+      "date": "2026-11-23",
+      "title": "Free Fuzz Week — seven days of Dig/Hunt on a public OSS repo",
+      "summary": "From 23 November through 30 November 2026 the pool runs Dig or Hunt for free on a public open-source repository you bring. On 1 December we name the top 3 repos and pay 300 / 150 / 50 HMC on-chain.",
+      "impact": "Three repositories per person. The repo must be public, with a clear license, and the campaign has to actually run. We rank the target and the run. A detector counter does not win. This is not a CVE promise.",
+      "action": "Install from https://hackme.tech/downloads.html and place Dig or Hunt at https://hackme.tech/orders.html. Send the repo, what to fuzz, the campaign id, and an HMC wallet to Discord https://discord.gg/QMxSeaTSrQ, Telegram https://t.me/hackme_tech, or support@hackme.tech.",
+      "tags": [
+        "announcement",
+        "orders",
+        "hunt",
+        "dig",
+        "free-fuzz-week"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-11-17-rc20",
       "date": "2026-11-17",
       "title": "0.1.0-rc20 — Paid pool Orders · hub escrow Dig/Hunt · authoritative reports",

@@ -5,9 +5,11 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"strings"
 
 	"hackme/internal/hunt"
+	"hackme/internal/logsafe"
 	"hackme/internal/poolfuzz"
 	"hackme/internal/poolsync"
 )
@@ -126,17 +128,42 @@ func (a *app) syncHuntHarnessToCoordinator(ctx context.Context, cfg map[string]a
 		}
 		return fmt.Errorf("hunt harness sync: attached hash %s missing on coordinator", hash)
 	}
+	srcRel := strings.TrimSpace(toString(cfg["hunt_source_rel"]))
+	// Catalog / re-place: coordinator GET/HEAD 200 means miners can fetch already.
+	// Skip POST upload so we do not burn Orders publish rate (shared with register).
+	if ok, remoteSHA := poolsync.CoordinatorHarnessProbe(ctx, coord, token, hash); ok {
+		if remoteSHA != "" {
+			cfg["harness_content_sha256"] = strings.ToLower(remoteSHA)
+		}
+		cfg["harness_pool_attached"] = true
+		cfg["harness_published"] = true
+		cfg["harness_fetch_path"] = hunt.HarnessFetchURL(hash)
+		cfg["harness_publish_note"] = "coordinator already has harness — skipped upload"
+		return a.syncCoverageHarnessToCoordinator(ctx, coord, token, cfg, srcRel)
+	}
 	data, err := hunt.GetHarnessArtifact(ctx, a.db, hash)
 	if err != nil {
 		// Local missing but pool already has bytes (customer published first).
 		if poolsync.CoordinatorHarnessAvailable(ctx, coord, token, hash) {
 			cfg["harness_pool_attached"] = true
 			cfg["harness_publish_note"] = "coordinator already has harness — skipped local upload"
-			return nil
+			return a.syncCoverageHarnessToCoordinator(ctx, coord, token, cfg, srcRel)
 		}
-		return fmt.Errorf("hunt harness sync: local artifact: %w", err)
+		// A catalog harness_hash is metadata-derived (id+repo+ref+driver+srcs+flags), so
+		// the identical binding rebuilds from upstream_target_id. Without this the campaign
+		// is stuck for good once the blob leaves the object store (cache prune, restore on a
+		// node that never built it): escrow stays locked, the pool never sees the work and
+		// the register is retried forever. Only the create path used to rebuild.
+		if rebuilt, rerr := a.rebuildCatalogHarnessArtifact(ctx, cfg, hash); rerr == nil {
+			data = rebuilt
+			cfg["harness_publish_note"] = "harness rebuilt from pinned catalog target"
+		} else {
+			if !isClangRequiredErr(rerr) {
+				log.Printf("hunt harness sync: rebuild %s failed: %s", logsafe.ID(hash), logsafe.Err(rerr))
+			}
+			return fmt.Errorf("hunt harness sync: local artifact: %w", err)
+		}
 	}
-	srcRel := strings.TrimSpace(toString(cfg["hunt_source_rel"]))
 	if err := poolsync.UploadHuntHarness(ctx, coord, token, hash, data, srcRel); err != nil {
 		// Catalog hash is metadata-stable; clang rebuilds can differ byte-for-byte across hosts.
 		// Inventory hashes are content-bound — refuse squat on mismatch.
@@ -156,7 +183,7 @@ func (a *app) syncHuntHarnessToCoordinator(ctx context.Context, cfg map[string]a
 						cfg["harness_published"] = true
 						cfg["harness_fetch_path"] = hunt.HarnessFetchURL(hash)
 						cfg["harness_publish_note"] = "catalog metadata-stable hash; kept coordinator bind (local clang rebuild differed)"
-						return nil
+						return a.syncCoverageHarnessToCoordinator(ctx, coord, token, cfg, srcRel)
 					}
 					return fmt.Errorf("hunt harness sync: harness_hash %s already bound to different binary (coordinator %s != local %s)", hash, remoteSHA, localSHA)
 				}
@@ -165,21 +192,58 @@ func (a *app) syncHuntHarnessToCoordinator(ctx context.Context, cfg map[string]a
 			return err
 		}
 	}
-	if covHash := strings.TrimSpace(toString(cfg["coverage_harness_hash"])); covHash != "" {
-		covData, cerr := hunt.GetHarnessArtifact(ctx, a.db, covHash)
-		if cerr != nil {
-			// Publish from on-disk path if not yet in local artifact DB.
-			if covPath := strings.TrimSpace(toString(cfg["coverage_harness_path"])); covPath != "" {
-				if perr := hunt.PublishHarnessFile(ctx, a.db, covHash, covPath, srcRel+"#afl"); perr == nil {
-					covData, cerr = hunt.GetHarnessArtifact(ctx, a.db, covHash)
-				}
-			}
-		}
-		if cerr == nil && len(covData) > 0 {
-			if uerr := poolsync.UploadHuntHarness(ctx, coord, token, covHash, covData, srcRel+"#afl"); uerr != nil && !poolsync.IsHarnessAlreadyBound(uerr) {
-				return fmt.Errorf("hunt coverage harness sync: %w", uerr)
+	return a.syncCoverageHarnessToCoordinator(ctx, coord, token, cfg, srcRel)
+}
+
+// syncCoverageHarnessToCoordinator uploads optional AFL/showmap harness, skipping when
+// the coordinator already serves that hash (same publish-rate rationale as primary sync).
+func (a *app) syncCoverageHarnessToCoordinator(ctx context.Context, coord, token string, cfg map[string]any, srcRel string) error {
+	covHash := strings.TrimSpace(toString(cfg["coverage_harness_hash"]))
+	if covHash == "" {
+		return nil
+	}
+	if poolsync.CoordinatorHarnessAvailable(ctx, coord, token, covHash) {
+		return nil
+	}
+	covData, cerr := hunt.GetHarnessArtifact(ctx, a.db, covHash)
+	if cerr != nil {
+		if covPath := strings.TrimSpace(toString(cfg["coverage_harness_path"])); covPath != "" {
+			if perr := hunt.PublishHarnessFile(ctx, a.db, covHash, covPath, srcRel+"#afl"); perr == nil {
+				covData, cerr = hunt.GetHarnessArtifact(ctx, a.db, covHash)
 			}
 		}
 	}
+	if cerr != nil || len(covData) == 0 {
+		return nil
+	}
+	if uerr := poolsync.UploadHuntHarness(ctx, coord, token, covHash, covData, srcRel+"#afl"); uerr != nil && !poolsync.IsHarnessAlreadyBound(uerr) {
+		return fmt.Errorf("hunt coverage harness sync: %w", uerr)
+	}
 	return nil
+}
+
+// rebuildCatalogHarnessArtifact re-materialises a missing catalog harness from its
+// pinned upstream target and stores it back under the same metadata-stable hash.
+// Catalog-only: inventory hashes are content-bound and must never be re-derived.
+func (a *app) rebuildCatalogHarnessArtifact(ctx context.Context, cfg map[string]any, hash string) ([]byte, error) {
+	if !huntCatalogSource(cfg) {
+		return nil, fmt.Errorf("hunt harness rebuild: not a pinned catalog campaign")
+	}
+	targetID := strings.TrimSpace(toString(cfg["upstream_target_id"]))
+	if targetID == "" {
+		return nil, fmt.Errorf("hunt harness rebuild: upstream_target_id missing")
+	}
+	root := a.repoRoot()
+	// EnsureHarnessBinary refuses to return a binary whose catalog hash differs, so a
+	// manifest edit cannot silently rebind an existing harness_hash to other sources.
+	bin, err := hunt.EnsureHarnessBinary(ctx, root, targetID, hash)
+	if err != nil {
+		return nil, err
+	}
+	if err := hunt.PublishHarnessFile(ctx, a.db, hash, bin, strings.TrimSpace(toString(cfg["hunt_source_rel"]))); err != nil {
+		if !poolsync.IsHarnessAlreadyBound(err) {
+			return nil, err
+		}
+	}
+	return hunt.GetHarnessArtifact(ctx, a.db, hash)
 }

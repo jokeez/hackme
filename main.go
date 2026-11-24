@@ -128,6 +128,8 @@ type app struct {
 	poolMirrorSyncAt   map[string]int64  // last progress pull per paid pool order (customer node)
 	poolSyncFailed     map[string]string // campaign_id → last error
 	poolSyncQueued     map[string]struct{}
+	poolSyncFailStreak map[string]int   // campaign_id → consecutive register failures
+	poolSyncRetryAt    map[string]int64 // campaign_id → earliest unix retry (backoff)
 	fuzzMarketMu       sync.RWMutex
 	fuzzMarketCache    []map[string]any
 	fuzzMarketAt       time.Time

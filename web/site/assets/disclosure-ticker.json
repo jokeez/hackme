@@ -1,8 +1,22 @@
 {
-  "updated": "2026-11-18T12:50:00Z",
+  "updated": "2026-11-23T10:15:00Z",
   "interval_ms": 6200,
   "pool_poll_ms": 30000,
   "slides": [
+    {
+      "kind": "product",
+      "badge": "FREE",
+      "title": "Free Fuzz Week — 23–30 Nov · top 3 repos",
+      "detail": "Public OSS repo. Dig/Hunt is free this week. 1st 300 · 2nd 150 · 3rd 50 HMC, on-chain 1 Dec. Three repos per person.",
+      "cta": "Orders",
+      "href": "/orders.html",
+      "accent": "success",
+      "stats": [
+        "300",
+        "150",
+        "50"
+      ]
+    },
     {
       "kind": "release",
       "badge": "RC20",
