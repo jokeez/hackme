@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"hackme/internal/fuzzupstream"
 	"hackme/internal/hunt"
 )
 
@@ -131,5 +132,87 @@ func TestInprocShimRunsTargetAndReportsCrashes(t *testing.T) {
 	}
 	if strings.Contains(got, "HACKME_LF_STDIN_BIN") {
 		t.Errorf("the in-process rail must not reference the fork wrapper's env:\n%s", head(got, 600))
+	}
+}
+
+// The gate that kept the whole pool on the fork wrapper: the plan asked "is there a
+// hand-written harness?" (7 of 68 ids) instead of "can this target run in-process?".
+//
+// Driven from the manifest, not from the files on disk: deriving ids from filenames
+// made an earlier version of this test a tautology — it resolved each id back to the
+// very file it had just listed, never exercised the manifest lookup, skipped the
+// targets with no driver, and asserted on ids the catalog does not define (json_c,
+// cwalk_deep and friends are leftover driver files, not targets).
+func TestDriverPlanMatchesEveryCatalogTarget(t *testing.T) {
+	root := repoRootForHuntTest(t)
+	m, err := fuzzupstream.LoadManifest(root)
+	if err != nil {
+		t.Skipf("manifest unavailable: %v", err)
+	}
+	if len(m.Targets) == 0 {
+		t.Skip("empty catalog")
+	}
+	inproc, wrapper := 0, 0
+	var wrapperIDs []string
+	for _, tgt := range m.Targets {
+		driver := fuzzupstream.DriverSourcePath(root, tgt)
+		dedicated := hunt.DedicatedLibFuzzerHarness(root, tgt.ID) != ""
+		want := dedicated || hunt.InprocStdinDriverSupported(driver)
+		got := hunt.CatalogTargetRunsInProcess(root, tgt.ID)
+		if got != want {
+			t.Errorf("%s: in-process=%v, want %v (dedicated=%v driver=%s)", tgt.ID, got, want, dedicated, driver)
+		}
+		if want {
+			inproc++
+		} else {
+			wrapper++
+			wrapperIDs = append(wrapperIDs, tgt.ID)
+		}
+	}
+	// A driver file that the catalog does not define as a target must not plan as
+	// "catalog": the build would then fail on TargetByID after the plan promised the
+	// fast rail.
+	// ("yajl" and "yajl-210" are both real catalog ids; "json_c" and "cwalk_deep" are
+	// driver files left on disk with no target behind them.)
+	for _, orphan := range []string{"json_c", "cwalk_deep", "no-such-target-id"} {
+		if hunt.CatalogTargetRunsInProcess(root, orphan) {
+			t.Errorf("%q is not a catalog target and must keep the wrapper", orphan)
+		}
+	}
+	// The two ids whose driver name breaks the <id>_stdin convention must resolve
+	// through the manifest, which is the only reason that lookup exists.
+	for _, id := range []string{"json-c", "yajl-210"} {
+		if _, err := m.TargetByID(id); err != nil {
+			continue // catalog may drop them later
+		}
+		if !hunt.CatalogTargetRunsInProcess(root, id) {
+			t.Errorf("%s resolves off-convention and must still take the in-process rail", id)
+		}
+	}
+	if inproc == 0 {
+		t.Fatal("no catalog target takes the in-process rail")
+	}
+	t.Logf("in-process rail: %d of %d catalog targets (%d keep the wrapper: %v)",
+		inproc, len(m.Targets), wrapper, wrapperIDs)
+}
+
+// A cold in-process build costs a git clone plus a clang run, which can outlive the
+// engine wall and the claim lease; losing a lease loses the shard's submit. So the
+// build happens off the lease, one at a time, once per target.
+func TestInprocWarmBuildIsSingleFlightPerTarget(t *testing.T) {
+	root := t.TempDir() // no manifest here: the goroutine fails fast and clears itself
+	hunt.StartInprocWarmBuildForTest(root, "zlib")
+	hunt.StartInprocWarmBuildForTest(root, "zlib")
+	hunt.StartInprocWarmBuildForTest(root, "duktape")
+	for _, bad := range []string{"", "   ", "../escape", "no/slash"} {
+		hunt.StartInprocWarmBuildForTest(root, bad)
+	}
+	// Nothing to assert about completion (the builds fail without a manifest); what
+	// matters is that an invalid id never enters the map and a repeat never doubles up.
+	if n := hunt.InprocWarmBusyCountForTest(); n > 2 {
+		t.Fatalf("warm-up tracked %d entries for two distinct targets", n)
+	}
+	if got := hunt.InprocWarmSlotsForTest(); got != 1 {
+		t.Fatalf("warm-up concurrency = %d, want 1 (a miner box must not host parallel clang builds)", got)
 	}
 }

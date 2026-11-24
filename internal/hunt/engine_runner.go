@@ -7,12 +7,16 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
+
+	"hackme/internal/fuzzupstream"
 	"time"
 )
 
@@ -152,7 +156,56 @@ func libFuzzerDriverPlan(repoRoot, targetID string, inventoryEntry, publishedIsL
 	if DedicatedLibFuzzerHarness(repoRoot, targetID) != "" {
 		return true, "catalog"
 	}
+	// No hand-written harness, but most catalog targets ship a C stdin driver that can
+	// be built in-process. This is the gate that kept the pool on the fork wrapper:
+	// only 7 of 68 ids have a dedicated harness, so every other lease ran fork+exec
+	// per input — two orders of magnitude slower, and with libFuzzer instrumenting the
+	// wrapper instead of the target, so the guided fuzzer had no coverage signal at
+	// all. Measured on zlib: 92 -> 17,627 exec/s, 7 -> 263 edges. Coverage is 59 of 68
+	// ids: three rust targets ship .rs drivers and six have no driver file, and those
+	// keep the wrapper, as does a worker that cannot build (no clang, sources, clone).
+	if InprocStdinDriverSupported(catalogStdinDriverPath(repoRoot, targetID)) {
+		return true, "catalog"
+	}
 	return false, "stdin"
+}
+
+// catalogTargetsByRoot caches the manifest per repo root. Keying matters: a worker and
+// a test binary can both resolve drivers under different roots in one process, and a
+// single unkeyed cache would hand the first root's driver names to everyone else.
+var catalogTargetsByRoot sync.Map // repoRoot -> map[string]fuzzupstream.Target
+
+// catalogStdinDriverPath resolves a catalog target's driver through the manifest, so
+// membership is checked (an on-disk <id>_stdin.c for an id the catalog does not define
+// must not plan as "catalog" and then fail inside the build) and rust targets keep
+// their .rs extension. Resolution goes through fuzzupstream.DriverSourcePath, the same
+// function the build side uses — two copies would be free to disagree.
+func catalogStdinDriverPath(repoRoot, targetID string) string {
+	id, ok := fuzzupstream.SanitizeCatalogID(targetID)
+	if !ok {
+		return ""
+	}
+	if repoRoot == "" {
+		repoRoot = RepoRoot()
+	}
+	byID, _ := catalogTargetsByRoot.Load(repoRoot)
+	targets, _ := byID.(map[string]fuzzupstream.Target)
+	if targets == nil {
+		m, err := fuzzupstream.LoadManifest(repoRoot)
+		if err != nil {
+			return "" // no manifest, no catalog target: the wrapper stays
+		}
+		targets = make(map[string]fuzzupstream.Target, len(m.Targets))
+		for _, t := range m.Targets {
+			targets[t.ID] = t
+		}
+		catalogTargetsByRoot.Store(repoRoot, targets)
+	}
+	t, found := targets[id]
+	if !found {
+		return ""
+	}
+	return fuzzupstream.DriverSourcePath(repoRoot, t)
 }
 
 // catalogInProcessBinUsable is true when BuildLibFuzzerImport returned a
@@ -237,11 +290,28 @@ func runLibFuzzerEngineShard(ctx context.Context, repoRoot, targetID string, wal
 				// BuildLibFuzzerImport reuses .cache/hunt-lf-import/<id>-libfuzzer-asan.
 				// Claim seeds were written above and stay first; this does not reorder them.
 				// Clang runs only on a cache miss, on the worker, never on the coordinator.
-				bin, stdin, berr := BuildLibFuzzerImport(ctx, repoRoot, targetID)
-				if catalogInProcessBinUsable(bin, stdin, berr) {
+				if DedicatedLibFuzzerHarness(repoRoot, targetID) != "" {
+					bin, stdin, berr := BuildLibFuzzerImport(ctx, repoRoot, targetID)
+					if catalogInProcessBinUsable(bin, stdin, berr) {
+						sess.FuzzerBin = bin
+						out.Subprocess = false
+					} else {
+						sess.StdinBin = stdinPath
+						out.Subprocess = true
+					}
+					break
+				}
+				// Targets without a dedicated harness build from their stdin driver, and
+				// a cold one costs a git clone plus a clang build. That can outlive both
+				// the engine wall and the claim lease, and an expired lease loses the
+				// shard's submit and makes the next worker repeat the build. So this
+				// lease runs the wrapper and the build happens off the lease; the next
+				// shard finds it cached and takes the fast rail.
+				if bin, ready := CachedInprocLibFuzzerBin(repoRoot, targetID); ready {
 					sess.FuzzerBin = bin
 					out.Subprocess = false
 				} else {
+					startInprocWarmBuild(repoRoot, targetID)
 					sess.StdinBin = stdinPath
 					out.Subprocess = true
 				}
@@ -759,3 +829,70 @@ func resetHuntSessionCrashDir(corpusDir, crashDir string) error {
 func ListCrashArtifactPaths(dir string, max int) []string {
 	return collectCrashArtifacts(dir, dir, max)
 }
+
+// CatalogTargetRunsInProcess reports whether a catalog id takes the in-process rail
+// rather than the fork wrapper. Exported for the coverage test over the whole catalog.
+func CatalogTargetRunsInProcess(repoRoot, targetID string) bool {
+	in, _ := libFuzzerDriverPlan(repoRoot, targetID, false, false)
+	return in
+}
+
+// Warm-up builds run one at a time per worker: a miner box should not host three
+// concurrent clang builds, and nothing here may block the lease that triggered it.
+var (
+	inprocWarmMu    sync.Mutex
+	inprocWarmBusy  = map[string]bool{}
+	inprocWarmSlots = make(chan struct{}, 1)
+)
+
+// startInprocWarmBuild builds a catalog target's in-process binary off the lease.
+func startInprocWarmBuild(repoRoot, targetID string) {
+	id, ok := fuzzupstream.SanitizeCatalogID(targetID)
+	if !ok {
+		return
+	}
+	if repoRoot == "" {
+		repoRoot = RepoRoot()
+	}
+	key := repoRoot + "\x00" + id
+	inprocWarmMu.Lock()
+	if inprocWarmBusy[key] {
+		inprocWarmMu.Unlock()
+		return
+	}
+	inprocWarmBusy[key] = true
+	inprocWarmMu.Unlock()
+
+	go func() {
+		defer func() {
+			inprocWarmMu.Lock()
+			delete(inprocWarmBusy, key)
+			inprocWarmMu.Unlock()
+		}()
+		select {
+		case inprocWarmSlots <- struct{}{}:
+			defer func() { <-inprocWarmSlots }()
+		default:
+			return // another warm-up holds the slot; a later shard will ask again
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
+		defer cancel()
+		if _, err := BuildInprocLibFuzzerForTarget(ctx, repoRoot, id); err != nil {
+			log.Printf("hunt libfuzzer: in-process warm build %s failed: %v", id, err)
+			return
+		}
+		log.Printf("hunt libfuzzer: in-process binary ready for %s (next shard skips the fork wrapper)", id)
+	}()
+}
+
+// Test seams for the warm-up guards (the build itself needs clang, a clone and a
+// manifest, none of which belong in a unit test).
+func StartInprocWarmBuildForTest(repoRoot, targetID string) { startInprocWarmBuild(repoRoot, targetID) }
+
+func InprocWarmBusyCountForTest() int {
+	inprocWarmMu.Lock()
+	defer inprocWarmMu.Unlock()
+	return len(inprocWarmBusy)
+}
+
+func InprocWarmSlotsForTest() int { return cap(inprocWarmSlots) }

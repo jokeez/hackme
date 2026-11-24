@@ -45,11 +45,21 @@ func TestPoolVsLocalInProcessBreakEven(t *testing.T) {
 func TestLibFuzzerDriverPlan(t *testing.T) {
 	t.Setenv("HACKME_REPO_ROOT", "")
 	root := RepoRoot()
-	if in, reason := libFuzzerDriverPlan(root, "jsmn", false, false); in || reason != "stdin" {
+	// jsmn has no hand-written harness and used to fall to the fork wrapper for that
+	// reason alone. It now runs in-process built from its own catalog stdin driver:
+	// the wrapper costs two orders of magnitude and leaves libFuzzer instrumenting
+	// itself rather than the target (zlib, measured: 92 -> 17,627 exec/s, 7 -> 263
+	// edges). The dedicated-harness assertion stays, because it is the driver and not
+	// a dedicated harness that enables the rail here.
+	if in, reason := libFuzzerDriverPlan(root, "jsmn", false, false); !in || reason != "catalog" {
 		t.Fatalf("jsmn in=%v reason=%s", in, reason)
 	}
 	if DedicatedLibFuzzerHarness(root, "jsmn") != "" {
-		t.Fatal("jsmn must stay stdin-only; no dedicated LLVMFuzzerTestOneInput harness")
+		t.Fatal("jsmn has no dedicated LLVMFuzzerTestOneInput harness; the in-process rail must come from its stdin driver")
+	}
+	// An id with no driver on disk has nothing to build in-process and keeps the wrapper.
+	if in, reason := libFuzzerDriverPlan(root, "no-such-target-id", false, false); in || reason != "stdin" {
+		t.Fatalf("unknown id in=%v reason=%s", in, reason)
 	}
 	if in, reason := libFuzzerDriverPlan(root, "cjson", false, false); !in || reason != "catalog" {
 		t.Fatalf("cjson in=%v reason=%s", in, reason)
