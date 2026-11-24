@@ -199,3 +199,37 @@ int parse(const char *s) {
 		t.Error("missing directory must yield no tokens")
 	}
 }
+
+// printableRunsAt is index arithmetic over attacker-supplied bytes, so the edges
+// matter: a run that ends exactly at the last byte must still be collected, and no
+// input shape may read past the slice.
+func TestDeriveDictTokensHandlesRunsAtTheVeryEnd(t *testing.T) {
+	dir := t.TempDir()
+	// "TAILTOKEN" sits flush against the end of the file with no terminator after it.
+	body := append([]byte{0x00, 0x01, 0x02}, []byte("MIDDLE_ONE")...)
+	body = append(body, 0x00)
+	body = append(body, []byte("TAILTOKEN")...)
+	path := filepath.Join(dir, "blob.bin")
+	if err := os.WriteFile(path, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	toks := hunt.DeriveDictTokensFromBinary(path, 0)
+	have := map[string]bool{}
+	for _, tk := range toks {
+		have[tk] = true
+	}
+	if !have["TAILTOKEN"] {
+		t.Errorf("a run ending at the last byte must be collected, got %v", toks)
+	}
+	if !have["MIDDLE_ONE"] {
+		t.Errorf("a terminated run must be collected, got %v", toks)
+	}
+	// Degenerate shapes must not panic.
+	for _, raw := range [][]byte{{}, {0x00}, {'A'}, {'A', 'B'}, {'A', 'B', 'C'}, {0x7f, 0x1f}} {
+		p := filepath.Join(dir, "d.bin")
+		if err := os.WriteFile(p, raw, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		_ = hunt.DeriveDictTokensFromBinary(p, 0)
+	}
+}

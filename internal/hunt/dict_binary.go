@@ -119,21 +119,29 @@ func DeriveDictTokensFromBinary(path string, limit int) []string {
 func printableRunsAt(b []byte) map[int]string {
 	out := make(map[int]string, 256)
 	start := -1
-	for i := 0; i <= len(b); i++ {
-		printable := i < len(b) && b[i] >= 0x20 && b[i] < 0x7f
-		if printable {
+	// Close the run that ends at end (exclusive). Keeping the terminator out of the
+	// loop means no index ever reaches len(b): the earlier version walked to i ==
+	// len(b) and relied on short-circuit evaluation to avoid the read, which is one
+	// careless reordering away from an out-of-bounds access.
+	flush := func(end int) {
+		if start < 0 {
+			return
+		}
+		if end-start >= minBinaryDictToken {
+			out[start] = string(b[start:end])
+		}
+		start = -1
+	}
+	for i := 0; i < len(b); i++ {
+		if b[i] >= 0x20 && b[i] < 0x7f {
 			if start < 0 {
 				start = i
 			}
 			continue
 		}
-		if start >= 0 {
-			if n := i - start; n >= minBinaryDictToken {
-				out[start] = string(b[start:i])
-			}
-			start = -1
-		}
+		flush(i)
 	}
+	flush(len(b))
 	return out
 }
 
