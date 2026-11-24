@@ -154,7 +154,13 @@ func (a *app) reconcilePoolSyncCampaigns() {
 		if poolEscrowMirrorCampaign(parseMapJSON(cfgJSON)) {
 			continue
 		}
-		// Retry missing campaigns every tick — including previously failed (hub cap may rise).
+		// Retry missing campaigns — including previously failed (hub cap may rise), but
+		// back off per campaign: a permanently stuck one (missing harness artifact,
+		// hub-only prepaid ticket) otherwise re-clones and re-registers every tick
+		// forever, burning coordinator rate budget that live orders need.
+		if !a.poolSyncRetryDue(id) {
+			continue
+		}
 		a.poolSyncMu.Lock()
 		delete(a.poolSyncQueued, id)
 		a.poolSyncMu.Unlock()
@@ -334,6 +340,8 @@ func (a *app) poolSyncMarkOK(id string) {
 	a.poolSyncMu.Lock()
 	delete(a.poolSyncFailed, id)
 	delete(a.poolSyncQueued, id)
+	delete(a.poolSyncFailStreak, id)
+	delete(a.poolSyncRetryAt, id)
 	a.poolSyncMu.Unlock()
 	if a.db != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -353,6 +361,14 @@ func (a *app) poolSyncMarkFailed(id string, err error) {
 	}
 	a.poolSyncFailed[id] = msg
 	delete(a.poolSyncQueued, id)
+	if a.poolSyncFailStreak == nil {
+		a.poolSyncFailStreak = make(map[string]int)
+	}
+	if a.poolSyncRetryAt == nil {
+		a.poolSyncRetryAt = make(map[string]int64)
+	}
+	a.poolSyncFailStreak[id]++
+	a.poolSyncRetryAt[id] = time.Now().Unix() + poolSyncRetryBackoffSec(a.poolSyncFailStreak[id])
 	a.poolSyncMu.Unlock()
 	if a.db != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -516,4 +532,35 @@ func (a *app) syncPoolFuzzCampaignSync(ctx context.Context, c fuzzAutoCampaign, 
 		a.syncCorpusNamespaceToCoordinator(ctx, cfg)
 	}
 	return nil
+}
+
+// poolSyncRetryBackoffCapSec caps the per-campaign register backoff: an operator fix
+// (restored harness artifact, minted prepaid ticket) is picked up within this window
+// without a node restart.
+const poolSyncRetryBackoffCapSec = int64(6 * 3600)
+
+// poolSyncRetryBackoffSec grows 3m, 6m, 12m, ... from the reconcile tick up to the cap.
+func poolSyncRetryBackoffSec(streak int) int64 {
+	if streak <= 1 {
+		return 180
+	}
+	d := int64(180)
+	for i := 1; i < streak; i++ {
+		d *= 2
+		if d >= poolSyncRetryBackoffCapSec {
+			return poolSyncRetryBackoffCapSec
+		}
+	}
+	return d
+}
+
+// poolSyncRetryDue reports whether a previously failed campaign may be re-queued now.
+func (a *app) poolSyncRetryDue(id string) bool {
+	a.poolSyncMu.Lock()
+	defer a.poolSyncMu.Unlock()
+	at, ok := a.poolSyncRetryAt[id]
+	if !ok {
+		return true
+	}
+	return time.Now().Unix() >= at
 }
