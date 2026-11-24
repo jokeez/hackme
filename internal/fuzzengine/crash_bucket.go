@@ -253,7 +253,7 @@ func StableBugSite(msg string) string {
 	frames := crashFrames(msg)
 	var users []string
 	for _, f := range frames {
-		if f.fn == "" || runtimeFunc(f.fn) {
+		if f.fn == "" || runtimeFunc(f.fn) || harnessFunc(f.fn) {
 			continue
 		}
 		users = append(users, formatUserSite(f))
@@ -353,6 +353,24 @@ func runtimeFunc(name string) bool {
 		}
 	}
 	return false
+}
+
+// harnessFunc reports whether a frame belongs to the fuzzing scaffolding rather than
+// to the target. The harness is never the bug, and keeping it in the key makes the
+// same library bug a different finding depending on how it was reached: the fork
+// wrapper's child shows "main" at the driver entry, while the in-process rail shows
+// hackme_stdin_main under LLVMFuzzerTestOneInput and the libFuzzer runtime. Measured
+// on one yajl 2.1.0 leak reached both ways — without this filter the two rails produce
+// two families for one bug, which is a second payout for the same finding.
+func harnessFunc(name string) bool {
+	n := strings.ToLower(strings.TrimSpace(name))
+	switch n {
+	case "main", "hackme_stdin_main", "llvmfuzzertestoneinput", "llvmfuzzerrundriver",
+		"llvmfuzzerinitialize", "fuzz_check", "fuzz_one_input":
+		return true
+	}
+	// libFuzzer's own driver frames (fuzzer::Fuzzer::ExecuteCallback, fuzzer::RunOneTest…)
+	return strings.HasPrefix(n, "fuzzer::")
 }
 
 func relativeOffsetSite(frames []crashFrame) string {
