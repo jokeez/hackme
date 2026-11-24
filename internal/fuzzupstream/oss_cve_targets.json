@@ -1331,7 +1331,10 @@
       "upstream_src": [
         "alloc.c",
         "sds.c",
-        "read.c"
+        "read.c",
+        "hiredis.c",
+        "net.c",
+        "async.c"
       ],
       "include_dirs": [
         "."
@@ -1345,7 +1348,7 @@
       "build_flags": [
         "-w"
       ],
-      "note": "wave30 — protocol parser, read path only"
+      "note": "wave30 — protocol parser, read path only; redisReaderCreate/freeReplyObject live in hiredis.c, which pulls net.c/async.c. Driver hiredis_stdin.c is still local-only (gitignored), so this target stays in rotation.deferred_until_driver until it is force-added."
     },
     {
       "id": "wren",

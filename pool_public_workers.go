@@ -10,6 +10,7 @@ import (
 	"github.com/zeebo/blake3"
 
 	"hackme/internal/netutil"
+	"hackme/internal/poolsync"
 )
 
 func publicWorkerPseudoKey(workerID string) string {
@@ -328,4 +329,66 @@ func redactPublicWorkStats(ws map[string]any) {
 		ws["workers_hidden_stale"] = hidden
 	}
 	ws["workers_keys"] = "pseudonym_v1"
+}
+
+// poolSyncFailureReasonCode maps a raw pool-sync error into a coarse, public-safe
+// code. The raw strings carry operator detail (env var names, local harness
+// hashes, coordinator hints) that unauthenticated callers must not see.
+func poolSyncFailureReasonCode(err string) string {
+	e := strings.ToLower(strings.TrimSpace(err))
+	if e == "" {
+		return ""
+	}
+	switch {
+	case strings.Contains(e, "prepaid"):
+		return "prepaid_attestation_required"
+	case strings.Contains(e, "harness"):
+		return "harness_sync_failed"
+	case strings.Contains(e, "escrow") || strings.Contains(e, "budget"):
+		return "escrow_gate_failed"
+	case strings.Contains(e, "429") || strings.Contains(e, "rate limit"):
+		return "coordinator_rate_limited"
+	case strings.Contains(e, "401") || strings.Contains(e, "403") ||
+		strings.Contains(e, "forbidden") || strings.Contains(e, "unauthorized") ||
+		strings.Contains(e, "token"):
+		return "coordinator_auth_failed"
+	case strings.Contains(e, "timeout") || strings.Contains(e, "deadline") ||
+		strings.Contains(e, "connection refused") || strings.Contains(e, "no such host") ||
+		strings.Contains(e, "dial "):
+		return "coordinator_unreachable"
+	default:
+		return "sync_failed"
+	}
+}
+
+// redactPoolSyncFailureDetail keeps public /api/status honest about how many pool
+// campaigns are stuck without publishing the per-campaign detail: campaign ids name
+// operator-run bootstrap work, and the error text leaks local artifact hashes plus
+// hub-only env/policy hints. Admin and loopback callers keep the full payload.
+func redactPoolSyncFailureDetail(m map[string]any) {
+	if m == nil {
+		return
+	}
+	ps, ok := m["pool_sync"].(map[string]any)
+	if !ok || ps == nil {
+		return
+	}
+	if failed, ok := ps["failed_campaigns"].(map[string]string); ok {
+		reasons := make(map[string]int, 4)
+		for _, v := range failed {
+			if code := poolSyncFailureReasonCode(v); code != "" {
+				reasons[code]++
+			}
+		}
+		delete(ps, "failed_campaigns")
+		ps["failed_campaigns_count"] = len(failed)
+		if len(reasons) > 0 {
+			ps["failed_campaign_reasons"] = reasons
+		}
+	}
+	if snap, ok := ps["metrics"].(poolsync.Metrics); ok {
+		snap.LastError = poolSyncFailureReasonCode(snap.LastError)
+		snap.LastCampaignID = ""
+		ps["metrics"] = snap
+	}
 }
