@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -199,9 +200,19 @@ func BuildLibFuzzerImport(ctx context.Context, repoRoot, targetID string) (binPa
 		return "", "", err
 	}
 	if st, err := os.Lstat(binPath); err == nil && st.Mode().IsRegular() && st.Size() > 0 && harness == "" {
-		// Stdin driver cache. BuildTarget stats its own ASAN binary before clang.
-		stdinBin, _, err := fuzzupstream.BuildTarget(ctx, repoRoot, t)
-		return binPath, stdinBin, err
+		// An in-process build needs no stdin binary at all; the fork wrapper does.
+		if inprocMarkerPresent(binPath) {
+			return binPath, "", nil
+		}
+		// A cached fork wrapper is not worth keeping when the driver can run
+		// in-process: the cache would otherwise pin every future shard to 97 exec/s
+		// of blind fuzzing until someone cleared it by hand. Rebuild once, then the
+		// marker takes the fast path above.
+		if driver := fuzzupstream.DriverSourcePath(repoRoot, t); !InprocStdinDriverSupported(driver) {
+			// Stdin driver cache. BuildTarget stats its own ASAN binary before clang.
+			stdinBin, _, err := fuzzupstream.BuildTarget(ctx, repoRoot, t)
+			return binPath, stdinBin, err
+		}
 	}
 	if harness != "" {
 		// Sources only. BuildTarget would also clang the unused stdin driver.
@@ -213,6 +224,19 @@ func BuildLibFuzzerImport(ctx context.Context, repoRoot, targetID string) (binPa
 		}
 		return binPath, "", nil
 	}
+	// No hand-written harness: build the catalog's own stdin driver in-process rather
+	// than fork+exec it per input. The wrapper stays as the fallback for a driver that
+	// cannot run in-process and for published inventory binaries without sources.
+	if driver := fuzzupstream.DriverSourcePath(repoRoot, t); InprocStdinDriverSupported(driver) {
+		if _, cerr := fuzzupstream.EnsureClone(ctx, repoRoot, t); cerr == nil {
+			if berr := buildInprocStdinLibFuzzer(ctx, repoRoot, t, driver, binPath); berr == nil {
+				return binPath, "", nil
+			} else {
+				log.Printf("hunt libfuzzer: in-process build failed for %s, falling back to the fork wrapper: %s",
+					logsafe.ID(t.ID), logsafe.Err(berr))
+			}
+		}
+	}
 	stdinBin, _, err = fuzzupstream.BuildTarget(ctx, repoRoot, t)
 	if err != nil {
 		return "", "", err
@@ -220,6 +244,8 @@ func BuildLibFuzzerImport(ctx context.Context, repoRoot, targetID string) (binPa
 	if err := buildSubprocessLibFuzzer(ctx, repoRoot, binPath); err != nil {
 		return "", "", err
 	}
+	// Drop a stale in-process marker so the wrapper is not mistaken for one later.
+	_ = os.Remove(inprocMarkerPath(binPath))
 	return binPath, stdinBin, nil
 }
 
@@ -1012,4 +1038,102 @@ func leakDetectFlag(wallSec int) string {
 		return "1"
 	}
 	return "0"
+}
+
+// stdinInprocHarness wraps a catalog stdin driver as an in-process libFuzzer target.
+const stdinInprocHarness = "tasks/sources/fuzz/benchmark/stdin_inproc_libfuzzer.c"
+
+// inprocMarkerPath marks a cached binary as the in-process build, so a later shard
+// does not mistake it for the fork wrapper and build the stdin binary it needs.
+func inprocMarkerPath(binPath string) string { return binPath + ".inproc" }
+
+func inprocMarkerPresent(binPath string) bool {
+	st, err := os.Lstat(inprocMarkerPath(binPath))
+	return err == nil && st.Mode().IsRegular()
+}
+
+// InprocStdinDriverSupported reports whether a stdin driver can be run in-process.
+// The shim calls the driver's entry once per input with stdin pointing at that input,
+// so the entry has to be main(void), and a driver that calls exit() would end the
+// whole session instead of the one input. Every catalog driver meets both today; this
+// keeps a future one that does not from silently losing its crashes.
+func InprocStdinDriverSupported(driverPath string) bool {
+	if strings.TrimSpace(driverPath) == "" || !strings.HasSuffix(driverPath, ".c") {
+		return false
+	}
+	raw, err := os.ReadFile(driverPath)
+	if err != nil {
+		return false
+	}
+	src := string(raw)
+	if !mainVoidEntry.MatchString(src) {
+		return false
+	}
+	return !exitCallSite.MatchString(src)
+}
+
+var (
+	mainVoidEntry = regexp.MustCompile(`(^|\s)int\s+main\s*\(\s*void\s*\)`)
+	exitCallSite  = regexp.MustCompile(`(^|[^_[:alnum:]])_?exit\s*\(`)
+)
+
+// buildInprocStdinLibFuzzer compiles the target's sources, its stdin driver with the
+// entry renamed, and the in-process shim into one libFuzzer binary.
+//
+// Why this exists: the fork wrapper execs the stdin binary once per input, which costs
+// two orders of magnitude in throughput and leaves libFuzzer counting the wrapper's
+// own edges instead of the target's — a guided fuzzer with no feedback. Measured on
+// the selftest target, 20s walls, three seeds: 97 exec/s and 7 edges and zero bug
+// classes through the wrapper, against 2,012 exec/s and 44 edges and two classes
+// in-process.
+func buildInprocStdinLibFuzzer(ctx context.Context, repoRoot string, t fuzzupstream.Target, driverSrc, outPath string) error {
+	shim := filepath.Join(repoRoot, stdinInprocHarness)
+	if st, err := os.Stat(shim); err != nil || !st.Mode().IsRegular() {
+		return fmt.Errorf("hunt: missing in-process shim %s", shim)
+	}
+	clonePath := filepath.Join(repoRoot, ".cache", "oss-cve-clones", t.ID)
+	if err := fuzzupstream.InjectOSSCveBuildStubs(repoRoot, t.ID, clonePath); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
+		return err
+	}
+	tmpDir, err := os.MkdirTemp("", "hunt-lf-inproc-*")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmpDir)
+	tmpBin := filepath.Join(tmpDir, "fuzzer")
+	args := []string{
+		"-fsanitize=fuzzer,address,undefined",
+		"-fno-omit-frame-pointer", "-g", "-O1",
+		// The driver keeps its source untouched; only its entry symbol moves.
+		"-Dmain=hackme_stdin_main",
+		"-I", clonePath,
+		"-o", tmpBin,
+		shim, driverSrc,
+	}
+	for _, inc := range t.IncludeDirs {
+		args = append(args, "-I"+fuzzupstream.IncludeDir(repoRoot, clonePath, inc))
+	}
+	args = append(args, fuzzupstream.ExpandUpstreamSrc(clonePath, t.UpstreamSrc)...)
+	args = append(args, t.BuildFlags...)
+	buildCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+	defer cancel()
+	binds := []string{tmpDir, clonePath, filepath.Dir(shim), filepath.Dir(driverSrc)}
+	for _, inc := range t.IncludeDirs {
+		binds = append(binds, fuzzupstream.IncludeDir(repoRoot, clonePath, inc))
+	}
+	stderr, err := runCompilerBuild(buildCtx, "clang", args, binds, 10*time.Minute)
+	if err != nil {
+		return fmt.Errorf("clang inproc libfuzzer %s: %w (%s)", t.ID, err, strings.TrimSpace(stderr))
+	}
+	in, err := os.ReadFile(tmpBin)
+	if err != nil {
+		return err
+	}
+	if err := writeLibFuzzerCacheBin(outPath, in); err != nil {
+		return err
+	}
+	return os.WriteFile(inprocMarkerPath(outPath), []byte(t.ID+"\n"), 0o644)
 }
