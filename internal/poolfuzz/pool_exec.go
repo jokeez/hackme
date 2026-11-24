@@ -67,8 +67,10 @@ func leaseSecondsForConfig(cfg map[string]any) int64 {
 				if sec < 120 {
 					sec = 120
 				}
-				if sec > 360 {
-					sec = 360
+				// 480s (was 360): a 210s Heavy wall plus merge slack no longer
+				// expires the lease mid-upload. Byte Hunt keeps the 360s cap below.
+				if sec > 480 {
+					sec = 480
 				}
 				return sec
 			}

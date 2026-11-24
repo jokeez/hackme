@@ -1,6 +1,7 @@
 package workerfuzzloop
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"os"
@@ -10,6 +11,18 @@ import (
 
 	"hackme/internal/hunt"
 )
+
+func TestInventoryZeroSeedsSoftSkips(t *testing.T) {
+	out := RunHuntEngineShard(context.Background(), ResearchSlotRun{}, ClaimResp{
+		HuntEngine:       hunt.EngineLibFuzzer,
+		HuntSource:       "inventory",
+		EngineLeaseSec:   180,
+		UpstreamTargetID: "inv_empty",
+	})
+	if !out.SoftSkip || out.SkipReason != "inventory_seeds_missing" {
+		t.Fatalf("zero-seed inventory must soft-skip, got %+v", out)
+	}
+}
 
 func TestDetectHuntEnginesIncludesByte(t *testing.T) {
 	got := DetectHuntEngines()
@@ -49,6 +62,62 @@ func TestCorpusSeedBytes(t *testing.T) {
 	}
 	if _, ok := corpusSeedBytes(nil); ok {
 		t.Fatal("nil")
+	}
+}
+
+func TestCollectEngineDeltaSkipsBootStarters(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "boot.bin"), []byte("{}"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "real.bin"), []byte(`{"a":1}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	boots := []struct {
+		name string
+		body []byte
+	}{
+		{"obj.json", []byte("{}")},
+		{"arr.json", []byte("[]")},
+		{"null.json", []byte("null")},
+		{"z.bin", []byte{0x00}},
+		{"hi.bin", []byte{0x80}},
+	}
+	for _, b := range boots {
+		if err := os.WriteFile(filepath.Join(dir, b.name), b.body, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	seeds, _ := collectEngineDelta(hunt.EngineShardResult{CorpusDir: dir}, nil, 32)
+	if len(seeds) != 1 || string(seeds[0].InputBytes) != `{"a":1}` {
+		t.Fatalf("boot starters must not take a delta slot: %#v", seeds)
+	}
+}
+
+func TestCollectEngineDeltaDedupsFullSHA256(t *testing.T) {
+	dir := t.TempDir()
+	prefix := []byte("0123456789abcdef0123456789abcdef")
+	same := append(append([]byte{}, prefix...), []byte("-same")...)
+	other := append(append([]byte{}, prefix...), []byte("-other")...)
+	if err := os.WriteFile(filepath.Join(dir, "a.bin"), same, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "b.bin"), append([]byte(nil), same...), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "c.bin"), other, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	seeds, _ := collectEngineDelta(hunt.EngineShardResult{CorpusDir: dir}, nil, 32)
+	if len(seeds) != 2 {
+		t.Fatalf("full-hash dedup got %d seeds: %#v", len(seeds), seeds)
+	}
+	got := map[string]int{}
+	for _, s := range seeds {
+		got[string(s.InputBytes)]++
+	}
+	if got[string(same)] != 1 || got[string(other)] != 1 {
+		t.Fatalf("shared 32-byte prefix collapsed a distinct unit: %#v", got)
 	}
 }
 

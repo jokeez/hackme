@@ -17,7 +17,7 @@ Distributed **coverage-guided Hunt** — not an OSS-Fuzz replacement, and **not*
 **Claim** (Hunt):
 
 - `hunt_engine` / `engine`: `libfuzzer` \| `aflpp` \| `byte`
-- `engine_lease_sec`: wall seconds for coverage engines (pool packages: lite **90** · standard **150** · heavy **180**, cap 300)
+- `engine_lease_sec`: wall seconds for coverage engines (pool packages: lite **180** · standard **240** · heavy **300**, cap 300). A campaign that already stored `engine_lease_sec` keeps that value.
 - `engine_profile`: `fleet` \| `deep`
 - `exec_per_unit`: `1` for coverage engines (one engine window)
 - Worker advertises `hunt_engines` (CSV)

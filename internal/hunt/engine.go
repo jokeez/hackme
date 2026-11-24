@@ -22,10 +22,18 @@ const (
 
 // Default fleet / deep lease walls (seconds). Caps keep reclaim healthy.
 const (
-	DefaultLibFuzzerLeaseSec = 60
+	DefaultLibFuzzerLeaseSec = 180
 	DefaultAFLPPLeaseSec     = 180
 	MaxEngineLeaseSec        = 300
 	MinEngineLeaseSec        = 15
+
+	// Pool package walls. Reclaim lease is ≥2× wall (see leaseSecondsForConfig)
+	// and clips at 480s, so heavy 300s lands on that cap (wall + 180s slack).
+	// Throughput inside the wall (fork + len_control) is what multiplies execs;
+	// these seconds are the budget that actually runs.
+	PoolEngineLeaseSecLite     = 180
+	PoolEngineLeaseSecStandard = 240
+	PoolEngineLeaseSecHeavy    = 300
 )
 
 // ParseHuntEngine normalizes campaign/claim engine ids.
@@ -144,6 +152,18 @@ func ApplyCoverageEngineDefaults(cfg map[string]any, pkgKey string) {
 	}
 	if _, ok := cfg["hunt_engine"]; !ok {
 		cfg["hunt_engine"] = EngineLibFuzzer
+	}
+}
+
+// PoolEngineLeaseSecForPackage is the pool_distributed engine wall for a Hunt SKU.
+func PoolEngineLeaseSecForPackage(pkgKey string) int {
+	switch strings.TrimSpace(strings.ToLower(pkgKey)) {
+	case "hunt_heavy", "heavy":
+		return PoolEngineLeaseSecHeavy
+	case "hunt_standard", "standard":
+		return PoolEngineLeaseSecStandard
+	default:
+		return PoolEngineLeaseSecLite
 	}
 }
 

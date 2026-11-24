@@ -111,8 +111,8 @@ func replayInventoryCrash(ctx context.Context, bin, input string) (fuzzupstream.
 	cctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	env := append(ScrubBuildEnv(os.Environ()),
-		"ASAN_OPTIONS=detect_leaks=1:symbolize=1",
-		"UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1",
+		"ASAN_OPTIONS="+LibFuzzerASANOptions,
+		"UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=0",
 	)
 	blob, _ := IsolatedHarnessRunner()(cctx, bin, []string{"-runs=1", input}, env, nil, 30*time.Second)
 	info := fuzzupstream.ClassifySanitizer(blob)

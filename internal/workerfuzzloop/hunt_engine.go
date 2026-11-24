@@ -49,8 +49,15 @@ type HuntEngineResult struct {
 	EngineVersion string
 	CorpusDeltas  int
 	Crashes       int
-	SoftSkip      bool
-	SkipReason    string
+	SeedsIn       int
+	CorpusBefore  int
+	CorpusAfter   int
+	// Execs is stat::number_of_executed_units for this wall (fork parent
+	// sum when -fork>1). Zero is a real result and does not change pay.
+	Execs      int
+	Subprocess bool
+	SoftSkip   bool
+	SkipReason string
 }
 
 // RunHuntEngineShard runs libFuzzer/AFL++ for the claim lease window, uploads corpus_delta,
@@ -63,17 +70,26 @@ func RunHuntEngineShard(ctx context.Context, run ResearchSlotRun, cr ClaimResp) 
 		out.SkipReason = "not_coverage_engine"
 		return out
 	}
-	if ok, reason := hunt.RunnerAvailable(engine); !ok {
-		out.SoftSkip = true
-		out.SkipReason = reason
-		return out
-	}
 	wall := cr.EngineLeaseSec
 	if wall <= 0 {
 		wall = hunt.EngineLeaseSecFromConfig(nil, engine)
 	}
 	start := time.Now()
 	seedFiles := collectCoverageEngineSeeds(cr)
+	out.SeedsIn = len(seedFiles)
+	// Inventory packs are the bug oracle. Fuzzing {} boot starters and submitting
+	// CLEAN hides a missed seed_byte_corpus (rc20 wrap-seed corpus=0).
+	// Check before the engine binary: a missing runner must not hide an empty pack.
+	if strings.EqualFold(strings.TrimSpace(cr.HuntSource), "inventory") && len(seedFiles) == 0 {
+		out.SoftSkip = true
+		out.SkipReason = "inventory_seeds_missing"
+		return out
+	}
+	if ok, reason := hunt.RunnerAvailable(engine); !ok {
+		out.SoftSkip = true
+		out.SkipReason = reason
+		return out
+	}
 	repoRoot := strings.TrimSpace(run.RepoRoot)
 	if repoRoot == "" {
 		repoRoot = hunt.RepoRoot()
@@ -92,12 +108,7 @@ func RunHuntEngineShard(ctx context.Context, run ResearchSlotRun, cr ClaimResp) 
 			}
 		}
 	}
-	var dictBytes []byte
-	if h := strings.TrimSpace(cr.LibFuzzerDictHex); h != "" {
-		if b, err := decodeHex(h); err == nil && len(b) > 0 {
-			dictBytes = b
-		}
-	}
+	dictBytes := coverageEngineDict(cr)
 	res := hunt.RunEngineShard(ctx, hunt.EngineShardOpts{
 		RepoRoot:             repoRoot,
 		TargetID:             targetID,
@@ -112,6 +123,10 @@ func RunHuntEngineShard(ctx context.Context, run ResearchSlotRun, cr ClaimResp) 
 		SourceRel:            strings.TrimSpace(cr.HuntSourceRel),
 	})
 	out.EngineVersion = res.EngineVersion
+	out.CorpusBefore = res.CorpusBefore
+	out.CorpusAfter = res.CorpusAfter
+	out.Execs = res.Execs
+	out.Subprocess = res.Subprocess
 	out.DurationMS = int(time.Since(start).Milliseconds())
 	if !res.Ran && len(res.CrashFiles) == 0 {
 		out.SoftSkip = true
@@ -124,7 +139,8 @@ func RunHuntEngineShard(ctx context.Context, run ResearchSlotRun, cr ClaimResp) 
 	// Defense-in-depth: never submit CLEAN when wall clock ≪ lease (stale binaries /
 	// race where Ran=true after a sub-second LF exit). Matches engine_runner floor.
 	minMS := wall * 1000 * 3 / 4
-	if floor := hunt.MinEngineLeaseSec * 1000 * 3 / 4; minMS < floor {
+	// Same floor as coordinator hunt_engine_wall (full MinEngineLeaseSec, not 75% of it).
+	if floor := hunt.MinEngineLeaseSec * 1000; minMS < floor {
 		minMS = floor
 	}
 	if out.DurationMS < minMS && len(res.CrashFiles) == 0 {
@@ -134,7 +150,11 @@ func RunHuntEngineShard(ctx context.Context, run ResearchSlotRun, cr ClaimResp) 
 	}
 
 	// Upload only files new since this lease window (not the whole persistent corpus).
-	deltas, crashes := collectEngineDelta(res, beforeHashes, 32)
+	// 48 (was 32): short pool walls discover more units than one worker can upload
+	// at the old cap, so the next miner's seed corpus stays shallow.
+	// 96 matches the claim seed-file cap. 64 dropped units a forked wall
+	// actually grew, so the next miner restarted shallow.
+	deltas, crashes := collectEngineDelta(res, beforeHashes, 96)
 	out.CorpusDeltas = len(deltas)
 	out.Crashes = len(crashes)
 	if len(deltas) > 0 || len(crashes) > 0 {
@@ -164,6 +184,27 @@ func RunHuntEngineShard(ctx context.Context, run ResearchSlotRun, cr ClaimResp) 
 		}
 	}
 	return out
+}
+
+// trivialCorpusUnit is a boot starter. Uploading it burns a delta slot the
+// next miner would rather spend on a unit this lease actually discovered.
+func trivialCorpusUnit(b []byte) bool {
+	switch string(b) {
+	case "{}", "[]", "null":
+		return true
+	}
+	return len(b) == 1 && (b[0] == 0x00 || b[0] == 0x80)
+}
+
+// crashSnapshotKnown reports whether this content hash was already a crash
+// artifact before the lease. A seed with the same bytes is not a crash
+// snapshot: the first time those bytes crash they still have to upload.
+func crashSnapshotKnown(before map[string]string, hexSum string) bool {
+	if before == nil || hexSum == "" {
+		return false
+	}
+	_, ok := before[".hunt-crash:"+hexSum]
+	return ok
 }
 
 func corpusReadRoot(roots []string, path string) string {
@@ -203,6 +244,7 @@ func collectEngineDelta(res hunt.EngineShardResult, before map[string]string, ma
 	if err != nil {
 		return nil, nil
 	}
+	seenBatch := map[string]struct{}{}
 	for _, e := range ents {
 		if e.IsDir() || strings.HasPrefix(e.Name(), ".") {
 			continue
@@ -215,6 +257,11 @@ func collectEngineDelta(res hunt.EngineShardResult, before map[string]string, ma
 		}
 		sum := sha256.Sum256(b)
 		hexSum := hex.EncodeToString(sum[:])
+		// Two names, one input: a 32-byte prefix used to collapse a new unit
+		// into an older one. Identity is the full hash, including this batch.
+		if _, ok := seenBatch[hexSum]; ok {
+			continue
+		}
 		if old, ok := before[e.Name()]; ok && old == hexSum {
 			continue // unchanged from pre-lease snapshot
 		}
@@ -226,9 +273,10 @@ func collectEngineDelta(res hunt.EngineShardResult, before map[string]string, ma
 				break
 			}
 		}
-		if dup {
+		if dup || trivialCorpusUnit(b) {
 			continue
 		}
+		seenBatch[hexSum] = struct{}{}
 		info, _ := e.Info()
 		mod := time.Time{}
 		if info != nil {
@@ -262,19 +310,10 @@ func collectEngineDelta(res hunt.EngineShardResult, before map[string]string, ma
 		}
 		sum := sha256.Sum256(b)
 		hexSum := hex.EncodeToString(sum[:])
-		// Same content-dedupe as seeds: a pre-lease snapshot hash or duplicate
-		// in this batch must not re-enter crash credit (stale .hunt-run/crashes).
-		if _, ok := seenCrash[hexSum]; ok {
-			continue
-		}
-		stale := false
-		for _, h := range before {
-			if h == hexSum {
-				stale = true
-				break
-			}
-		}
-		if stale {
+		// Duplicate in this batch, or a crash artifact that already existed
+		// before the lease. A pre-lease seed with the same bytes is not a
+		// crash snapshot — those bytes still upload once as a crash.
+		if _, ok := seenCrash[hexSum]; ok || crashSnapshotKnown(before, hexSum) {
 			continue
 		}
 		seenCrash[hexSum] = struct{}{}
@@ -283,43 +322,104 @@ func collectEngineDelta(res hunt.EngineShardResult, before map[string]string, ma
 	return seeds, crashes
 }
 
-// collectCoverageEngineSeeds merges claim inputs for LF/AFL leases:
-// anchor InputBytesHex + guided CorpusSeeds + campaign seed_byte_corpus (pack TLV seeds).
-// Without seed_byte_corpus, inventory packs like heavywire only teach structure on the
-// hub while workers start near-empty and miss easy length-confusion bugs.
+// coverageEngineDict prefers the claim's published dict, then a target profile dict.
+// Catalog campaigns often have mutator_dict for the byte path and no libfuzzer_dict,
+// which left -dict= off and every worker on the generic libFuzzer schedule.
+func coverageEngineDict(cr ClaimResp) []byte {
+	if h := strings.TrimSpace(cr.LibFuzzerDictHex); h != "" {
+		if b, err := decodeHex(h); err == nil && len(b) > 0 {
+			return b
+		}
+	}
+	if text := hunt.LibFuzzerDictTextForTarget(cr.UpstreamTargetID); text != "" {
+		return []byte(text)
+	}
+	return nil
+}
+
+// collectCoverageEngineSeeds merges claim inputs for LF/AFL leases.
+// seed_byte_corpus (pack / imported LF seeds) is reserved first. A fat guided
+// snapshot used to fill the 64-file cap and the wrap seed never reached the
+// engine, so libFuzzer reported corpus=0 and fuzzed only "{}" boot starters.
 func collectCoverageEngineSeeds(cr ClaimResp) [][]byte {
 	const maxSeed = 65536
-	const maxFiles = 64
+	const maxFiles = 96
 	seen := map[string]struct{}{}
 	out := make([][]byte, 0, 16)
-	add := func(b []byte) {
+	add := func(b []byte) bool {
 		if len(b) == 0 || len(b) > maxSeed || len(out) >= maxFiles {
-			return
+			return false
 		}
 		sum := sha256.Sum256(b)
 		key := hex.EncodeToString(sum[:])
 		if _, ok := seen[key]; ok {
-			return
+			return true
 		}
 		seen[key] = struct{}{}
 		out = append(out, append([]byte(nil), b...))
+		return true
+	}
+	if len(cr.SeedByteCorpus) > 0 {
+		for _, b := range fuzzengine.ParseByteCorpus(map[string]any{"seed_byte_corpus": cr.SeedByteCorpus}) {
+			if !add(b) {
+				break
+			}
+		}
 	}
 	if h := strings.TrimSpace(cr.InputBytesHex); h != "" {
 		if b, err := decodeHex(h); err == nil {
 			add(b)
 		}
 	}
+	// Havoc flags are byte-path metadata unless we plant the mutants in the LF corpus.
+	appendHavocSeedBurst(out, add, cr)
 	for _, m := range cr.CorpusSeeds {
 		if b, ok := corpusSeedBytes(m); ok {
-			add(b)
-		}
-	}
-	if len(cr.SeedByteCorpus) > 0 {
-		for _, b := range fuzzengine.ParseByteCorpus(map[string]any{"seed_byte_corpus": cr.SeedByteCorpus}) {
-			add(b)
+			if !add(b) {
+				break
+			}
 		}
 	}
 	return out
+}
+
+// appendHavocSeedBurst adds a few deterministic mutants of the pack head so
+// libFuzzer executes havoc_deep_v28/v210 bytes. The original seeds stay first.
+func appendHavocSeedBurst(out [][]byte, add func([]byte) bool, cr ClaimResp) {
+	if !cr.HavocDeepV28 && !cr.HavocDeepV210 {
+		return
+	}
+	if len(out) == 0 {
+		return
+	}
+	cfg := map[string]any{}
+	if cr.HavocDeepV28 {
+		cfg["havoc_deep_v28"] = true
+	}
+	if cr.HavocDeepV210 {
+		cfg["havoc_deep_v210"] = true
+	}
+	if cr.PowerMutCap > 0 {
+		cfg["power_mut_cap"] = cr.PowerMutCap
+	}
+	n := len(out)
+	if n > 4 {
+		n = 4
+	}
+	bases := make([][]byte, n)
+	copy(bases, out[:n])
+	// v210 may grow toward LF -max_len (65536). A 4096 cap never planted the
+	// length class the fuzzer is allowed to execute.
+	maxLen := 16384
+	if cr.HavocDeepV210 {
+		maxLen = 65536
+	}
+	for i, b := range bases {
+		mut := fuzzengine.MutateBytesForHunt(b, fuzzengine.StageHavocBase, uint64(i+1)*0x9E3779B97F4A7C15, maxLen, cfg, bases)
+		if !add(mut) {
+			return
+		}
+	}
 }
 
 func corpusSeedBytes(m map[string]any) ([]byte, bool) {
@@ -330,6 +430,18 @@ func corpusSeedBytes(m map[string]any) ([]byte, bool) {
 		b, err := decodeHex(h)
 		if err == nil && len(b) > 0 {
 			return b, true
+		}
+	}
+	switch raw := m["input_bytes"].(type) {
+	case []byte:
+		if len(raw) > 0 {
+			return append([]byte(nil), raw...), true
+		}
+	case string:
+		// Raw corpus bytes. Hex belongs in input_bytes_hex — "HWIR" is valid hex
+		// and must not be decoded here.
+		if raw != "" {
+			return []byte(raw), true
 		}
 	}
 	return nil, false

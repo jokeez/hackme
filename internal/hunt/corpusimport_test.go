@@ -1,9 +1,14 @@
 package hunt
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestMergeLibFuzzerSeedCorpus(t *testing.T) {
@@ -52,11 +57,167 @@ func TestRankLibFuzzerSeedsCaps(t *testing.T) {
 	}
 }
 
+func TestLoadLibFuzzerSeedFilesPrefersNewestWhenCapped(t *testing.T) {
+	dir := t.TempDir()
+	oldPath := filepath.Join(dir, "old.bin")
+	newPath := filepath.Join(dir, "new.bin")
+	if err := os.WriteFile(oldPath, []byte("old-seed-bytes"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(newPath, []byte("new-feature-unit"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	past := time.Now().Add(-time.Hour)
+	if err := os.Chtimes(oldPath, past, past); err != nil {
+		t.Fatal(err)
+	}
+	got, err := LoadLibFuzzerSeedFiles(dir, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || string(got[0]) != "new-feature-unit" {
+		t.Fatalf("newest unit dropped by load cap: %#v", got)
+	}
+}
+
+func TestLoadLibFuzzerSeedFilesKeepsDistinctLongPrefix(t *testing.T) {
+	dir := t.TempDir()
+	prefix := bytes.Repeat([]byte("A"), 32)
+	old := append(append([]byte{}, prefix...), []byte("-old")...)
+	fresh := append(append([]byte{}, prefix...), []byte("-fresh")...)
+	if err := os.WriteFile(filepath.Join(dir, "old.bin"), old, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "fresh.bin"), fresh, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := LoadLibFuzzerSeedFiles(dir, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("shared 32-byte prefix dropped a distinct seed: %d", len(got))
+	}
+}
+
+func TestLoadLibFuzzerSeedFilesDedupsFullSHA256(t *testing.T) {
+	dir := t.TempDir()
+	body := append(bytes.Repeat([]byte("A"), 32), []byte("-same")...)
+	if err := os.WriteFile(filepath.Join(dir, "a.bin"), body, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "b.bin"), append([]byte(nil), body...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	other := append(bytes.Repeat([]byte("A"), 32), []byte("-other")...)
+	if err := os.WriteFile(filepath.Join(dir, "c.bin"), other, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := LoadLibFuzzerSeedFiles(dir, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("identical bytes must collapse to one seed, got %d", len(got))
+	}
+}
+
+func TestRankPinsBoringFreshUnitAheadOfRarerSeeds(t *testing.T) {
+	fresh := []byte("aaaa")
+	seeds := [][]byte{fresh, []byte("{}"), []byte("[]"), []byte{0x00}}
+	for i := 0; i < 40; i++ {
+		seeds = append(seeds, []byte(fmt.Sprintf(`{"uniq":%d,"pad":"coverage-unit"}`, i)))
+	}
+	got := RankLibFuzzerSeeds(seeds, 4)
+	if len(got) != 4 || string(got[0]) != string(fresh) {
+		t.Fatalf("boring newest unit not pinned front: %#v", got)
+	}
+	for _, b := range got {
+		if genericBootSeed(b) {
+			t.Fatalf("boot took a capped slot ahead of fresh units: %#v", got)
+		}
+	}
+}
+
+func TestLoadLibFuzzerSeedFilesEmptyDir(t *testing.T) {
+	got, err := LoadLibFuzzerSeedFiles(t.TempDir(), 8)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("empty corpus loaded %d", len(got))
+	}
+}
+
+func TestRankLibFuzzerSeedsPutsBootStartersAtTail(t *testing.T) {
+	feature := []byte("feature-unit-unique-coverage")
+	other := []byte("mid-coverage-unit-zz")
+	boots := [][]byte{[]byte("{}"), []byte("[]"), []byte("null"), {0x00}, {0x80}}
+	seeds := append(append([][]byte{}, boots...), feature, other)
+	got := RankLibFuzzerSeeds(seeds, 20)
+	if len(got) != 7 {
+		t.Fatalf("got %d seeds", len(got))
+	}
+	if string(got[0]) != string(feature) || string(got[1]) != string(other) {
+		t.Fatalf("fresh units not pinned ahead of boots: %#v", got)
+	}
+	tail := map[string]bool{}
+	for _, b := range got[2:] {
+		tail[string(b)] = true
+	}
+	for _, b := range boots {
+		if !tail[string(b)] {
+			t.Fatalf("boot %q missing from tail: %#v", b, got)
+		}
+	}
+	// A one-byte unit that is not 0x00/0x80 is a real seed, not a starter.
+	kept := RankLibFuzzerSeeds([][]byte{{0x01}, {0x00}}, 8)
+	if len(kept) != 2 || kept[0][0] != 0x01 || kept[1][0] != 0x00 {
+		t.Fatalf("0x01 must stay ahead of the 0x00 starter: %#v", kept)
+	}
+}
+
+func TestRankLibFuzzerSeedsPinsFreshAheadOfBoots(t *testing.T) {
+	feature := []byte("feature-unit-unique-coverage")
+	seeds := make([][]byte, 0, 90)
+	for i := 0; i < 10; i++ {
+		seeds = append(seeds, []byte("{}"))
+	}
+	seeds = append(seeds, feature)
+	for i := 0; i < 80; i++ {
+		seeds = append(seeds, []byte{byte(i + 1), byte(i ^ 0xff)})
+	}
+	got := RankLibFuzzerSeeds(seeds, 8)
+	if len(got) != 8 {
+		t.Fatalf("cap: got %d", len(got))
+	}
+	found := false
+	for _, b := range got {
+		if string(b) == "{}" {
+			t.Fatalf("boot outranked the fresh unit: %#v", got)
+		}
+		if string(b) == string(feature) {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("rank cap dropped the fresh unit: %#v", got)
+	}
+}
+
 func TestApplyHuntPowerScheduling(t *testing.T) {
 	cfg := map[string]any{"power_mut_cap": 2}
 	ApplyHuntPowerScheduling(cfg, "hunt_standard")
 	if cfg["power_mut_cap"] != 16 {
 		t.Fatalf("cap=%v", cfg["power_mut_cap"])
+	}
+	if cfg["havoc_deep_v210"] != true {
+		t.Fatalf("standard v210=%v", cfg["havoc_deep_v210"])
+	}
+	lite := map[string]any{"power_mut_cap": 2}
+	ApplyHuntPowerScheduling(lite, "hunt_lite")
+	if _, ok := lite["havoc_deep_v210"]; ok {
+		t.Fatalf("lite must not force v210, got %#v", lite["havoc_deep_v210"])
 	}
 	heavy := map[string]any{"power_mut_cap": 2}
 	ApplyHuntPowerScheduling(heavy, "hunt_heavy")
@@ -117,6 +278,66 @@ func TestLoadLibFuzzerSeedFiles(t *testing.T) {
 	}
 	if len(seeds) != 1 || string(seeds[0]) != "ok" {
 		t.Fatalf("seeds=%v", seeds)
+	}
+}
+
+func TestExportLibFuzzerSeedsRefusesSymlinkEscape(t *testing.T) {
+	dir := t.TempDir()
+	outside := filepath.Join(dir, "outside.txt")
+	if err := os.WriteFile(outside, []byte("secret"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	seedDir := LibFuzzerSeedDir(dir, "jsmn")
+	if err := os.MkdirAll(seedDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	payload := []byte("owned-by-miner")
+	sum := sha256.Sum256(payload)
+	name := fmt.Sprintf("lf-%s.bin", hex.EncodeToString(sum[:16]))
+	link := filepath.Join(seedDir, name)
+	if err := os.Symlink(outside, link); err != nil {
+		t.Fatal(err)
+	}
+	n, err := ExportLibFuzzerSeeds(dir, "jsmn", [][]byte{payload})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("written=%d", n)
+	}
+	got, err := os.ReadFile(outside)
+	if err != nil || string(got) != "secret" {
+		t.Fatalf("symlink write escaped: %q err=%v", got, err)
+	}
+	st, err := os.Lstat(link)
+	if err != nil || st.Mode()&os.ModeSymlink != 0 || !st.Mode().IsRegular() {
+		t.Fatalf("cache entry mode=%v err=%v", st, err)
+	}
+	body, err := os.ReadFile(link)
+	if err != nil || string(body) != string(payload) {
+		t.Fatalf("cache body=%q err=%v", body, err)
+	}
+}
+
+func TestExportLibFuzzerSeedsRefusesDirSymlink(t *testing.T) {
+	dir := t.TempDir()
+	outside := filepath.Join(dir, "outside")
+	if err := os.MkdirAll(outside, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	parent := filepath.Join(dir, ".cache", "hunt-lf-seeds")
+	if err := os.MkdirAll(parent, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(parent, "jsmn")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ExportLibFuzzerSeeds(dir, "jsmn", [][]byte{[]byte("x")}); err == nil {
+		t.Fatal("dir symlink must not be a seed cache")
+	}
+	ents, err := os.ReadDir(outside)
+	if err != nil || len(ents) != 0 {
+		t.Fatalf("wrote through dir symlink: %v err=%v", ents, err)
 	}
 }
 

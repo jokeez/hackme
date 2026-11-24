@@ -463,15 +463,15 @@ func processClaim(ctx context.Context, cfg Config, base string, st *Stats, cr *C
 				MinerAddr: cfg.MinerAddr, HTTPClient: cfg.HTTPClient, Claim: *cr,
 			}, *cr)
 			if er.SoftSkip {
-				fmt.Fprintf(os.Stderr, "%s: hunt_engine soft_skip=%s — releasing\n", cfg.LogPrefix, er.SkipReason)
+				fmt.Fprintf(os.Stderr, "%s: hunt_engine soft_skip=%s execs=%d — releasing\n", cfg.LogPrefix, er.SkipReason, er.Execs)
 				release("hunt_engine_soft_skip")
 				return
 			}
 			checkRet, durMS, trap, execDone = er.CheckResult, er.DurationMS, er.Trap, er.ExecDone
 			engineVersion = er.EngineVersion
 			engineRan = true
-			fmt.Fprintf(os.Stderr, "%s: hunt_engine=%s ver=%s corpus=%d crashes=%d wall_ms=%d\n",
-				cfg.LogPrefix, er.Engine, er.EngineVersion, er.CorpusDeltas, er.Crashes, er.DurationMS)
+			fmt.Fprintf(os.Stderr, "%s: hunt_engine=%s ver=%s corpus=%d crashes=%d wall_ms=%d seeds_in=%d corpus_before=%d corpus_after=%d execs=%d subprocess=%t\n",
+				cfg.LogPrefix, er.Engine, er.EngineVersion, er.CorpusDeltas, er.Crashes, er.DurationMS, er.SeedsIn, er.CorpusBefore, er.CorpusAfter, er.Execs, er.Subprocess)
 		} else {
 			checkRet, durMS, trap, execDone = RunHuntShard(ctx, *cr, cfg.TimeoutMS)
 			want := cr.ExecPerUnit

@@ -4,10 +4,12 @@ import "strings"
 
 const (
 	// Pool shard L1 depth: each leased unit runs this many mutating execs before reclaim.
-	huntIterPerShardLite     = 64  // was 48 — Lite still finds cheap crashes faster per wall-second
-	huntIterPerShardStandard = 224 // was 192
-	huntIterPerShardHeavy    = 256 // at maxShardIterationsPer
-	maxShardIterationsPer    = 256
+	// Coverage engines ignore this for exec_per_unit (one LF/AFL wall) but byte fallback
+	// and sales depth still scale with it. Cap stays under a multi-minute lease.
+	huntIterPerShardLite     = 96  // was 64
+	huntIterPerShardStandard = 288 // was 224
+	huntIterPerShardHeavy    = 384 // at maxShardIterationsPer
+	maxShardIterationsPer    = 384
 
 	huntLocalIterLite     = 20_000
 	huntLocalIterStandard = 200_000

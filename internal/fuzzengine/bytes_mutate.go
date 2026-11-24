@@ -14,6 +14,9 @@ func MutateBytes(base []byte, stage MutationStage, salt uint64, maxLen int) []by
 	return MutateBytesForConfig(base, stage, salt, maxLen, nil)
 }
 func MutateBytesWithDict(base []byte, stage MutationStage, salt uint64, maxLen int, dict []byte) []byte {
+	if maxLen > MaxInputBytesHardCeil {
+		maxLen = MaxInputBytesHardCeil
+	}
 	return mutateBytesWithDict(base, stage, salt, maxLen, dict, nil)
 }
 
@@ -25,8 +28,12 @@ func MutateBytesForHunt(base []byte, stage MutationStage, salt uint64, maxLen in
 	if maxLen <= 0 {
 		maxLen = DefaultMaxInputBytesStd
 	}
-	if maxLen > MaxInputBytesHardCeil {
-		maxLen = MaxInputBytesHardCeil
+	ceil := MaxInputBytesHardCeil
+	if DeepHavocV210(cfg) {
+		ceil = NativeHuntMutateCeil
+	}
+	if maxLen > ceil {
+		maxLen = ceil
 	}
 	dict := EffectiveMutatorDict(cfg, corpus)
 	out := mutateBytesWithDict(base, stage, salt, maxLen, dict, corpus)
@@ -42,6 +49,9 @@ func MutateBytesForHunt(base []byte, stage MutationStage, salt uint64, maxLen in
 
 // MutateBytesForConfig applies byte mutations with optional pack mutator_dict.
 func MutateBytesForConfig(base []byte, stage MutationStage, salt uint64, maxLen int, cfg map[string]any) []byte {
+	if maxLen > MaxInputBytesHardCeil {
+		maxLen = MaxInputBytesHardCeil
+	}
 	return mutateBytesWithDict(base, stage, salt, maxLen, ParseMutatorDict(cfg), nil)
 }
 
@@ -155,8 +165,8 @@ func mutateBytesWithDict(base []byte, stage MutationStage, salt uint64, maxLen i
 	if maxLen <= 0 {
 		maxLen = DefaultMaxInputBytesStd
 	}
-	if maxLen > MaxInputBytesHardCeil {
-		maxLen = MaxInputBytesHardCeil
+	if maxLen > NativeHuntMutateCeil {
+		maxLen = NativeHuntMutateCeil
 	}
 	growCap := maxLen / 2
 	if growCap < 64 {

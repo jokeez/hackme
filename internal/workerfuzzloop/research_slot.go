@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	"hackme/internal/hunt"
 	"hackme/internal/netutil"
 	"hackme/internal/poolfuzz"
+	"hackme/internal/poolsync"
 )
 
 // ResearchSlotConfig is the hybrid worker-local libFuzzer persist window (Stage D).
@@ -130,6 +132,13 @@ func MaybeRunResearchSlot(ctx context.Context, run ResearchSlotRun) ResearchSlot
 		// Empty dir is fine — session may create it.
 		before = map[string]string{}
 	}
+	// Crash artifacts live under .hunt-run, which the corpus snapshot skips.
+	// Without this, a failed wipe re-uploads the same crash every window.
+	if crashBefore, cerr := snapshotHuntCrashHashes(corpusDir); cerr == nil {
+		for k, v := range crashBefore {
+			before[".hunt-crash:"+k] = v
+		}
+	}
 
 	if _, err := researchLFRunner(ctx, repoRoot, targetID, cfg.WindowSec); err != nil {
 		// LF missing / harness build failure: skip without failing the claim path.
@@ -234,6 +243,13 @@ func collectResearchDelta(dir string, before map[string]string, maxFiles int) (s
 	if maxFiles < 1 {
 		maxFiles = 32
 	}
+	seenSeed := map[string]struct{}{}
+	seenCrash := map[string]struct{}{}
+	type seedHit struct {
+		mod time.Time
+		b   []byte
+	}
+	var hits []seedHit
 	for _, e := range ents {
 		if e.IsDir() || strings.HasPrefix(e.Name(), ".") {
 			continue
@@ -250,33 +266,54 @@ func collectResearchDelta(dir string, before map[string]string, maxFiles int) (s
 		if strings.HasPrefix(low, "crash-") || strings.HasPrefix(low, "oom-") || strings.HasPrefix(low, "timeout-") ||
 			strings.HasPrefix(low, "leak-") {
 			// Mirror seed dedupe: unchanged/pre-lease crash-* must not re-upload.
+			// A seed that shares these bytes is not a crash snapshot.
+			if _, ok := seenCrash[h]; ok {
+				continue
+			}
 			if prev, ok := before[name]; ok && prev == h {
 				continue
 			}
-			dup := false
-			for _, old := range before {
-				if old == h {
-					dup = true
-					break
-				}
-			}
-			if dup {
+			if crashSnapshotKnown(before, h) {
 				continue
 			}
+			seenCrash[h] = struct{}{}
 			if len(crashes) < 16 {
-				crashes = append(crashes, b)
+				crashes = append(crashes, append([]byte(nil), b...))
 			}
+			continue
+		}
+		if _, ok := seenSeed[h]; ok {
 			continue
 		}
 		if prev, ok := before[name]; ok && prev == h {
 			continue
 		}
-		if len(seeds) >= maxFiles {
+		dup := false
+		for _, old := range before {
+			if old == h {
+				dup = true
+				break
+			}
+		}
+		if dup || trivialCorpusUnit(b) {
 			continue
 		}
+		seenSeed[h] = struct{}{}
+		info, _ := e.Info()
+		mod := time.Time{}
+		if info != nil {
+			mod = info.ModTime()
+		}
+		hits = append(hits, seedHit{mod: mod, b: append([]byte(nil), b...)})
+	}
+	sort.SliceStable(hits, func(i, j int) bool { return hits[i].mod.After(hits[j].mod) })
+	if len(hits) > maxFiles {
+		hits = hits[:maxFiles]
+	}
+	for _, h := range hits {
 		seeds = append(seeds, fuzzengine.PoolCorpusSeed{
-			Input:      fuzzengine.PackInputBytesToU64(b),
-			InputBytes: b,
+			Input:      fuzzengine.PackInputBytesToU64(h.b),
+			InputBytes: h.b,
 			Energy:     2,
 		})
 	}
@@ -287,6 +324,12 @@ func collectResearchDelta(dir string, before map[string]string, maxFiles int) (s
 			if rerr != nil || len(b) == 0 {
 				continue
 			}
+			sum := sha256.Sum256(b)
+			h := hex.EncodeToString(sum[:])
+			if _, ok := seenCrash[h]; ok || crashSnapshotKnown(before, h) {
+				continue
+			}
+			seenCrash[h] = struct{}{}
 			crashes = append(crashes, b)
 			if len(crashes) >= 16 {
 				break
@@ -328,7 +371,23 @@ func uploadResearchCorpusDelta(ctx context.Context, cl *http.Client, base, token
 	}
 	reqCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
-	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, base+"/api/fuzz/work/corpus_delta", bytes.NewReader(body))
+	var acceptedN, findingsN int
+	err = poolsync.RetryTransient(reqCtx, func() error {
+		n, f, callErr := postCorpusDelta(reqCtx, cl, base, token, body)
+		if callErr != nil {
+			return callErr
+		}
+		acceptedN, findingsN = n, f
+		return nil
+	})
+	if err != nil {
+		return 0, 0, err
+	}
+	return acceptedN, findingsN, nil
+}
+
+func postCorpusDelta(ctx context.Context, cl *http.Client, base, token string, body []byte) (accepted, findings int, err error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+"/api/fuzz/work/corpus_delta", bytes.NewReader(body))
 	if err != nil {
 		return 0, 0, err
 	}

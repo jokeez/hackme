@@ -8,7 +8,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"hackme/internal/fuzzupstream"
@@ -17,6 +19,16 @@ import (
 const (
 	stdinSubprocessHarness = "tasks/sources/fuzz/benchmark/stdin_subprocess_libfuzzer.c"
 )
+
+// LibFuzzerASANOptions is the coverage-engine sanitizer env.
+// abort_on_error+symbolize=0: ASAN must exit so libFuzzer writes crash-* artifacts.
+// symbolize=1 (and no abort) hangs some inventory harnesses after the ERROR line
+// → wall timeout → crashes=0 → no Hunt bounty.
+const LibFuzzerASANOptions = "detect_leaks=0:abort_on_error=1:halt_on_error=1:allocator_may_return_null=1:symbolize=0"
+
+// ShowmapASANOptions keeps afl-showmap alive through a crashing input so the
+// edge map is written. Session libFuzzer stays abort_on_error=1.
+const ShowmapASANOptions = "detect_leaks=0:halt_on_error=0:allocator_may_return_null=1:abort_on_error=0:symbolize=0"
 
 // catalogTargetSegment returns a single safe path segment for a catalog target id.
 // Invalid ids collapse to "_" so helpers never interpolate "../" or separators.
@@ -45,15 +57,20 @@ func LibFuzzerImportCorpusDir(repoRoot, targetID string) string {
 	return filepath.Join(repoRoot, ".cache", "hunt-lf-import", id+"-corpus")
 }
 
-// isSubprocessStubLibFuzzerBin reports whether bin was built from stdin_subprocess_libfuzzer.c
-// (generic stub). Those are not in-process target fuzzers — "hits" are harness noise.
+// isSubprocessStubLibFuzzerBin reports whether bin was built from the generic
+// stdin driver. Those are not in-process target fuzzers — "hits" are harness noise.
+// The .c filename is only a comment plus DWARF, so a -g0 or stripped driver does
+// not contain it. The getenv key is in .rodata either way.
 func isSubprocessStubLibFuzzerBin(binPath string) bool {
 	// O_NOFOLLOW: never follow a harness-planted symlink over the cache bin.
 	raw, err := ReadRegularCorpusFile(binPath, 64<<20)
 	if err != nil || len(raw) == 0 {
 		return false
 	}
-	return bytes.Contains(raw, []byte("stdin_subprocess_libfuzzer.c"))
+	if bytes.Contains(raw, []byte("stdin_subprocess_libfuzzer.c")) {
+		return true
+	}
+	return bytes.Contains(raw, []byte("HACKME_LF_STDIN_BIN"))
 }
 
 // DedicatedLibFuzzerHarness returns a target-specific libFuzzer harness if present.
@@ -77,8 +94,62 @@ func DedicatedLibFuzzerHarness(repoRoot, targetID string) string {
 	return ""
 }
 
+const (
+	libFuzzerBinKindDedicated = "dedicated"
+	libFuzzerBinKindStub      = "stub"
+)
+
+var libFuzzerImportMu sync.Map
+
+func lockLibFuzzerImport(binPath string) func() {
+	v, _ := libFuzzerImportMu.LoadOrStore(binPath, &sync.Mutex{})
+	mu := v.(*sync.Mutex)
+	mu.Lock()
+	return mu.Unlock
+}
+
+func libFuzzerBinKindPath(binPath string) string {
+	return binPath + ".kind"
+}
+
+func readLibFuzzerBinKind(binPath string) string {
+	b, err := os.ReadFile(libFuzzerBinKindPath(binPath))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
+}
+
+func writeLibFuzzerBinKind(binPath, kind string) error {
+	return writeFileBeneath(filepath.Dir(binPath), libFuzzerBinKindPath(binPath), []byte(kind+"\n"), 0o644)
+}
+
+// cachedDedicatedLibFuzzerBin is a reusable in-process catalog binary.
+// The sidecar avoids re-reading the ELF on every shard. A symlink is never a hit,
+// so a planted link cannot be executed as the fuzzer or skip clang into a stub.
+func cachedDedicatedLibFuzzerBin(binPath string) bool {
+	st, err := os.Lstat(binPath)
+	if err != nil || !st.Mode().IsRegular() || st.Size() <= 0 {
+		return false
+	}
+	switch readLibFuzzerBinKind(binPath) {
+	case libFuzzerBinKindDedicated:
+		return true
+	case libFuzzerBinKindStub:
+		return false
+	}
+	if isSubprocessStubLibFuzzerBin(binPath) {
+		_ = writeLibFuzzerBinKind(binPath, libFuzzerBinKindStub)
+		return false
+	}
+	_ = writeLibFuzzerBinKind(binPath, libFuzzerBinKindDedicated)
+	return true
+}
+
 // BuildLibFuzzerImport compiles (or reuses) a libFuzzer binary for L2 seed generation.
 // Returns the fuzzer binary path and stdin driver path (subprocess mode only).
+// A dedicated catalog binary is reused across shards with no clang and no manifest
+// load. The worker still installs claim seeds before this binary is exec'd.
 func BuildLibFuzzerImport(ctx context.Context, repoRoot, targetID string) (binPath, stdinBin string, err error) {
 	if repoRoot == "" {
 		repoRoot = RepoRoot()
@@ -88,10 +159,20 @@ func BuildLibFuzzerImport(ctx context.Context, repoRoot, targetID string) (binPa
 		return "", "", fmt.Errorf("hunt: libfuzzer import: invalid target id %q", targetID)
 	}
 	targetID = id
+	binPath = LibFuzzerImportBinPath(repoRoot, targetID)
+	harness := DedicatedLibFuzzerHarness(repoRoot, targetID)
+	// Fast path: later shards must not LookPath("clang") or parse the manifest.
+	if harness != "" && cachedDedicatedLibFuzzerBin(binPath) {
+		return binPath, "", nil
+	}
+	unlock := lockLibFuzzerImport(binPath)
+	defer unlock()
+	if harness != "" && cachedDedicatedLibFuzzerBin(binPath) {
+		return binPath, "", nil
+	}
 	if _, err := exec.LookPath("clang"); err != nil {
 		return "", "", fmt.Errorf("hunt: libfuzzer import: clang required")
 	}
-	binPath = LibFuzzerImportBinPath(repoRoot, targetID)
 	manifest, err := fuzzupstream.LoadManifest(repoRoot)
 	if err != nil {
 		return "", "", err
@@ -100,20 +181,14 @@ func BuildLibFuzzerImport(ctx context.Context, repoRoot, targetID string) (binPa
 	if err != nil {
 		return "", "", err
 	}
-	harness := DedicatedLibFuzzerHarness(repoRoot, targetID)
-	if st, err := os.Lstat(binPath); err == nil && st.Mode().IsRegular() && st.Size() > 0 {
-		// Dedicated harness: never reuse a cached stdin_subprocess stub under the same name.
-		if harness != "" && !isSubprocessStubLibFuzzerBin(binPath) {
-			return binPath, "", nil
-		}
-		if harness == "" {
-			stdinBin, _, err := fuzzupstream.BuildTarget(ctx, repoRoot, t)
-			return binPath, stdinBin, err
-		}
-		// fall through → rebuild dedicated over stub cache
+	if st, err := os.Lstat(binPath); err == nil && st.Mode().IsRegular() && st.Size() > 0 && harness == "" {
+		// Stdin driver cache. BuildTarget stats its own ASAN binary before clang.
+		stdinBin, _, err := fuzzupstream.BuildTarget(ctx, repoRoot, t)
+		return binPath, stdinBin, err
 	}
 	if harness != "" {
-		if _, _, err := fuzzupstream.BuildTarget(ctx, repoRoot, t); err != nil {
+		// Sources only. BuildTarget would also clang the unused stdin driver.
+		if _, err := fuzzupstream.EnsureClone(ctx, repoRoot, t); err != nil {
 			return "", "", err
 		}
 		if err := buildDedicatedLibFuzzer(ctx, repoRoot, t, harness, binPath); err != nil {
@@ -150,6 +225,9 @@ type LibFuzzerSessionOpts struct {
 	FuzzerBin string // optional in-process LF binary (inventory LLVMFuzzerTestOneInput)
 	StdinBin  string // optional override (inventory / custom)
 	DictBytes []byte // optional AFL/libFuzzer dictionary (-dict=)
+	// SkipGenericBoot refuses {} / [] / null starters when the caller already
+	// supplied claim seeds. Planting those hid a missed seed_byte_corpus.
+	SkipGenericBoot bool
 }
 
 // RunLibFuzzerImportSession runs libFuzzer for wallSec and imports corpus files into L2 seed cache.
@@ -210,7 +288,7 @@ func RunLibFuzzerSession(ctx context.Context, opts LibFuzzerSessionOpts) (int, e
 			return 0, err
 		}
 		// Seed empty persistent corpus from prior L2 cache / tiny defaults.
-		if n, _ := countCorpusFiles(corpusDir); n == 0 {
+		if n, _ := countCorpusFiles(corpusDir); n == 0 && !opts.SkipGenericBoot {
 			_ = seedPersistentCorpus(repoRoot, targetID, corpusDir)
 		}
 		// Keep scratch import dir as a mirror for legacy ImportLibFuzzerCorpusFromSession.
@@ -246,25 +324,22 @@ func RunLibFuzzerSession(ctx context.Context, opts LibFuzzerSessionOpts) (int, e
 	if err := resetHuntSessionCrashDir(corpusDir, crashDir); err != nil {
 		return 0, err
 	}
-	args := []string{
-		corpusDir,
-		"-max_total_time=" + fmt.Sprint(wallSec),
-		"-timeout=3",
-		"-rss_limit_mb=2048",
-		"-max_len=65536",
-		"-artifact_prefix=" + filepath.Join(crashDir, "crash-"),
-		"-print_final_stats=1",
-	}
+	dictPath := ""
 	if len(opts.DictBytes) > 0 {
-		dictPath := filepath.Join(sessionDir, "libfuzzer.dict")
+		dictPath = filepath.Join(sessionDir, "libfuzzer.dict")
 		if err := writeFileBeneath(corpusDir, dictPath, opts.DictBytes, 0o600); err != nil {
 			return 0, fmt.Errorf("hunt: libfuzzer dict write: %w", err)
 		}
-		args = append(args, "-dict="+dictPath)
 	}
+	// -fork runs extra libFuzzer jobs in this process. In-process
+	// LLVMFuzzer binaries keep the full schedule (3 at >=300s). The stdin
+	// driver fork/execs the published harness on every unit, so each extra
+	// job multiplies processes; cap that driver at 2 even on a heavy wall.
+	forkJobs := libFuzzerSessionForkJobs(wallSec, stdinBin != "")
+	args := libFuzzerSessionArgs(corpusDir, filepath.Join(crashDir, "crash-"), wallSec, dictPath, forkJobs)
 	env := append(os.Environ(),
-		"ASAN_OPTIONS=detect_leaks=1:halt_on_error=1:allocator_may_return_null=1",
-		"UBSAN_OPTIONS=halt_on_error=1",
+		"ASAN_OPTIONS="+LibFuzzerASANOptions,
+		"UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=0",
 	)
 	if stdinBin != "" {
 		env = append(env, "HACKME_LF_STDIN_BIN="+stdinBin)
@@ -310,7 +385,12 @@ func RunLibFuzzerSession(ctx context.Context, opts LibFuzzerSessionOpts) (int, e
 	// Bound to remaining parent/lease budget (was Background×10m → lease overrun /
 	// lease_lost_during_engine + late CLEAN races).
 	if after > 8 {
-		mergeBudget := 2 * time.Minute
+		// Minimize only with leftover lease slack. A 2-minute merge used to consume
+		// most of a short lite wall and raced lease_lost_during_engine.
+		mergeBudget := 30 * time.Second
+		if wallSec >= 180 {
+			mergeBudget = 45 * time.Second
+		}
 		if deadline, ok := ctx.Deadline(); ok {
 			if rem := time.Until(deadline); rem > 0 && rem < mergeBudget {
 				mergeBudget = rem
@@ -331,7 +411,7 @@ func RunLibFuzzerSession(ctx context.Context, opts LibFuzzerSessionOpts) (int, e
 		}
 	}
 	statsPath := filepath.Join(sessionDir, "session_stats.json")
-	_ = writeLibFuzzerSessionStats(statsPath, targetID, wallSec, before, after, sessionLog)
+	_ = writeLibFuzzerSessionStats(corpusDir, statsPath, targetID, wallSec, before, after, sessionLog)
 
 	if persist && after == 0 && wallSec >= 90 {
 		msg := strings.TrimSpace(sessionLog)
@@ -382,6 +462,175 @@ func readOpenSessionLog(f *os.File) string {
 	return string(b)
 }
 
+// libFuzzerForkJobs is how many in-process libFuzzer jobs share one lease wall.
+// A pool shard used to be one ASAN process, so N miners with cold corpora lost
+// to one overnight local run. Two jobs on a ≥180s wall roughly double execs
+// without growing the paid wall. HACKME_HUNT_LF_FORK overrides (1..4). 0 or
+// empty keeps the auto rule. Pass 1 only when the binary is not libFuzzer.
+// Stdin exec drivers must use libFuzzerSessionForkJobs, which caps this at 2.
+func libFuzzerForkJobs(wallSec int) int {
+	if v := strings.TrimSpace(os.Getenv("HACKME_HUNT_LF_FORK")); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 1 {
+			return 1
+		}
+		if n > 4 {
+			return 4
+		}
+		return n
+	}
+	// Heavy walls have the lease slack for a third job. Two is the floor
+	// once the wall is long enough that startup cost is amortized.
+	if wallSec >= 300 {
+		return 3
+	}
+	if wallSec >= 180 {
+		return 2
+	}
+	return 1
+}
+
+// InProcessShardsToMatchLocal is how many concurrent in-process pool shards
+// equal one local libFuzzer process's job-seconds.
+//
+// Assumption, not a measured overnight run: each in-process job on the same
+// harness executes at the same rate, and the next claim already carries units
+// the previous miner accepted, so the execs compound instead of restarting
+// from boot starters. wallSec/forkJobs are the pool shard (libFuzzerSessionArgs).
+// localSec/localJobs are one local process (overnight budget, fork 1).
+//
+//	shards = ceil(localSec * localJobs / (wallSec * forkJobs))
+//
+// This number does not apply to a stdin exec driver. That driver fork/execs
+// the harness per unit. A measured trivial ASAN reader on this class of
+// driver is tens of exec/s; an in-process parser is 10^4. Adding shards at
+// the stdin rate does not match one local in-process process.
+func InProcessShardsToMatchLocal(wallSec, forkJobs, localSec, localJobs int) int {
+	if wallSec < 1 {
+		wallSec = 1
+	}
+	if forkJobs < 1 {
+		forkJobs = 1
+	}
+	if localSec < 1 {
+		localSec = 1
+	}
+	if localJobs < 1 {
+		localJobs = 1
+	}
+	num := int64(localSec) * int64(localJobs)
+	den := int64(wallSec) * int64(forkJobs)
+	n := (num + den - 1) / den
+	if n < 1 {
+		return 1
+	}
+	if n > 1_000_000 {
+		return 1_000_000
+	}
+	return int(n)
+}
+
+// libFuzzerSessionForkJobs is the -fork count for one wall.
+// In-process LLVMFuzzer binaries use libFuzzerForkJobs (3 at >=300s).
+// The stdin driver fork/execs the harness for every unit in every job;
+// fork>2 on that path OOMs the miner, so a 300s wall stays at 2.
+// An explicit HACKME_HUNT_LF_FORK above 2 is capped the same way for stdin.
+func libFuzzerSessionForkJobs(wallSec int, stdinDriver bool) int {
+	n := libFuzzerForkJobs(wallSec)
+	if stdinDriver && n > 2 {
+		return 2
+	}
+	return n
+}
+
+// libFuzzerUnitTimeoutSec is the per-input ASAN budget. len_control=0 feeds
+// 64KiB units immediately; a 3s timeout classifies those as slow and drops them.
+// Overnight runs use the OSS-Fuzz-style 25s cap.
+func libFuzzerUnitTimeoutSec(wallSec int) int {
+	switch {
+	case wallSec > 600:
+		return 25
+	case wallSec >= 180:
+		return 10
+	default:
+		return 5
+	}
+}
+
+// libFuzzerTuneForWall picks mutate depth for a short distributed lease.
+// Entropic scheduling + value profile spend the wall on rare features instead of
+// the default uniform schedule, which is what a single long local LF run gets for free.
+func libFuzzerTuneForWall(wallSec int) (mutateDepth int) {
+	switch {
+	case wallSec >= 300:
+		return 20
+	case wallSec >= 180:
+		return 16
+	case wallSec >= 120:
+		return 12
+	default:
+		return 8
+	}
+}
+
+// libFuzzerSessionArgs is the argv tail for one Hunt libFuzzer wall.
+// dictPath empty omits -dict=. Flags are LLVM libFuzzer options present since LLVM 9.
+func libFuzzerSessionArgs(corpusDir, crashPrefix string, wallSec int, dictPath string, forkJobs int) []string {
+	if wallSec <= 0 {
+		wallSec = 120
+	}
+	if forkJobs < 1 {
+		forkJobs = 1
+	}
+	if forkJobs > 4 {
+		forkJobs = 4
+	}
+	// One job may use 2GiB. Forked jobs split that budget (floor 768) so two
+	// ASAN children do not each reserve a full 2GiB shadow.
+	rss := 2048
+	if forkJobs > 1 {
+		rss = 2048 / forkJobs
+		if rss < 768 {
+			rss = 768
+		}
+	}
+	args := []string{
+		corpusDir,
+		"-max_total_time=" + fmt.Sprint(wallSec),
+		"-timeout=" + fmt.Sprint(libFuzzerUnitTimeoutSec(wallSec)),
+		"-rss_limit_mb=" + fmt.Sprint(rss),
+		// libFuzzer runs LSan at shutdown unless this is set, even when
+		// ASAN_OPTIONS already has detect_leaks=0. That pass eats the merge window.
+		"-detect_leaks=0",
+		"-max_len=65536",
+		"-mutate_depth=" + fmt.Sprint(libFuzzerTuneForWall(wallSec)),
+		"-entropic=1",
+		"-use_value_profile=1",
+		"-artifact_prefix=" + crashPrefix,
+		"-print_final_stats=1",
+	}
+	// Default -len_control ramps max length over a long run. A 3-minute pool
+	// wall never reaches the sizes a 12h local run mutates. Disable the ramp
+	// on lease-sized walls; overnight local keeps the ramp.
+	if wallSec <= 600 {
+		args = append(args, "-len_control=0")
+		// A crash used to end the lease. The artifact is still written; the
+		// rest of the wall keeps growing the corpus the next miner will load.
+		args = append(args, "-ignore_crashes=1")
+		// -reduce_inputs (default 1, LLVM) re-executes every new unit until it
+		// shrinks. A lease wall spends that budget on new mutations instead.
+		// MergeMinimizeCorpus still minimizes once when the corpus grew.
+		args = append(args, "-reduce_inputs=0")
+	}
+	if forkJobs > 1 {
+		args = append(args, "-fork="+fmt.Sprint(forkJobs))
+	}
+	if dictPath != "" {
+		args = append(args, "-dict="+dictPath)
+	}
+	return args
+}
+
 func countCorpusFiles(dir string) (int, error) {
 	return countCorpusFilesUnder(dir, dir)
 }
@@ -406,6 +655,30 @@ func countCorpusFilesUnder(root, dir string) (int, error) {
 		n++
 	}
 	return n, nil
+}
+
+// PublishedHarnessIsLibFuzzer reports whether a materialized harness is a
+// real libFuzzer binary (exports LLVMFuzzerRunDriver) rather than a stdin
+// ASAN target. The subprocess driver also links that symbol and is identified
+// by HACKME_LF_STDIN_BIN, so it is never treated as the target.
+func PublishedHarnessIsLibFuzzer(path string) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	st, err := f.Stat()
+	if err != nil || !st.Mode().IsRegular() || st.Size() == 0 || st.Size() > 64<<20 {
+		return false
+	}
+	b, err := io.ReadAll(io.LimitReader(f, 64<<20))
+	if err != nil || len(b) == 0 {
+		return false
+	}
+	if bytes.Contains(b, []byte("HACKME_LF_STDIN_BIN")) {
+		return false
+	}
+	return bytes.Contains(b, []byte("LLVMFuzzerRunDriver"))
 }
 
 func seedPersistentCorpus(repoRoot, targetID, corpusDir string) error {
@@ -433,11 +706,10 @@ func seedPersistentCorpus(repoRoot, targetID, corpusDir string) error {
 	return nil
 }
 
-func writeLibFuzzerSessionStats(path, targetID string, wall, before, after int, stderr string) error {
-	_ = os.MkdirAll(filepath.Dir(path), 0o755)
+func writeLibFuzzerSessionStats(corpusDir, path, targetID string, wall, before, after int, stderr string) error {
 	feat := 0
 	newUnits := 0
-	execs := 0
+	execs := libFuzzerExecutedUnits(stderr)
 	for _, line := range strings.Split(stderr, "\n") {
 		line = strings.TrimSpace(line)
 		if strings.Contains(line, "#") && strings.Contains(line, "cov:") {
@@ -457,16 +729,76 @@ func writeLibFuzzerSessionStats(path, targetID string, wall, before, after int, 
 		if strings.HasPrefix(line, "stat::new_units_added:") {
 			fmt.Sscanf(strings.TrimSpace(strings.TrimPrefix(line, "stat::new_units_added:")), "%d", &newUnits)
 		}
-		if strings.HasPrefix(line, "stat::number_of_executed_units:") {
-			fmt.Sscanf(strings.TrimSpace(strings.TrimPrefix(line, "stat::number_of_executed_units:")), "%d", &execs)
-		}
 	}
 	if feat == 0 && newUnits > 0 {
 		feat = newUnits
 	}
 	body := fmt.Sprintf("{\n  \"target\": %q,\n  \"wall_sec\": %d,\n  \"corpus_before\": %d,\n  \"corpus_after\": %d,\n  \"features_hint\": %d,\n  \"new_units_added\": %d,\n  \"execs\": %d,\n  \"updated_at\": %q\n}\n",
 		targetID, wall, before, after, feat, newUnits, execs, time.Now().UTC().Format(time.RFC3339))
-	return os.WriteFile(path, []byte(body), 0o644)
+	// .hunt-run is inside the RW corpus bind. A harness can plant
+	// session_stats.json (or replace .hunt-run) with a symlink after the wall;
+	// os.WriteFile / MkdirAll would follow it and truncate a host file.
+	if err := mkdirAllBeneath(corpusDir, filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	return writeFileBeneath(corpusDir, path, []byte(body), 0o644)
+}
+
+// libFuzzerExecutedUnits is how many inputs this wall actually ran.
+// A single process prints stat::number_of_executed_units once at exit.
+// -fork sends each job's stats to a temp log and deletes it; the parent
+// reprints the running sum of those stats as "#<units>: cov:". Those lines
+// are cumulative, so the max is the total. Missing counters stay 0: a shard
+// that never executed must stay visible as zero, not as "unknown".
+func libFuzzerExecutedUnits(stderr string) int {
+	const statPrefix = "stat::number_of_executed_units:"
+	statSum := 0
+	forkMax := 0
+	for _, line := range strings.Split(stderr, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, statPrefix) {
+			var n int
+			if _, err := fmt.Sscanf(strings.TrimSpace(strings.TrimPrefix(line, statPrefix)), "%d", &n); err == nil && n > 0 {
+				statSum += n
+			}
+			continue
+		}
+		if strings.HasPrefix(line, "#") {
+			var n int
+			if _, err := fmt.Sscanf(line, "#%d: cov:", &n); err == nil && n > forkMax {
+				forkMax = n
+			}
+		}
+	}
+	if forkMax > statSum {
+		return forkMax
+	}
+	return statSum
+}
+
+// readLibFuzzerSessionExecs reads the execs field written beside the corpus.
+// A missing file or an explicit 0 both return 0.
+func readLibFuzzerSessionExecs(corpusDir string) int {
+	if strings.TrimSpace(corpusDir) == "" {
+		return 0
+	}
+	b, err := ReadRegularCorpusFileUnder(corpusDir, filepath.Join(corpusDir, ".hunt-run", "session_stats.json"), 1<<20)
+	if err != nil || len(b) == 0 {
+		return 0
+	}
+	for _, line := range strings.Split(string(b), "\n") {
+		line = strings.TrimSpace(line)
+		line = strings.TrimSuffix(line, ",")
+		if !strings.HasPrefix(line, `"execs":`) {
+			continue
+		}
+		var n int
+		if _, err := fmt.Sscanf(strings.TrimSpace(strings.TrimPrefix(line, `"execs":`)), "%d", &n); err != nil || n < 0 {
+			return 0
+		}
+		return n
+	}
+	return 0
 }
 
 // ImportLibFuzzerCorpusFromSession merges an existing libFuzzer session corpus into L2 seed cache.
@@ -493,7 +825,8 @@ func BuildLibFuzzerSubprocessDriver(ctx context.Context, repoRoot string) (strin
 		return "", fmt.Errorf("hunt: libfuzzer import: clang required")
 	}
 	outPath := filepath.Join(repoRoot, ".cache", "hunt-lf-import", "_subprocess-libfuzzer-asan")
-	if st, err := os.Stat(outPath); err == nil && st.Mode().IsRegular() && st.Size() > 0 {
+	// Lstat: a symlink to some other ELF must not be executed as the driver.
+	if st, err := os.Lstat(outPath); err == nil && st.Mode().IsRegular() && st.Size() > 0 {
 		return outPath, nil
 	}
 	if err := buildSubprocessLibFuzzer(ctx, repoRoot, outPath); err != nil {
@@ -532,7 +865,23 @@ func buildSubprocessLibFuzzer(ctx context.Context, repoRoot, outPath string) err
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(outPath, in, 0o755)
+	if err := writeLibFuzzerCacheBin(outPath, in); err != nil {
+		return err
+	}
+	_ = writeLibFuzzerBinKind(outPath, libFuzzerBinKindStub)
+	return nil
+}
+
+func writeLibFuzzerCacheBin(outPath string, data []byte) error {
+	parent := filepath.Dir(outPath)
+	if st, err := os.Lstat(parent); err == nil && st.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("hunt: refusing symlink libfuzzer cache dir %s", parent)
+	}
+	if err := os.MkdirAll(parent, 0o755); err != nil {
+		return err
+	}
+	// Replaces a planted file symlink in place. os.WriteFile would follow it.
+	return writeFileBeneath(parent, outPath, data, 0o755)
 }
 
 func buildDedicatedLibFuzzer(ctx context.Context, repoRoot string, t fuzzupstream.Target, harness, outPath string) error {
@@ -598,5 +947,9 @@ func buildDedicatedLibFuzzer(ctx context.Context, repoRoot string, t fuzzupstrea
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(outPath, in, 0o755)
+	if err := writeLibFuzzerCacheBin(outPath, in); err != nil {
+		return err
+	}
+	_ = writeLibFuzzerBinKind(outPath, libFuzzerBinKindDedicated)
+	return nil
 }

@@ -260,7 +260,10 @@ func settleOutboxTransient(err error) bool {
 		strings.Contains(msg, "i/o timeout") ||
 		strings.Contains(msg, "tls handshake timeout") ||
 		strings.Contains(msg, "unexpected eof") ||
-		strings.Contains(msg, "broken pipe") {
+		strings.Contains(msg, "broken pipe") ||
+		strings.Contains(msg, "connection refused") ||
+		strings.Contains(msg, "context deadline exceeded") ||
+		strings.HasSuffix(msg, "eof") {
 		return true
 	}
 	return false

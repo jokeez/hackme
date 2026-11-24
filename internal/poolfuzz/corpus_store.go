@@ -498,7 +498,9 @@ func (s *Service) EnsureGuidedCorpusSeeded(ctx context.Context, campaignID strin
 	}
 	if IsHuntCampaign(cfg) {
 		targetID := strings.TrimSpace(jsonString(cfg["upstream_target_id"]))
-		if targetID != "" {
+		// Claim hot path: do not walk the L2 seed directory when the campaign
+		// JSON already holds a coverage unit. No harness compile lives here.
+		if targetID != "" && claimSeedCorpusNeedsL2Merge(cfg) {
 			if _, err := hunt.MergeLibFuzzerSeedCorpus(cfg, hunt.RepoRoot(), targetID); err != nil {
 				return err
 			}

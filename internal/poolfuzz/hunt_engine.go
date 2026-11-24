@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"hackme/internal/fuzzengine"
 	"hackme/internal/hunt"
@@ -366,19 +367,47 @@ func WorkerSupportsHuntEngine(advertised []string, want string) bool {
 	return false
 }
 
+// resolveCoverageHarness builds (or loads) the showmap binary. Tests replace it:
+// the default compiles afl-cc and must not run on crash-only corpus-delta uploads.
+// A cached afl-cc binary is a stat inside BuildTargetAFL — no git fetch, no compiler.
+var resolveCoverageHarness = hunt.ResolveCoverageHarness
+
+// proveBudget caps coordinator showmap/replay work on one corpus_delta.
+// Seeds past the budget stay stored. Pay rules are unchanged for edges that
+// were actually proven. Override: HACKME_HUNT_ENGINE_PROVE_BUDGET_MS (1s–30s).
+var proveBudget = func() time.Duration {
+	ms := envIntClamped("HACKME_HUNT_ENGINE_PROVE_BUDGET_MS", 12000, 1000, 30000)
+	return time.Duration(ms) * time.Millisecond
+}
+
 // ProveHuntCorpusSeedEdges ASAN-oneshots each seed under the campaign Hunt harness
 // (content_sha256-bound), then records coverage only from coordinator-derived afl-showmap
 // bitmaps. Structural/fingerprint buckets alone never unlock pay (audit H1).
 // Miner edges_touched is never consulted.
-// Cap: HACKME_HUNT_ENGINE_PROVE_MAX (default 16) — extra seeds still store, may not all pay edges (L1).
+// Cap: HACKME_HUNT_ENGINE_PROVE_MAX (default 32) — extra seeds still store, may not all pay edges (L1).
 func (s *Service) ProveHuntCorpusSeedEdges(ctx context.Context, campaignID string, cfg map[string]any, seeds []fuzzengine.PoolCorpusSeed, now int64) (provenEdges int, err error) {
 	if s == nil || !IsHuntCampaign(cfg) {
 		return 0, nil
 	}
-	maxProve := envIntClamped("HACKME_HUNT_ENGINE_PROVE_MAX", 16, 1, 64)
+	maxProve := envIntClamped("HACKME_HUNT_ENGINE_PROVE_MAX", 32, 1, 64)
+	provable := 0
+	for _, seed := range seeds {
+		if len(seed.InputBytes) == 0 {
+			continue
+		}
+		provable++
+		if provable >= maxProve {
+			break
+		}
+	}
+	// Crash-only deltas have nothing to showmap. Resolving the harness here
+	// compiles a catalog afl-cc binary (jsmn and friends) and stalls the upload.
+	if provable == 0 {
+		return 0, nil
+	}
 	targetID := strings.TrimSpace(jsonString(cfg["upstream_target_id"]))
 	hash := strings.TrimSpace(jsonString(cfg["harness_hash"]))
-	covHarness, instrumented, _ := hunt.ResolveCoverageHarness(ctx, hunt.RepoRoot(), targetID, hunt.CoverageHarnessOpts{
+	covHarness, instrumented, _ := resolveCoverageHarness(ctx, hunt.RepoRoot(), targetID, hunt.CoverageHarnessOpts{
 		HarnessHash:          hash,
 		HarnessFetchURL:      huntHarnessFetchURL(cfg),
 		HarnessContentSHA256: huntHarnessContentSHA256(ctx, s, hash, cfg),
@@ -388,9 +417,12 @@ func (s *Service) ProveHuntCorpusSeedEdges(ctx context.Context, campaignID strin
 		SourceRel:            strings.TrimSpace(jsonString(cfg["hunt_source_rel"])),
 		TemplateAccept:       true,
 	})
+	// One upload must not run maxProve showmaps (8s each) on the HTTP handler.
+	// There is no background queue: past the budget we stop and keep the seeds.
+	deadline := time.Now().Add(proveBudget())
 	n := 0
 	for _, seed := range seeds {
-		if n >= maxProve {
+		if n >= maxProve || !time.Now().Before(deadline) {
 			break
 		}
 		b := seed.InputBytes

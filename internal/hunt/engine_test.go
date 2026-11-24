@@ -41,6 +41,28 @@ func TestEngineLeaseSecClamp(t *testing.T) {
 	}
 }
 
+func TestUnstampedAndJSONLeaseStayOnTheStoredWall(t *testing.T) {
+	t.Setenv("HACKME_HUNT_ENGINE_LEASE_SEC", "")
+	// A heavy campaign that never stored a wall is the 180s default, not 300.
+	heavy := map[string]any{"hunt_package": "hunt_heavy", "hunt_engine": "libfuzzer"}
+	if got := EngineLeaseSecFromConfig(heavy, "libfuzzer"); got != DefaultLibFuzzerLeaseSec {
+		t.Fatalf("unstamped heavy=%d want %d", got, DefaultLibFuzzerLeaseSec)
+	}
+	// SQLite JSON numbers come back as float64. 90 stays 90 on a heavy package.
+	stored := map[string]any{
+		"hunt_package":     "hunt_heavy",
+		"hunt_engine":      "libfuzzer",
+		"engine_lease_sec": float64(90),
+	}
+	if got := EngineLeaseSecFromConfig(stored, "libfuzzer"); got != 90 {
+		t.Fatalf("json 90=%d", got)
+	}
+	alt := map[string]any{"hunt_engine_lease_sec": "240", "hunt_package": "hunt_lite"}
+	if got := EngineLeaseSecFromConfig(alt, "libfuzzer"); got != 240 {
+		t.Fatalf("string alias=%d", got)
+	}
+}
+
 func TestHuntEngineFromConfigExplicit(t *testing.T) {
 	t.Setenv("HACKME_HUNT_ENGINE", "")
 	cfg := map[string]any{"hunt_engine": "aflpp"}

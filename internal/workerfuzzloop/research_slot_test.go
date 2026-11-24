@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"hackme/internal/fuzzengine"
 )
 
 func TestResearchSlotDefaultOn(t *testing.T) {
@@ -81,6 +83,36 @@ func TestCollectResearchDeltaNewUnitsAndCrashes(t *testing.T) {
 	}
 	if len(crashes) != 1 || string(crashes[0]) != "boom" {
 		t.Fatalf("crashes=%v", crashes)
+	}
+}
+
+func TestCollectResearchDeltaDedupsFullSHA256AndSkipsBoots(t *testing.T) {
+	dir := t.TempDir()
+	prefix := []byte("0123456789abcdef0123456789abcdef")
+	same := append(append([]byte{}, prefix...), []byte("-same")...)
+	other := append(append([]byte{}, prefix...), []byte("-other")...)
+	if err := os.WriteFile(filepath.Join(dir, "a.bin"), same, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "b.bin"), append([]byte(nil), same...), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "c.bin"), other, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "boot.json"), []byte("{}"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	seeds, _, err := collectResearchDelta(dir, nil, 32)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]int{}
+	for _, s := range seeds {
+		got[string(s.InputBytes)]++
+	}
+	if got[string(same)] != 1 || got[string(other)] != 1 || len(seeds) != 2 {
+		t.Fatalf("research delta dedup: %#v", got)
 	}
 }
 
@@ -172,6 +204,187 @@ func TestMaybeRunResearchSlotUploadsDelta(t *testing.T) {
 	}
 	if gotNS != "research:jsmn" || gotSeeds != 1 || gotCrashes != 1 {
 		t.Fatalf("upload ns=%q seeds=%d crashes=%d", gotNS, gotSeeds, gotCrashes)
+	}
+}
+
+func TestUploadCorpusDeltaRetriesTransient(t *testing.T) {
+	var n int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n++
+		if r.Header.Get("X-Hackme-Admin-Token") != "tok" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if n == 1 {
+			http.Error(w, "bad gateway", http.StatusBadGateway)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "seeds_accepted": 1, "findings": 0})
+	}))
+	t.Cleanup(srv.Close)
+	acc, findings, err := uploadResearchCorpusDelta(context.Background(), srv.Client(), srv.URL, "tok", "w", "m", "c", 1, "research:jsmn",
+		[]fuzzengine.PoolCorpusSeed{{InputBytes: []byte("unit"), Energy: 2}}, nil, "libfuzzer", "t")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if acc != 1 || findings != 0 || n != 2 {
+		t.Fatalf("acc=%d findings=%d attempts=%d", acc, findings, n)
+	}
+}
+
+func TestUploadCorpusDeltaRetriesOneDroppedConnection(t *testing.T) {
+	var n int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n++
+		if n == 1 {
+			hj, ok := w.(http.Hijacker)
+			if !ok {
+				http.Error(w, "no hijack", http.StatusInternalServerError)
+				return
+			}
+			conn, _, err := hj.Hijack()
+			if err != nil {
+				return
+			}
+			_ = conn.Close()
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "seeds_accepted": 1, "findings": 0})
+	}))
+	t.Cleanup(srv.Close)
+	acc, findings, err := uploadResearchCorpusDelta(context.Background(), srv.Client(), srv.URL, "tok", "w", "m", "c", 1, "research:jsmn",
+		[]fuzzengine.PoolCorpusSeed{{InputBytes: []byte("unit"), Energy: 2}}, nil, "libfuzzer", "t")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if acc != 1 || findings != 0 || n != 2 {
+		t.Fatalf("dropped connection must retry once: acc=%d findings=%d attempts=%d", acc, findings, n)
+	}
+}
+
+func TestUploadCorpusDeltaDroppedConnectionStopsAfterOneRetry(t *testing.T) {
+	var n int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n++
+		hj, ok := w.(http.Hijacker)
+		if !ok {
+			http.Error(w, "no hijack", http.StatusInternalServerError)
+			return
+		}
+		conn, _, err := hj.Hijack()
+		if err != nil {
+			return
+		}
+		_ = conn.Close()
+	}))
+	t.Cleanup(srv.Close)
+	acc, findings, err := uploadResearchCorpusDelta(context.Background(), srv.Client(), srv.URL, "tok", "w", "m", "c", 1, "research:jsmn",
+		[]fuzzengine.PoolCorpusSeed{{InputBytes: []byte("unit"), Energy: 2}}, nil, "libfuzzer", "t")
+	if err == nil || acc != 0 || findings != 0 || n != 2 {
+		t.Fatalf("dropped connection retried more than once: acc=%d findings=%d attempts=%d err=%v", acc, findings, n, err)
+	}
+}
+
+func TestUploadCorpusDeltaDoesNotRetry403(t *testing.T) {
+	var n int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n++
+		http.Error(w, "forbidden", http.StatusForbidden)
+	}))
+	t.Cleanup(srv.Close)
+	_, _, err := uploadResearchCorpusDelta(context.Background(), srv.Client(), srv.URL, "tok", "w", "m", "c", 1, "research:jsmn",
+		[]fuzzengine.PoolCorpusSeed{{InputBytes: []byte("unit")}}, nil, "", "")
+	if err == nil || n != 1 {
+		t.Fatalf("403 must not retry: err=%v attempts=%d", err, n)
+	}
+}
+
+func TestUploadCorpusDeltaDoesNotRetryAuth(t *testing.T) {
+	var n int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n++
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+	}))
+	t.Cleanup(srv.Close)
+	_, _, err := uploadResearchCorpusDelta(context.Background(), srv.Client(), srv.URL, "tok", "w", "m", "c", 1, "research:jsmn",
+		[]fuzzengine.PoolCorpusSeed{{InputBytes: []byte("unit")}}, nil, "", "")
+	if err == nil || n != 1 {
+		t.Fatalf("err=%v attempts=%d", err, n)
+	}
+}
+
+func TestUploadCorpusDeltaRateLimitIsNotSuccess(t *testing.T) {
+	var n int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n++
+		w.WriteHeader(http.StatusTooManyRequests)
+		_, _ = w.Write([]byte(`{"ok":true,"seeds_accepted":9,"findings":3}`))
+	}))
+	t.Cleanup(srv.Close)
+	acc, findings, err := uploadResearchCorpusDelta(context.Background(), srv.Client(), srv.URL, "tok", "w", "m", "c", 1, "research:jsmn",
+		[]fuzzengine.PoolCorpusSeed{{InputBytes: []byte("unit")}}, nil, "", "")
+	if err == nil || acc != 0 || findings != 0 || n != 2 {
+		t.Fatalf("429 must not count as success: acc=%d findings=%d attempts=%d err=%v", acc, findings, n, err)
+	}
+}
+
+func TestFetchCorpusSnapshotRateLimitIsNotSuccess(t *testing.T) {
+	var n int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n++
+		w.WriteHeader(http.StatusTooManyRequests)
+		_, _ = w.Write([]byte(`{"ok":true,"corpus_snapshot_sha256":"abc","corpus_seeds":[{"input_bytes_hex":"61"}]}`))
+	}))
+	t.Cleanup(srv.Close)
+	seeds, sha, err := FetchCorpusSnapshot(context.Background(), srv.Client(), srv.URL, "tok", "w", "c", 3)
+	if err == nil || sha != "" || len(seeds) != 0 || n != 2 {
+		t.Fatalf("429 snapshot looked successful: sha=%q seeds=%d attempts=%d err=%v", sha, len(seeds), n, err)
+	}
+}
+
+func TestFetchCorpusSnapshotDoesNotRetryAuth(t *testing.T) {
+	var n int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n++
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+	}))
+	t.Cleanup(srv.Close)
+	_, _, err := FetchCorpusSnapshot(context.Background(), srv.Client(), srv.URL, "tok", "w", "c", 3)
+	if err == nil || n != 1 {
+		t.Fatalf("401 snapshot retried: attempts=%d err=%v", n, err)
+	}
+	n = 0
+	srv2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n++
+		http.Error(w, "forbidden", http.StatusForbidden)
+	}))
+	t.Cleanup(srv2.Close)
+	_, _, err = FetchCorpusSnapshot(context.Background(), srv2.Client(), srv2.URL, "tok", "w", "c", 3)
+	if err == nil || n != 1 {
+		t.Fatalf("403 snapshot retried: attempts=%d err=%v", n, err)
+	}
+}
+
+func TestFetchCorpusSnapshotRetriesTransient(t *testing.T) {
+	var n int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n++
+		if n == 1 {
+			http.Error(w, "unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"ok": true, "corpus_snapshot_sha256": "abc",
+			"corpus_seeds": []map[string]any{{"input_bytes_hex": "61"}},
+		})
+	}))
+	t.Cleanup(srv.Close)
+	seeds, sha, err := FetchCorpusSnapshot(context.Background(), srv.Client(), srv.URL, "tok", "w", "c", 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sha != "abc" || len(seeds) != 1 || n != 2 {
+		t.Fatalf("sha=%q seeds=%d attempts=%d", sha, len(seeds), n)
 	}
 }
 

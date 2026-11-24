@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"hackme/internal/fuzzengine"
 	"hackme/internal/hunt"
@@ -342,11 +343,48 @@ func TestCheckHuntEngineWallFloor(t *testing.T) {
 	}
 }
 
+func TestProveHuntCorpusSeedEdgesSkipsHarnessOnCrashOnly(t *testing.T) {
+	called := 0
+	prev := resolveCoverageHarness
+	t.Cleanup(func() { resolveCoverageHarness = prev })
+	resolveCoverageHarness = func(context.Context, string, string, ...hunt.CoverageHarnessOpts) (string, bool, error) {
+		called++
+		return "", false, nil
+	}
+	svc := &Service{}
+	cfg := map[string]any{"campaign_type": "hunt", "hunt_engine": "libfuzzer", "upstream_target_id": "jsmn"}
+	n, err := svc.ProveHuntCorpusSeedEdges(context.Background(), "c-crash-only", cfg, []fuzzengine.PoolCorpusSeed{
+		{InputBytes: nil},
+		{},
+		{Input: 0x4c},
+	}, 1)
+	if err != nil || n != 0 || called != 0 {
+		t.Fatalf("n=%d err=%v called=%d", n, err, called)
+	}
+
+	n, err = svc.ProveHuntCorpusSeedEdges(context.Background(), "c-seed", cfg, []fuzzengine.PoolCorpusSeed{
+		{InputBytes: []byte(`{"a":1}`)},
+	}, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if called != 1 {
+		t.Fatalf("seed-bearing prove must resolve harness, called=%d", called)
+	}
+}
+
 func TestProveHuntCorpusSeedEdgesRequiresHarnessExec(t *testing.T) {
 	t.Setenv("HACKME_HUNT_COVERAGE_ENGINE", "1")
 	t.Setenv("HACKME_POOL_HUNT_REPLAY", "1")
 	orig := huntEngineSeedExec
-	t.Cleanup(func() { huntEngineSeedExec = orig })
+	prevResolve := resolveCoverageHarness
+	t.Cleanup(func() {
+		huntEngineSeedExec = orig
+		resolveCoverageHarness = prevResolve
+	})
+	resolveCoverageHarness = func(context.Context, string, string, ...hunt.CoverageHarnessOpts) (string, bool, error) {
+		return "", false, nil
+	}
 
 	// Without harness exec, structural novelty must not count.
 	huntEngineSeedExec = func(context.Context, *Service, string, map[string]any, []byte) (bool, bool, string, error) {
@@ -377,5 +415,37 @@ func TestProveHuntCorpusSeedEdgesRequiresHarnessExec(t *testing.T) {
 	}
 	if n != 0 {
 		t.Fatalf("crash seeds must not count as edge prove, got %d", n)
+	}
+}
+
+func TestProveHuntCorpusSeedEdgesStopsAtBudget(t *testing.T) {
+	prevBudget := proveBudget
+	prevExec := huntEngineSeedExec
+	prevResolve := resolveCoverageHarness
+	t.Cleanup(func() {
+		proveBudget = prevBudget
+		huntEngineSeedExec = prevExec
+		resolveCoverageHarness = prevResolve
+	})
+	proveBudget = func() time.Duration { return time.Millisecond }
+	resolveCoverageHarness = func(context.Context, string, string, ...hunt.CoverageHarnessOpts) (string, bool, error) {
+		return "", false, nil
+	}
+	execs := 0
+	huntEngineSeedExec = func(context.Context, *Service, string, map[string]any, []byte) (bool, bool, string, error) {
+		execs++
+		time.Sleep(20 * time.Millisecond)
+		return true, false, "", nil
+	}
+	seeds := make([]fuzzengine.PoolCorpusSeed, 6)
+	for i := range seeds {
+		seeds[i] = fuzzengine.PoolCorpusSeed{InputBytes: []byte{byte(i + 1)}}
+	}
+	cfg := map[string]any{"campaign_type": "hunt", "hunt_engine": "libfuzzer", "upstream_target_id": "jsmn"}
+	if _, err := (&Service{}).ProveHuntCorpusSeedEdges(context.Background(), "c-budget", cfg, seeds, 1); err != nil {
+		t.Fatal(err)
+	}
+	if execs < 1 || execs >= len(seeds) {
+		t.Fatalf("prove execs=%d want stopped before %d", execs, len(seeds))
 	}
 }

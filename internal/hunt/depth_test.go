@@ -1,22 +1,26 @@
 package hunt
 
-import "testing"
+import (
+	"strconv"
+	"strings"
+	"testing"
+)
 
 func TestIterationsPerShardForPackage(t *testing.T) {
-	if got := IterationsPerShardForPackage("hunt_lite"); got != 64 {
+	if got := IterationsPerShardForPackage("hunt_lite"); got != 96 {
 		t.Fatalf("lite=%d", got)
 	}
-	if got := IterationsPerShardForPackage("hunt_standard"); got != 224 {
+	if got := IterationsPerShardForPackage("hunt_standard"); got != 288 {
 		t.Fatalf("standard=%d", got)
 	}
-	if got := IterationsPerShardForPackage("hunt_heavy"); got != 256 {
+	if got := IterationsPerShardForPackage("hunt_heavy"); got != 384 {
 		t.Fatalf("heavy=%d", got)
 	}
 }
 
-func TestShardIterationsPerCap256(t *testing.T) {
+func TestShardIterationsPerCap384(t *testing.T) {
 	cfg := map[string]any{"iterations_per_shard": 512}
-	if got := ShardIterationsPer(cfg); got != 256 {
+	if got := ShardIterationsPer(cfg); got != 384 {
 		t.Fatalf("cap got=%d", got)
 	}
 }
@@ -24,7 +28,7 @@ func TestShardIterationsPerCap256(t *testing.T) {
 func TestApplyPackageDepthDefaultsPool(t *testing.T) {
 	cfg := map[string]any{}
 	ApplyPackageDepthDefaults(cfg, "hunt_standard", true)
-	if cfg["iterations_per_shard"] != 224 {
+	if cfg["iterations_per_shard"] != 288 {
 		t.Fatalf("iter=%v", cfg["iterations_per_shard"])
 	}
 	if cfg["hunt_overnight_local"] == true {
@@ -41,26 +45,18 @@ func TestPoolEngineLeaseDefaultsByPackage(t *testing.T) {
 		ApplyPoolGuidedDefaults(cfg, "jsmn")
 		ApplyHuntPowerScheduling(cfg, pkg)
 		ApplyPackageDepthDefaults(cfg, pkg, true)
-		// Mirror config.go pool lease block
 		if _, ok := cfg["engine_lease_sec"]; !ok {
-			switch pkg {
-			case "hunt_heavy":
-				cfg["engine_lease_sec"] = DefaultAFLPPLeaseSec
-			case "hunt_standard":
-				cfg["engine_lease_sec"] = 150
-			default:
-				cfg["engine_lease_sec"] = 90
-			}
+			cfg["engine_lease_sec"] = PoolEngineLeaseSecForPackage(pkg)
 		}
 		return cfg
 	}
-	if got := mk("hunt_lite")["engine_lease_sec"]; got != 90 {
+	if got := mk("hunt_lite")["engine_lease_sec"]; got != 180 {
 		t.Fatalf("lite lease=%v", got)
 	}
-	if got := mk("hunt_standard")["engine_lease_sec"]; got != 150 {
+	if got := mk("hunt_standard")["engine_lease_sec"]; got != 240 {
 		t.Fatalf("standard lease=%v", got)
 	}
-	if got := mk("hunt_heavy")["engine_lease_sec"]; got != DefaultAFLPPLeaseSec {
+	if got := mk("hunt_heavy")["engine_lease_sec"]; got != 300 {
 		t.Fatalf("heavy lease=%v", got)
 	}
 }
@@ -81,6 +77,23 @@ func TestDepthSummaryForConfig(t *testing.T) {
 	s := DepthSummaryForConfig(cfg)
 	if s["iterations_per_shard"] != 128 || s["hunt_package"] != "hunt_standard" {
 		t.Fatalf("summary=%v", s)
+	}
+}
+
+func TestPackageSummariesMatchLeaseConstants(t *testing.T) {
+	for _, p := range Packages() {
+		want := strconv.Itoa(PoolEngineLeaseSecForPackage(p.Key)) + "s"
+		if !strings.Contains(p.Summary, want) {
+			t.Fatalf("%s summary %q missing %s", p.Key, p.Summary, want)
+		}
+	}
+	std := PackageByKey("hunt_standard")
+	heavy := PackageByKey("hunt_heavy")
+	if std == nil || strings.Contains(std.Summary, "180s") {
+		t.Fatalf("standard still advertises 180s: %+v", std)
+	}
+	if heavy == nil || strings.Contains(heavy.Summary, "210s") {
+		t.Fatalf("heavy still advertises 210s: %+v", heavy)
 	}
 }
 

@@ -1,6 +1,11 @@
 package fuzzupstream
 
-import "testing"
+import (
+	"context"
+	"strings"
+	"testing"
+	"time"
+)
 
 func TestClassifySanitizerASAN(t *testing.T) {
 	blob := `==1==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x602000000010
@@ -76,6 +81,14 @@ func TestFormatAndParseHuntTrap(t *testing.T) {
 	if sec != "hunt_crash:heap-buffer-overflow" {
 		t.Fatalf("sec trap=%q", sec)
 	}
+	withPC := FormatHuntTrap(SanitizerInfo{Class: "asan", Subtype: "heap-buffer-overflow", Security: true, PC: "+0x00004C3A11"})
+	if withPC != "hunt_crash:heap-buffer-overflow pc=+0x4c3a11" {
+		t.Fatalf("pc trap=%q", withPC)
+	}
+	parsed, ok := ParseHuntTrap(withPC)
+	if !ok || !parsed.Security || parsed.Subtype != "heap-buffer-overflow" || parsed.PC != "+0x4c3a11" {
+		t.Fatalf("parse pc=%+v ok=%v", parsed, ok)
+	}
 	info := SanitizerInfo{Class: "ubsan", Subtype: "shift-overflow", Security: false}
 	trap := FormatHuntTrap(info)
 	if trap != "hunt_sanitizer:ubsan/shift-overflow" {
@@ -104,6 +117,50 @@ func TestAsanOptionsDetectLeaks(t *testing.T) {
 	}
 	if containsAll(asanOptions(false), "detect_leaks=1") {
 		t.Fatal(asanOptions(false))
+	}
+	for _, leaks := range []bool{false, true} {
+		opt := asanOptions(leaks)
+		if !containsAll(opt, "symbolize=0") || !containsAll(opt, "abort_on_error=1") {
+			t.Fatal(opt)
+		}
+	}
+}
+
+func TestClassifyHarnessRunTimeoutKeepsSecurityASAN(t *testing.T) {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancel()
+	blob := "==1==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x1\nSUMMARY: AddressSanitizer: heap-buffer-overflow (/tmp/h+0x4c3a11)\n"
+	crash, info, _, err := classifyHarnessRun(ctx, ctx.Err(), blob)
+	if err != nil || !crash || !info.Security || info.PC != "+0x4c3a11" {
+		t.Fatalf("crash=%v info=%+v err=%v", crash, info, err)
+	}
+	if !strings.HasPrefix(FormatHuntTrap(info), "hunt_crash:heap-buffer-overflow pc=") {
+		t.Fatalf("trap=%q", FormatHuntTrap(info))
+	}
+	// Unsigned overflow is informational. A hang must not become a paying crash.
+	ub := "runtime error: unsigned integer overflow: 1 + 1 cannot be represented in type 'unsigned int'\n"
+	crash, _, _, err = classifyHarnessRun(ctx, ctx.Err(), ub)
+	if crash || err == nil {
+		t.Fatalf("ubsan timeout crash=%v err=%v", crash, err)
+	}
+	crash, _, _, err = classifyHarnessRun(ctx, ctx.Err(), "still running\n")
+	if crash || err == nil {
+		t.Fatalf("bare timeout crash=%v err=%v", crash, err)
+	}
+}
+
+func TestClassifySanitizerSymbolize0PC(t *testing.T) {
+	blob := `==1==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x602000000014 at pc 0x0000555555551234
+    #0 0x7f (/usr/lib/llvm-18/lib/clang/18/lib/linux/libclang_rt.asan-x86_64.so+0x9c1a0)
+    #1 0x55 (/tmp/hunt-a/harness+0x4c3a11)
+SUMMARY: AddressSanitizer: heap-buffer-overflow (/usr/lib/llvm-18/lib/clang/18/lib/linux/libclang_rt.asan-x86_64.so+0x9c1a0)
+`
+	info := ClassifySanitizer(blob)
+	if !info.Security || info.Subtype != "heap-buffer-overflow" || info.PC != "+0x4c3a11" {
+		t.Fatalf("info=%+v", info)
+	}
+	if FormatHuntTrap(info) != "hunt_crash:heap-buffer-overflow pc=+0x4c3a11" {
+		t.Fatalf("trap=%q", FormatHuntTrap(info))
 	}
 }
 

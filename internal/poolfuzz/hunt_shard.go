@@ -371,6 +371,8 @@ func (s *Service) evalHuntSubmitCheckProgress(ctx context.Context, campaignID st
 func (s *Service) evalHuntEngineSubmitCheck(ctx context.Context, campaignID string, cfg map[string]any, req SubmitRequest, expectedB []byte) (checkResult int32, trap string, pass bool, recordFinding bool, findingB []byte, findingOrigLen int, err error) {
 	workerTrap := strings.TrimSpace(req.Trap)
 	workerClaims := req.CheckResult != 0 && (strings.HasPrefix(workerTrap, "hunt_crash:") || strings.HasPrefix(workerTrap, "hunt_sanitizer:"))
+	// CLEAN coverage submits return here. Do not compile a harness or run
+	// showmap on the submit handler; edge prove already ran on corpus_delta.
 	if !workerClaims {
 		if req.CheckResult != 0 {
 			return 0, workerTrap, false, false, nil, 0, nil
