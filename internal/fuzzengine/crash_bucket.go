@@ -379,7 +379,7 @@ func relativeOffsetSite(frames []crashFrame) string {
 			base[f.module] = off
 			b = off
 		}
-		tok := formatDelta(int64(off) - int64(b))
+		tok := formatPCDelta(off, b)
 		if multi && f.module != "" {
 			tok = f.module + ":" + tok
 		}
@@ -402,11 +402,17 @@ func parseHexPC(pc string) (uint64, bool) {
 	return n, err == nil
 }
 
-func formatDelta(d int64) string {
-	if d < 0 {
-		return "-0x" + strconv.FormatUint(uint64(-d), 16)
+// formatPCDelta renders off-base without narrowing either side through int64.
+// Frame PCs are parsed with ParseUint(..., 64) out of miner-submitted crash reports:
+// anything at or above 2^63 wrapped negative under int64(off)-int64(b), and a pair of
+// crafted PCs could even overflow the subtraction itself, so the relative token — and
+// with it the crash bucket that PayRun settles on — depended on attacker-chosen bits.
+// Unsigned subtraction with an explicit sign is exact for every uint64 pair.
+func formatPCDelta(off, base uint64) string {
+	if off >= base {
+		return "+0x" + strconv.FormatUint(off-base, 16)
 	}
-	return "+0x" + strconv.FormatUint(uint64(d), 16)
+	return "-0x" + strconv.FormatUint(base-off, 16)
 }
 
 func securityASANText(low string) bool {
