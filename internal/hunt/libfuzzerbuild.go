@@ -1143,6 +1143,14 @@ func buildInprocStdinLibFuzzer(ctx context.Context, repoRoot string, t fuzzupstr
 	if err := writeLibFuzzerCacheBin(outPath, in); err != nil {
 		return err
 	}
+	// The .kind sidecar is what catalogInProcessBinUsable consults, and the fork
+	// wrapper writes "stub" at this same path. Without claiming it here, a target
+	// whose wrapper was built first stays pinned to the blind rail forever: the stub
+	// kind makes the fresh in-process binary look unusable, and the .inproc marker
+	// then short-circuits every later build so nothing ever rewrites it.
+	if err := writeLibFuzzerBinKind(outPath, libFuzzerBinKindDedicated); err != nil {
+		return err
+	}
 	return os.WriteFile(inprocMarkerPath(outPath), []byte(t.ID+"\n"), 0o644)
 }
 
@@ -1150,3 +1158,68 @@ func buildInprocStdinLibFuzzer(ctx context.Context, repoRoot string, t fuzzupstr
 // is its own and not the target's. Anything that reasons about coverage — corpus
 // minimization above all — must not trust that signal.
 func blindFuzzerRail(stdinBin string) bool { return strings.TrimSpace(stdinBin) != "" }
+
+// CachedInprocLibFuzzerBin returns a ready in-process binary for a catalog target
+// without building anything. The engine shard uses it to decide between the fast rail
+// and a background warm-up, because a cold build (git clone plus clang) can outlive
+// both the engine wall and the claim lease.
+func CachedInprocLibFuzzerBin(repoRoot, targetID string) (string, bool) {
+	if repoRoot == "" {
+		repoRoot = RepoRoot()
+	}
+	id, ok := fuzzupstream.SanitizeCatalogID(targetID)
+	if !ok {
+		return "", false
+	}
+	binPath := LibFuzzerImportBinPath(repoRoot, id)
+	if !inprocMarkerPresent(binPath) {
+		return "", false
+	}
+	if !cachedDedicatedLibFuzzerBin(binPath) {
+		return "", false
+	}
+	return binPath, true
+}
+
+// BuildInprocLibFuzzerForTarget builds (or reuses) the in-process binary for a catalog
+// target. Separate from BuildLibFuzzerImport so a warm-up can run it off the lease.
+func BuildInprocLibFuzzerForTarget(ctx context.Context, repoRoot, targetID string) (string, error) {
+	if repoRoot == "" {
+		repoRoot = RepoRoot()
+	}
+	id, ok := fuzzupstream.SanitizeCatalogID(targetID)
+	if !ok {
+		return "", fmt.Errorf("hunt: inproc build: invalid target id %q", targetID)
+	}
+	if bin, ready := CachedInprocLibFuzzerBin(repoRoot, id); ready {
+		return bin, nil
+	}
+	if _, err := exec.LookPath("clang"); err != nil {
+		return "", fmt.Errorf("hunt: inproc build: clang required")
+	}
+	manifest, err := fuzzupstream.LoadManifest(repoRoot)
+	if err != nil {
+		return "", err
+	}
+	t, err := manifest.TargetByID(id)
+	if err != nil {
+		return "", err
+	}
+	driver := fuzzupstream.DriverSourcePath(repoRoot, t)
+	if !InprocStdinDriverSupported(driver) {
+		return "", fmt.Errorf("hunt: inproc build: driver not usable for %s", id)
+	}
+	if _, err := fuzzupstream.EnsureClone(ctx, repoRoot, t); err != nil {
+		return "", err
+	}
+	binPath := LibFuzzerImportBinPath(repoRoot, id)
+	unlock := lockLibFuzzerImport(binPath)
+	defer unlock()
+	if bin, ready := CachedInprocLibFuzzerBin(repoRoot, id); ready {
+		return bin, nil
+	}
+	if err := buildInprocStdinLibFuzzer(ctx, repoRoot, t, driver, binPath); err != nil {
+		return "", err
+	}
+	return binPath, nil
+}
