@@ -88,3 +88,50 @@ func TestRebuildCatalogHarnessRefusesHashMismatch(t *testing.T) {
 		t.Fatal("rebuild accepted a harness_hash that the catalog target does not produce")
 	}
 }
+
+// The rebuild is a full clone-and-compile — duktape alone blew the 300s build wall on
+// the hub while holding the pool-sync worker — so it runs off the sync path: one
+// goroutine per hash, at most two at a time, and never from a non-catalog campaign.
+func TestStartCatalogHarnessRebuildIsSingleFlightAndCatalogOnly(t *testing.T) {
+	a := &app{}
+	const hash = "de2b275b7f165d679bdcf5722626311a"
+	catalog := map[string]any{"hunt_source": "catalog", "upstream_target_id": "duktape"}
+
+	// A non-catalog campaign must not start anything: inventory hashes are content
+	// bound and must never be re-derived.
+	for _, cfg := range []map[string]any{
+		nil,
+		{"hunt_source": "inventory", "hunt_source_rel": "h.c", "upstream_target_id": "duktape"},
+		{"hunt_source": "catalog"},
+	} {
+		a.startCatalogHarnessRebuild(cfg, hash)
+	}
+	for _, bad := range []string{"", "   "} {
+		a.startCatalogHarnessRebuild(catalog, bad)
+	}
+	harnessRebuildMu.Lock()
+	started := len(harnessRebuildBusy)
+	harnessRebuildMu.Unlock()
+	if started != 0 {
+		t.Fatalf("ineligible configs started %d rebuilds", started)
+	}
+
+	// Occupy the hash by hand: a second call for the same hash must not queue another.
+	harnessRebuildMu.Lock()
+	harnessRebuildBusy[hash] = true
+	harnessRebuildMu.Unlock()
+	a.startCatalogHarnessRebuild(catalog, hash)
+	harnessRebuildMu.Lock()
+	n := len(harnessRebuildBusy)
+	harnessRebuildMu.Unlock()
+	if n != 1 {
+		t.Fatalf("single-flight broken: %d entries", n)
+	}
+	harnessRebuildMu.Lock()
+	delete(harnessRebuildBusy, hash)
+	harnessRebuildMu.Unlock()
+
+	if cap(harnessRebuildSlots) != 2 {
+		t.Fatalf("rebuild concurrency cap = %d, want 2", cap(harnessRebuildSlots))
+	}
+}

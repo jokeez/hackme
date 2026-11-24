@@ -453,10 +453,18 @@ func RunLibFuzzerSession(ctx context.Context, opts LibFuzzerSessionOpts) (int, e
 	}
 
 	after, _ := countCorpusFiles(corpusDir)
+	if after > 8 && blindFuzzerRail(stdinBin) {
+		// -merge=1 keeps the inputs that add coverage *as the given binary measures
+		// it*. The fork wrapper is instrumented, the target it execs is not, so the
+		// wrapper's own handful of edges is the whole signal and nearly every input
+		// looks redundant: observed on the hub as corpus_before=97 corpus_after=1,
+		// every lease, wiping the corpus the pool had collectively built.
+		sessionLog += "\n[merge] skipped: fork-wrapper session has no target coverage to minimize against\n"
+	}
 	// Aggressive dedupe/minimize before L2 import — prevents overnight corpus bloat.
 	// Bound to remaining parent/lease budget (was Background×10m → lease overrun /
 	// lease_lost_during_engine + late CLEAN races).
-	if after > 8 {
+	if after > 8 && !blindFuzzerRail(stdinBin) {
 		// Minimize only with leftover lease slack. A 2-minute merge used to consume
 		// most of a short lite wall and raced lease_lost_during_engine.
 		mergeBudget := 30 * time.Second
@@ -1137,3 +1145,8 @@ func buildInprocStdinLibFuzzer(ctx context.Context, repoRoot string, t fuzzupstr
 	}
 	return os.WriteFile(inprocMarkerPath(outPath), []byte(t.ID+"\n"), 0o644)
 }
+
+// blindFuzzerRail reports whether this session ran the fork wrapper, whose coverage
+// is its own and not the target's. Anything that reasons about coverage — corpus
+// minimization above all — must not trust that signal.
+func blindFuzzerRail(stdinBin string) bool { return strings.TrimSpace(stdinBin) != "" }

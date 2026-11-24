@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
+	"time"
 
 	"hackme/internal/hunt"
 	"hackme/internal/logsafe"
@@ -154,15 +156,12 @@ func (a *app) syncHuntHarnessToCoordinator(ctx context.Context, cfg map[string]a
 		// is stuck for good once the blob leaves the object store (cache prune, restore on a
 		// node that never built it): escrow stays locked, the pool never sees the work and
 		// the register is retried forever. Only the create path used to rebuild.
-		if rebuilt, rerr := a.rebuildCatalogHarnessArtifact(ctx, cfg, hash); rerr == nil {
-			data = rebuilt
-			cfg["harness_publish_note"] = "harness rebuilt from pinned catalog target"
-		} else {
-			if !isClangRequiredErr(rerr) {
-				log.Printf("hunt harness sync: rebuild %s failed: %s", logsafe.ID(hash), logsafe.Err(rerr))
-			}
-			return fmt.Errorf("hunt harness sync: local artifact: %w", err)
-		}
+		// Rebuilding is a full clone-and-compile: duktape alone took more than the
+		// 300s build wall on the hub while holding the pool-sync worker. Kick it off
+		// in the background and let the campaign retry on a later tick, which the
+		// per-campaign register backoff makes cheap.
+		a.startCatalogHarnessRebuild(cfg, hash)
+		return fmt.Errorf("hunt harness sync: local artifact: %w", err)
 	}
 	if err := poolsync.UploadHuntHarness(ctx, coord, token, hash, data, srcRel); err != nil {
 		// Catalog hash is metadata-stable; clang rebuilds can differ byte-for-byte across hosts.
@@ -246,4 +245,55 @@ func (a *app) rebuildCatalogHarnessArtifact(ctx context.Context, cfg map[string]
 		}
 	}
 	return hunt.GetHarnessArtifact(ctx, a.db, hash)
+}
+
+// Catalog harness rebuilds run off the sync path: one per hash, at most two at a
+// time, so a slow target cannot stall campaign registration or starve the host.
+var (
+	harnessRebuildMu    sync.Mutex
+	harnessRebuildBusy  = map[string]bool{}
+	harnessRebuildSlots = make(chan struct{}, 2)
+)
+
+func (a *app) startCatalogHarnessRebuild(cfg map[string]any, hash string) {
+	hash = strings.TrimSpace(hash)
+	if hash == "" || !huntCatalogSource(cfg) {
+		return
+	}
+	// The goroutine must not read the caller's map: copy the three keys it needs.
+	cfgCopy := map[string]any{
+		"hunt_source":        toString(cfg["hunt_source"]),
+		"hunt_source_rel":    toString(cfg["hunt_source_rel"]),
+		"upstream_target_id": toString(cfg["upstream_target_id"]),
+	}
+	harnessRebuildMu.Lock()
+	if harnessRebuildBusy[hash] {
+		harnessRebuildMu.Unlock()
+		return
+	}
+	harnessRebuildBusy[hash] = true
+	harnessRebuildMu.Unlock()
+
+	go func() {
+		defer func() {
+			harnessRebuildMu.Lock()
+			delete(harnessRebuildBusy, hash)
+			harnessRebuildMu.Unlock()
+		}()
+		select {
+		case harnessRebuildSlots <- struct{}{}:
+			defer func() { <-harnessRebuildSlots }()
+		default:
+			return // both slots busy; a later tick will try again
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
+		defer cancel()
+		if _, err := a.rebuildCatalogHarnessArtifact(ctx, cfgCopy, hash); err != nil {
+			if !isClangRequiredErr(err) {
+				log.Printf("hunt harness sync: background rebuild %s failed: %s", logsafe.ID(hash), logsafe.Err(err))
+			}
+			return
+		}
+		log.Printf("hunt harness sync: background rebuild %s published", logsafe.ID(hash))
+	}()
 }
