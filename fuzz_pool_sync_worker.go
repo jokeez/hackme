@@ -201,6 +201,12 @@ func (a *app) retryFailedPoolSyncCampaigns() {
 		if _, ok := failed[id]; !ok {
 			continue
 		}
+		// Startup retry runs 3s after the worker boots, so a campaign that failed inside
+		// that window would otherwise jump its backoff here. Operator- and customer-driven
+		// syncs stay unthrottled: only the automatic paths consult the deadline.
+		if !a.poolSyncRetryDue(id) {
+			continue
+		}
 		a.poolSyncMu.Lock()
 		delete(a.poolSyncQueued, id)
 		a.poolSyncMu.Unlock()
