@@ -13,6 +13,9 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
+
+	"hackme/internal/fuzzupstream"
 	"time"
 )
 
@@ -152,7 +155,55 @@ func libFuzzerDriverPlan(repoRoot, targetID string, inventoryEntry, publishedIsL
 	if DedicatedLibFuzzerHarness(repoRoot, targetID) != "" {
 		return true, "catalog"
 	}
+	// No hand-written harness, but the catalog ships a stdin driver for every target
+	// and that driver can be built in-process. This is the gate that kept the whole
+	// pool on the fork wrapper: only 7 of 68 ids have a dedicated harness, so every
+	// other lease ran fork+exec per input — two orders of magnitude slower, and with
+	// libFuzzer instrumenting the wrapper instead of the target, so the guided fuzzer
+	// had no coverage signal at all. Measured on zlib: 92 -> 17,627 exec/s, 7 -> 263
+	// edges. A worker that cannot build (no clang, no sources, no clone) still falls
+	// back to the wrapper further down.
+	if InprocStdinDriverSupported(catalogStdinDriverPath(repoRoot, targetID)) {
+		return true, "catalog"
+	}
 	return false, "stdin"
+}
+
+var (
+	catalogDriverOnce sync.Once
+	catalogDriverByID map[string]string
+)
+
+// catalogStdinDriverPath resolves a target's stdin driver without paying for a
+// manifest parse on the hot path: 66 of 68 ids follow <id>_stdin.c, and the two that
+// do not (json-c, yajl-210) come from a manifest lookup cached for the process.
+func catalogStdinDriverPath(repoRoot, targetID string) string {
+	id, ok := fuzzupstream.SanitizeCatalogID(targetID)
+	if !ok {
+		return ""
+	}
+	if repoRoot == "" {
+		repoRoot = RepoRoot()
+	}
+	byConvention := filepath.Join(repoRoot, "tasks", "sources", "fuzz", "oss", id+"_stdin.c")
+	if st, err := os.Stat(byConvention); err == nil && st.Mode().IsRegular() {
+		return byConvention
+	}
+	catalogDriverOnce.Do(func() {
+		m, err := fuzzupstream.LoadManifest(repoRoot)
+		if err != nil {
+			return
+		}
+		catalogDriverByID = make(map[string]string, len(m.Targets))
+		for _, t := range m.Targets {
+			catalogDriverByID[t.ID] = t.Driver
+		}
+	})
+	driver := strings.TrimSpace(catalogDriverByID[id])
+	if driver == "" {
+		return ""
+	}
+	return filepath.Join(repoRoot, "tasks", "sources", "fuzz", "oss", driver+".c")
 }
 
 // catalogInProcessBinUsable is true when BuildLibFuzzerImport returned a
@@ -758,4 +809,11 @@ func resetHuntSessionCrashDir(corpusDir, crashDir string) error {
 // (typically corpus/.hunt-run). Used by research-slot delta upload.
 func ListCrashArtifactPaths(dir string, max int) []string {
 	return collectCrashArtifacts(dir, dir, max)
+}
+
+// CatalogTargetRunsInProcess reports whether a catalog id takes the in-process rail
+// rather than the fork wrapper. Exported for the coverage test over the whole catalog.
+func CatalogTargetRunsInProcess(repoRoot, targetID string) bool {
+	in, _ := libFuzzerDriverPlan(repoRoot, targetID, false, false)
+	return in
 }

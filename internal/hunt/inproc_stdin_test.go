@@ -133,3 +133,38 @@ func TestInprocShimRunsTargetAndReportsCrashes(t *testing.T) {
 		t.Errorf("the in-process rail must not reference the fork wrapper's env:\n%s", head(got, 600))
 	}
 }
+
+// The gate that kept the whole pool on the fork wrapper: the plan asked "is there a
+// hand-written harness?" (7 of 68 ids) instead of "can this target run in-process?".
+// Every catalog id with a usable stdin driver must now take the in-process rail.
+func TestDriverPlanPrefersInProcessForEveryCatalogTarget(t *testing.T) {
+	root := repoRootForHuntTest(t)
+	dir := filepath.Join(root, "tasks", "sources", "fuzz", "oss")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Skipf("driver dir unavailable: %v", err)
+	}
+	checked, inproc := 0, 0
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), "_stdin.c") {
+			continue
+		}
+		id := strings.TrimSuffix(e.Name(), "_stdin.c")
+		if !hunt.InprocStdinDriverSupported(filepath.Join(dir, e.Name())) {
+			continue
+		}
+		checked++
+		if hunt.CatalogTargetRunsInProcess(root, id) {
+			inproc++
+		} else {
+			t.Errorf("%s has a usable stdin driver but would still fork+exec per input", id)
+		}
+	}
+	if checked == 0 {
+		t.Skip("no usable drivers on disk")
+	}
+	if inproc != checked {
+		t.Fatalf("%d of %d catalog targets take the in-process rail", inproc, checked)
+	}
+	t.Logf("in-process rail covers %d catalog targets", inproc)
+}
