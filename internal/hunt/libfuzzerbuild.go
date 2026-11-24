@@ -811,9 +811,14 @@ func libFuzzerExecutedUnits(stderr string) int {
 			}
 			continue
 		}
-		if strings.HasPrefix(line, "#") {
+		// libFuzzer progress lines are "#2<TAB>INITED cov: 4 ft: 5 ..." — there is no
+		// colon after the unit number, so the old "#%d: cov:" scan never matched and
+		// this fallback was dead. It is the only execs signal a fork run leaves in the
+		// parent's stderr (per-job final stats go to the job logs), which is why a
+		// stdin-driver lease reported execs=0 while its corpus was visibly growing.
+		if strings.HasPrefix(line, "#") && strings.Contains(line, "cov:") {
 			var n int
-			if _, err := fmt.Sscanf(line, "#%d: cov:", &n); err == nil && n > forkMax {
+			if _, err := fmt.Sscanf(line, "#%d", &n); err == nil && n > forkMax {
 				forkMax = n
 			}
 		}

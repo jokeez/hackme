@@ -300,8 +300,13 @@ func TestLibFuzzerExecutedUnits(t *testing.T) {
 	if got := libFuzzerExecutedUnits("stat::number_of_executed_units: 0\n"); got != 0 {
 		t.Fatalf("explicit zero=%d", got)
 	}
-	if got := libFuzzerExecutedUnits("no stats\n#12\tpulse cov: 1 ft: 1\n"); got != 0 {
-		t.Fatalf("pulse line is not the fork sum, got %d", got)
+	// The number after '#' is libFuzzer's executed-input counter at that milestone,
+	// so with no final stats in reach it is a valid lower bound — and a lower bound
+	// beats 0. A fork run leaves only these lines in the parent's stderr (per-job
+	// stats go to the job logs), which is why a stdin-driver lease used to report
+	// execs=0 while its corpus was visibly growing. Final stats still win when present.
+	if got := libFuzzerExecutedUnits("no stats\n#12\tpulse cov: 1 ft: 1\n"); got != 12 {
+		t.Fatalf("progress line should give a lower bound of 12, got %d", got)
 	}
 	// Two job logs concatenated: each prints its own final stat.
 	summed := "stat::number_of_executed_units: 10\nstat::number_of_executed_units: 7\n"
