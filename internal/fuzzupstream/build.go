@@ -650,3 +650,14 @@ func IncludeDir(repoRoot, clonePath, inc string) string {
 func ExpandUpstreamSrc(clonePath string, patterns []string) []string {
 	return expandUpstreamSrc(clonePath, patterns)
 }
+
+// CloneDirForTarget is where CloneTarget puts a catalog target's sources. It is a
+// path, not a promise: the caller checks whether the clone is there.
+func CloneDirForTarget(repoRoot, targetID string) string {
+	repoRoot = strings.TrimSpace(repoRoot)
+	targetID = strings.TrimSpace(targetID)
+	if repoRoot == "" || targetID == "" || strings.ContainsAny(targetID, `/\`) {
+		return ""
+	}
+	return filepath.Join(repoRoot, ".cache", "oss-cve-clones", targetID)
+}

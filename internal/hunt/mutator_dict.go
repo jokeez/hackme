@@ -165,7 +165,14 @@ func formatLibFuzzerDict(tokens []string) string {
 		}
 		seen[t] = struct{}{}
 		if strings.HasPrefix(t, `\x`) {
+			// libFuzzer's ParseDictionaryFile only accepts a quoted value: a bare
+			// \x00 line aborts the whole dictionary and the session exits before it
+			// runs ("ParseDictionaryFile: error in line N", cov 0, 0 execs). Hex
+			// escapes are interpreted inside the quotes, so quote without escaping
+			// the backslash.
+			b.WriteByte('"')
 			b.WriteString(t)
+			b.WriteByte('"')
 			b.WriteByte('\n')
 			continue
 		}
