@@ -223,20 +223,36 @@ func RegisterOnce(ctx context.Context, coordURL, token string, req RegisterReque
 			}
 			if RequireHubPrepaidTicket() || hubSec != "" {
 				if !PrepaidLocalSignAllowed() {
-					return 0, result, fmt.Errorf("pool sync: prepaid_attestation required (HACKME_ORDERS_PREPAID_LOCAL_SIGN=0 — use hub admin mint; signing key stays hub-only)")
-				}
-				if hubSec == "" {
+					// The signing key stays hub-only, so ask the hub to sign rather than
+					// giving up: the mint endpoint takes the admin token, re-derives the
+					// fingerprint itself and refuses unless the escrow is live on the hub
+					// ledger (see MintHubPrepaidTicket — this forges nothing). Until this
+					// existed the documented path had no client and campaigns sat in
+					// running with a funded escrow and zero runs until someone noticed.
+					ticket, fp, mintErr := MintHubPrepaidTicket(ctx, coordURL, OrdersAdminToken(),
+						owner, req.ID, req.BudgetHMC, req.BudgetRuns)
+					if mintErr != nil {
+						return 0, result, fmt.Errorf("pool sync: prepaid_attestation required (HACKME_ORDERS_PREPAID_LOCAL_SIGN=0, hub admin mint failed: %v; signing key stays hub-only)", mintErr)
+					}
+					req.PrepaidAttestation = ticket
+					if fp == "" {
+						fp = escrowFP
+					}
+					if fp != "" {
+						req.EscrowFingerprint = fp
+					}
+				} else if hubSec == "" {
 					return 0, result, fmt.Errorf("pool sync: HACKME_ORDERS_PREPAID_HUB_SECRET required for hub prepaid tickets")
-				}
-				if escrowFP == "" {
+				} else if escrowFP == "" {
 					return 0, result, fmt.Errorf("pool sync: open escrow fingerprint required before hub prepaid ticket")
+				} else {
+					exp := time.Now().Unix() + DefaultHubPrepaidTicketTTL
+					req.PrepaidAttestation = SignHubPrepaidTicket(hubSec, owner, req.ID, req.BudgetHMC, req.BudgetRuns, escrowFP, exp)
+					if req.PrepaidAttestation == "" {
+						return 0, result, fmt.Errorf("pool sync: hub prepaid ticket sign failed")
+					}
+					req.EscrowFingerprint = escrowFP
 				}
-				exp := time.Now().Unix() + DefaultHubPrepaidTicketTTL
-				req.PrepaidAttestation = SignHubPrepaidTicket(hubSec, owner, req.ID, req.BudgetHMC, req.BudgetRuns, escrowFP, exp)
-				if req.PrepaidAttestation == "" {
-					return 0, result, fmt.Errorf("pool sync: hub prepaid ticket sign failed")
-				}
-				req.EscrowFingerprint = escrowFP
 			} else {
 				// Lab only: publish-token self-MAC (forgeable; refused when minting hub).
 				req.PrepaidAttestation = SignPrepaidAttestation(OrdersPublishToken(), owner, req.ID, req.BudgetHMC, req.BudgetRuns)
