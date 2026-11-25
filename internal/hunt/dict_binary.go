@@ -210,7 +210,11 @@ func binaryDictScore(s string) int {
 // AugmentLibFuzzerDict appends tokens to an existing -dict= body, keeping the
 // original lines first and the result inside maxLibFuzzerDictLen. A malformed or
 // empty base is replaced by a fresh header so the result is always loadable.
-func AugmentLibFuzzerDict(base []byte, tokens []string) []byte {
+// AugmentLibFuzzerDict appends tokens to base. provenance names where they came from and
+// goes into the file header: it used to say "the harness binary" unconditionally, which is
+// wrong whenever the tokens were lifted from sources and sent one reader (me) chasing a
+// binary-scan regression that was not happening.
+func AugmentLibFuzzerDict(base []byte, tokens []string, provenance ...string) []byte {
 	text := strings.TrimRight(string(base), "\n")
 	if strings.TrimSpace(text) == "" {
 		text = "# hackme hunt dict"
@@ -243,7 +247,11 @@ func AugmentLibFuzzerDict(base []byte, tokens []string) []byte {
 	if idx := strings.IndexByte(body, '\n'); idx >= 0 && strings.HasPrefix(body, "#") {
 		body = body[idx+1:]
 	}
-	out := text + "\n# derived from the harness binary\n" + body
+	from := "# derived tokens"
+	if len(provenance) > 0 && strings.TrimSpace(provenance[0]) != "" {
+		from = "# derived from " + strings.TrimSpace(provenance[0])
+	}
+	out := text + "\n" + from + "\n" + body
 	for len(out) > maxLibFuzzerDictLen {
 		cut := strings.LastIndexByte(strings.TrimRight(out, "\n"), '\n')
 		if cut <= 0 {
@@ -293,6 +301,15 @@ func DeriveDictTokensFromSources(dir string, limit int) []string {
 				// A vendored unit-test framework contributes its own vocabulary
 				// (unity.h, cmock.h, testrunner.exe) and none of the target's.
 				"test", "tests", "testing", "unity", "cmock", "vendor", "third_party",
+				// Example and demo trees carry a whole other program's vocabulary.
+				// minimp3 ships player/glad.{c,h}, a vendored OpenGL loader, and its
+				// 192 gl* symbol names became the dictionary an MP3 decoder was fuzzed
+				// with — every one of them a mutation spent on nothing.
+				// Examples were already skipped; a demo under any other name was not.
+				// minimp3 ships player/glad.{c,h}, a vendored OpenGL loader, and its
+				// 192 gl* symbol names became the dictionary an MP3 decoder was fuzzed
+				// with — every one of them a mutation spent on nothing.
+				"demo", "demos", "sample", "samples", "player", "bench", "contrib", "glad",
 				"examples", "example", "doc", "docs", "benchmark", "benchmarks":
 				return filepath.SkipDir
 			}
