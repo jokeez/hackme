@@ -194,6 +194,13 @@ type workManager struct {
 	baselineRelayWould   uint64 // dry-mode would-mint (no chain POST)
 	// Relay failures that kept the lease's verified shares and dropped only the found.
 	baselineRelayDowngraded uint64
+	// Why the chain refused a relayed baseline, and why one was never attempted. Without
+	// these the only signal was a rate — on 2026-11-25 the soak watch held HARD at 9%
+	// (117 of 1303) with nothing to say whether that is two miners racing the same height,
+	// which costs no one anything, or a defect. Bounded so an unexpected reason string
+	// cannot grow the map without limit.
+	baselineRelayRejectReasons map[string]uint64
+	baselineRelaySkipReasons   map[string]uint64
 
 	foundAudit          map[string]*foundAuditState
 	foundAuditFlagged   uint64
@@ -2779,6 +2786,9 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 		if relaySkip != "" || !chainSolve.OK {
 			if relaySkip == "" {
 				m.baselineRelayReject++
+				noteBoundedReason(&m.baselineRelayRejectReasons, chainSolve.Reason)
+			} else {
+				noteBoundedReason(&m.baselineRelaySkipReasons, relaySkip)
 			}
 			chainSolve = orderSolveRelayResult{}
 			// Put the lease back so downgradeRelayFound / share pay can consume it once.
@@ -3883,6 +3893,8 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 		"baseline_relay_reject":        m.baselineRelayReject,
 		"baseline_relay_would":         m.baselineRelayWould,
 		"baseline_relay_downgraded":    m.baselineRelayDowngraded,
+		"baseline_relay_reject_reasons": copyReasonMap(m.baselineRelayRejectReasons),
+		"baseline_relay_skip_reasons":   copyReasonMap(m.baselineRelaySkipReasons),
 		"found_audit_mode":             foundAuditMode(),
 		"found_audit_flagged":          m.foundAuditFlagged,
 		"found_audit_flagged_now":      m.foundAuditFlaggedNowLocked(),
@@ -4853,4 +4865,39 @@ func poolListingHashrateAndMiners(out map[string]any) (hr float64, wc int) {
 		}
 	}
 	return hr, wc
+}
+
+// baselineRelayReasonMax bounds the distinct reason strings kept per counter; the rest
+// fold into "other" so the stats payload stays a fixed size.
+const baselineRelayReasonMax = 24
+
+// noteBoundedReason counts reason in dst, creating it on first use. Callers hold m.mu.
+func noteBoundedReason(dst *map[string]uint64, reason string) {
+	if dst == nil {
+		return
+	}
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		reason = "unspecified"
+	}
+	if *dst == nil {
+		*dst = make(map[string]uint64, 4)
+	}
+	if _, seen := (*dst)[reason]; !seen && len(*dst) >= baselineRelayReasonMax {
+		reason = "other"
+	}
+	(*dst)[reason]++
+}
+
+// copyReasonMap hands the stats payload its own map: the encoder runs after m.mu is
+// released, and a live map would be read while a submit writes it.
+func copyReasonMap(src map[string]uint64) map[string]uint64 {
+	if len(src) == 0 {
+		return map[string]uint64{}
+	}
+	out := make(map[string]uint64, len(src))
+	for k, v := range src {
+		out[k] = v
+	}
+	return out
 }
