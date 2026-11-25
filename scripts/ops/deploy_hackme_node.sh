@@ -139,6 +139,11 @@ if [[ "$SKIP_BUILD" != "1" ]]; then
   CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o bin/hackme-wasm-check ./cmd/hackme-wasm-check
   echo "[deploy-hackme-node] go build checkpoint (external chain checkpoints)"
   go build -trimpath -ldflags "-s -w" -o bin/checkpoint ./cmd/checkpoint
+  # The soak watch names the reclaimable amount when it reports a low disk, which needs
+  # the collector on the host. It never deletes from the watch — the report carries the
+  # remedy, an operator runs it.
+  echo "[deploy-hackme-node] go build corpus-gc (corpus object collector; dry run by default)"
+  CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o bin/corpus-gc ./cmd/corpus-gc
 fi
 if [[ ! -x "$ROOT_DIR/bin/hackme-wasm-check" ]]; then
   echo "[deploy-hackme-node] FATAL: bin/hackme-wasm-check missing — PoH gates would have no validator" >&2
