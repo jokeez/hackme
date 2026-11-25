@@ -30,12 +30,30 @@ func (s *Service) SubmitBaselinePoHSolve(ctx context.Context, minerAddress strin
 	baselineSolveMu.Lock()
 	defer baselineSolveMu.Unlock()
 
+	// A found block used to be thrown away whenever AppendPoHBlock lost the SQLite write
+	// race: ~2.4% of relayed baselines on 2026-11-25 ("database is locked"). Retrying is
+	// safe here because the attempt below re-reads the tip and re-validates the nonce from
+	// scratch — a tip that moved makes the solve invalid and it is refused, not applied.
+	// See IsSQLiteBusyErr for why busy_timeout does not cover this.
+	var blk *block.Block
+	err := retryOnSQLiteBusy(sqliteBusyAttempts, nil, func() error {
+		var attemptErr error
+		blk, attemptErr = s.submitBaselinePoHSolveLocked(ctx, minerAddress, nonce)
+		return attemptErr
+	})
+	return blk, err
+}
+
+// submitBaselinePoHSolveLocked is one attempt: it re-reads the tip and re-derives the work
+// every time, so it is safe to call again after a lock-contention failure. Caller holds
+// baselineSolveMu.
+func (s *Service) submitBaselinePoHSolveLocked(ctx context.Context, minerAddress string, nonce uint64) (*block.Block, error) {
 	// Always use canonical chain target_mod — ignore caller-supplied difficulty.
 	chainMod, err := s.PoHTargetMod(ctx)
 	if err != nil {
 		return nil, err
 	}
-	targetMod = ClampPoHTargetMod(chainMod)
+	targetMod := ClampPoHTargetMod(chainMod)
 	var tipHash string
 	var maxIdx sql.NullInt64
 	if err := s.db.QueryRowContext(ctx, `SELECT value FROM meta WHERE key = 'tip_hash'`).Scan(&tipHash); err != nil {
