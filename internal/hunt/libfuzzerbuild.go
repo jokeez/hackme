@@ -34,7 +34,13 @@ const LibFuzzerASANOptions = "detect_leaks=0:abort_on_error=1:halt_on_error=1:al
 // median is unchanged, and on the run that did hit one the cost was about a third of
 // the execs — for a whole bug class that is otherwise invisible. Short walls keep it
 // off so the merge window stays intact, which is why it was disabled everywhere.
-const leakDetectWallSec = 180
+// LeakDetectWallSec is the wall below which libFuzzer runs with -detect_leaks=0: the
+// shutdown LSan pass eats a short wall's merge window. Exported so a caller can tell
+// whether a given wall is even capable of producing a leak finding — a control that asks
+// for one under a shorter wall reports a broken pipeline when nothing is broken.
+const LeakDetectWallSec = 180
+
+const leakDetectWallSec = LeakDetectWallSec
 
 // LibFuzzerASANOptionsForWall is the session sanitizer env for a given wall.
 func LibFuzzerASANOptionsForWall(wallSec int) string {
@@ -388,7 +394,7 @@ func RunLibFuzzerSession(ctx context.Context, opts LibFuzzerSessionOpts) (int, e
 		derivedFrom = "binary"
 	}
 	if len(derived) > 0 {
-		dictBytes = AugmentLibFuzzerDict(dictBytes, derived)
+		dictBytes = AugmentLibFuzzerDict(dictBytes, derived, derivedFrom)
 		if len(opts.DictBytes) == 0 {
 			dictSource = derivedFrom
 		} else {

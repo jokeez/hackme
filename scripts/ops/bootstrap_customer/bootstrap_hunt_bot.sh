@@ -12,7 +12,16 @@ mkdir -p "$INSTALL/logs/bootstrap" "$(dirname "$STATE")"
 
 # Rotate ASAN-shaped Hunt targets — prefer high-yield / media / interpreters / parsers.
 # Timer places package defaults (omit tiny shards); bots still pass shards for lite.
-TARGETS=(pcre2 minimp3 stb_image hiredis libucl oniguruma picohttpparser heatshrink miniz lz4 duktape quickjs)
+# Rotation criterion: the target must NOT already be fuzzed continuously by OSS-Fuzz.
+# Measured 2026-11-25 against github.com/google/oss-fuzz/projects: 5 of the previous 12
+# (pcre2, hiredis, libucl, miniz, lz4) are OSS-Fuzz projects, so 42% of the hub's own
+# fuzzing budget was spent where Google's fleet runs around the clock. A 400 s libxml2
+# session here produced 2297 edges and zero findings — that is the expected outcome on a
+# saturated target, and it is not where this network can earn anything.
+# The replacements are uncovered, reuse-ready and vendored widely (uriparser in distros;
+# mxml, jsmn, tinycbor, yyjson copied into countless projects). Re-check with the
+# projects listing before editing: coverage changes when someone upstreams a target.
+TARGETS=(minimp3 stb_image oniguruma picohttpparser heatshrink duktape quickjs uriparser mxml yyjson jsmn tinycbor)
 PKGS=(hunt_heavy hunt_heavy hunt_heavy hunt_heavy hunt_standard hunt_standard hunt_heavy hunt_heavy hunt_heavy hunt_standard hunt_standard hunt_standard)
 SHARDS=(0 0 0 0 0 0 0 0 0 0 0 0)
 IDX=0
