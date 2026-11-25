@@ -414,6 +414,9 @@ func (a *app) poolFallbackToLocal(ctx context.Context, id, reason string) {
 		// escrow). A paid pool order the pool refused is cancelled instead: the escrow closes
 		// and the unspent part goes back to the payer (ordersPoolRefundOnClose).
 		if truthy(cfg["orders_pool_escrow"]) {
+			// Persist the refusal beside the status: the log line below rotates away, and
+			// the owner of a cancelled paid order has no other way to learn why.
+			a.recordCampaignCancelReason(ctx, id, "pool_refused", reason)
 			if _, err := a.db.ExecContext(ctx, `UPDATE fuzz_campaigns SET status='cancelled', completed_at=? WHERE id=? AND status IN ('planned','running')`,
 				time.Now().Unix(), id); err == nil {
 				log.Printf("pool sync: paid pool order %s refused by the pool (%s) — cancelled, refund follows", logsafe.ID(id), reason)
