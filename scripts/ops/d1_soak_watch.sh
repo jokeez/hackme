@@ -35,11 +35,48 @@ curl -fsS --max-time 20 -A "$UA" "$SETTLE_URL" -o "$tmp/settle.json"
 curl -fsS --max-time 15 -A "$UA" "${CHAIN_API%/}/address/${SETTLEMENT_PRIMARY}" -o "$tmp/prim.json" || echo '{}' >"$tmp/prim.json"
 curl -fsS --max-time 15 -A "$UA" "${CHAIN_API%/}/address/${SETTLEMENT_FLOAT_LEGACY}" -o "$tmp/leg.json" || echo '{}' >"$tmp/leg.json"
 
+# Disk, because 2026-11-25 happened: the store filled to 100%, the chain node entered a
+# restart loop on "sqlite: disk I/O error", the public site answered 502 and the exchange
+# could not verify its reserves. Every one of those was predictable hours earlier from one
+# df line that nothing looked at. Measured locally — this watch runs on the hub.
+DISK_PATH="${DISK_PATH:-/opt/hackme}"
+MIN_DISK_FREE_GB="${MIN_DISK_FREE_GB:-4}"
+WARN_DISK_FREE_GB="${WARN_DISK_FREE_GB:-12}"
+disk_avail_gb="$(df -B1 --output=avail "$DISK_PATH" 2>/dev/null | tail -1 | awk '{printf "%.2f", $1/1073741824}')"
+disk_pct="$(df --output=pcent "$DISK_PATH" 2>/dev/null | tail -1 | tr -dc '0-9')"
+# The remedy is only worth computing when the alarm is in play: the collector walks
+# ~300k objects, which is not something to do every few minutes for a healthy disk.
+collectable_gb=""
+if [[ -n "$disk_avail_gb" ]] && awk "BEGIN{exit !($disk_avail_gb < $WARN_DISK_FREE_GB)}"; then
+  gc_bin="${CORPUS_GC_BIN:-/opt/hackme/bin/corpus-gc}"
+  fuzz_db="${CORPUS_GC_DB:-/opt/hackme/data/coordinator_fuzz.db}"
+  if [[ -x "$gc_bin" && -f "$fuzz_db" ]]; then
+    collectable_gb="$("$gc_bin" -dir "${fuzz_db}.corpus-objects" -db "$fuzz_db" 2>/dev/null \
+      | awk '/collectable/ {print $(NF-1)}' | tail -1)"
+  fi
+fi
+
 python3 - "$tmp" "$OUT_JSONL" "$MAX_REJECT_PCT" "$MAX_FLEET_UNPAID_HMC" \
   "$REQUIRE_FLOAT_COVERS_UNPAID" "$STRICT" "$SETTLEMENT_PRIMARY" "$SETTLEMENT_FLOAT_LEGACY" \
-  "$MIN_RELAY_SAMPLES" <<'PY'
+  "$MIN_RELAY_SAMPLES" "$disk_avail_gb" "$disk_pct" "$MIN_DISK_FREE_GB" "$WARN_DISK_FREE_GB" \
+  "$collectable_gb" "$DISK_PATH" <<'PY'
 import json, sys, time
 tmp, out_path, max_rej, max_unpaid, need_cover, strict, prim_addr, leg_addr, min_samples = sys.argv[1:10]
+disk_avail_s, disk_pct_s, min_disk_s, warn_disk_s, collectable_s, disk_path = (sys.argv[10:16] + [""] * 6)[:6]
+
+
+def _f(v):
+    try:
+        return float(str(v).strip())
+    except Exception:
+        return None
+
+
+disk_avail = _f(disk_avail_s)
+disk_pct = _f(disk_pct_s)
+min_disk = _f(min_disk_s) or 4.0
+warn_disk = _f(warn_disk_s) or 12.0
+collectable = _f(collectable_s)
 max_rej = float(max_rej)
 max_unpaid = float(max_unpaid)
 min_samples = int(float(min_samples))
@@ -86,6 +123,10 @@ tip = status.get("canonical_tip_height") or stats.get("tip_height")
 row = {
     "ts": int(time.time()),
     "coordinator_stats_stale": stats_stale,
+    "disk_path": disk_path or None,
+    "disk_free_gb": disk_avail,
+    "disk_used_pct": disk_pct,
+    "corpus_collectable_gb": collectable,
     "settlement_settled_hmc": round(settled_hmc, 8),
     "settlement_accrual_source": accrual_src or None,
     "unpaid_is_measurable": not (stats_stale or unpaid_blind),
@@ -128,6 +169,22 @@ if unpaid > max_unpaid:
         hard.append(f"fleet_unpaid>{max_unpaid}")
 if stats.get("share_strict") is not True and str(stats.get("share_strict")).lower() not in ("1", "true"):
     soft.append("share_strict_off")
+
+# A full disk takes the chain down, so this is HARD well before it is full: at
+# MIN_DISK_FREE_GB there is still room to act. When the corpus collector can name the
+# reclaimable amount, the alarm carries the remedy instead of only the symptom.
+if disk_avail is None:
+    soft.append("disk_unreadable")
+elif disk_avail < min_disk:
+    note = f"disk_free<{min_disk:g}GB({disk_avail:.1f}GB)"
+    if collectable:
+        note += f"_collectable={collectable:.1f}GB"
+    hard.append(note)
+elif disk_avail < warn_disk:
+    note = f"disk_free<{warn_disk:g}GB({disk_avail:.1f}GB)"
+    if collectable:
+        note += f"_collectable={collectable:.1f}GB"
+    soft.append(note)
 # Prefer primary: settler cannot spend legacy. combined-only cover is a soft WARN.
 if need_cover and not row["primary_covers_unpaid"]:
     soft.append("settler_payer_shortfall")
@@ -138,6 +195,9 @@ row["soft_alerts"] = soft
 row["ok"] = not hard and (not strict or not soft)
 with open(out_path, "a", encoding="utf-8") as f:
     f.write(json.dumps(row, separators=(",", ":")) + "\n")
+if disk_avail is not None:
+    extra = f" collectable={collectable:.1f}GB" if collectable else ""
+    print("[d1-soak] disk=%s free=%.1fGB used=%s%%%s" % (disk_path, disk_avail, int(disk_pct) if disk_pct else "?", extra))
 print("[d1-soak] tip=%s local_poh=%s reject_pct=%s unpaid=%.4f primary=%.4f legacy=%.4f combined=%.4f primary_covers=%s" % (
     tip, local_poh, row["reject_pct"], unpaid, prim_bal, leg_bal, combined, row["primary_covers_unpaid"]))
 if hard:
