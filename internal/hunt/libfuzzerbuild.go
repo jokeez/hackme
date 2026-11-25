@@ -393,6 +393,24 @@ func RunLibFuzzerSession(ctx context.Context, opts LibFuzzerSessionOpts) (int, e
 		derived = DeriveDictTokensFromBinary(harnessForDict, 0)
 		derivedFrom = "binary"
 	}
+	// A single-file parser (jsmn, cj5) carries almost no string literals, so the lines
+	// above produce an empty or binary-noise dict — the worst case for a format parser.
+	// Seed the input format's structural grammar when it is recognised; it is merged with
+	// whatever the sources gave, never replacing it. Title (not just id) lets a parser
+	// named after its author — parson — still be classified.
+	title := targetID
+	if t, terr := CatalogTarget(repoRoot, targetID); terr == nil && strings.TrimSpace(t.Title) != "" {
+		title = t.Title
+	}
+	if grammar, format := FormatGrammarTokens(targetID, title, derived); len(grammar) > 0 {
+		derived = append(derived, grammar...)
+		if derivedFrom == "binary" && len(DeriveDictTokensFromSources(fuzzupstream.CloneDirForTarget(repoRoot, targetID), 0)) == 0 {
+			// Nothing usable from sources: the grammar is now the real dictionary.
+			derivedFrom = "grammar:" + format
+		} else {
+			derivedFrom = derivedFrom + "+grammar:" + format
+		}
+	}
 	if len(derived) > 0 {
 		dictBytes = AugmentLibFuzzerDict(dictBytes, derived, derivedFrom)
 		if len(opts.DictBytes) == 0 {
