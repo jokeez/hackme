@@ -1,0 +1,69 @@
+# Nightly known-answer check that the fuzzing pipeline still finds a bug it is known to
+# find. Separate from ci.yml on purpose: this one is slow, scheduled, and must not add
+# minutes to every pull request.
+#
+# It fails when the engine stops reaching a defect it reached yesterday — a rail that
+# silently stops carrying a target, a dictionary or corpus regression, or a change in how
+# a crash is identified. None of those break a unit test, and the first of them would have
+# kept the in-process rail switched off in production indefinitely while every test stayed
+# green.
+name: fuzz-selftest
+
+on:
+  schedule:
+    # 03:17 UTC — off the hour, so it does not queue behind everyone else's midnight jobs.
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "catalog target with a known defect"
+        default: "yajl-210"
+      wall:
+        description: "wall seconds (leak detection needs >= 180)"
+        default: "240"
+
+permissions:
+  contents: read
+
+jobs:
+  selftest:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      # A CI container cannot create a network namespace, so bwrap cannot cage the build:
+      # "bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted". The sandbox is a
+      # production guard against compiling customer code unconfined; here the only thing
+      # being compiled is a pinned public library from the catalog.
+      HACKME_HUNT_BUILD_SANDBOX: "0"
+      HACKME_HUNT_ISOLATE_STRICT: "0"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.11"
+          cache-dependency-path: go.sum
+      - name: Show the toolchain the harness will be built with
+        run: |
+          set -euo pipefail
+          clang --version
+          # libFuzzer ships with clang; without it the session cannot build at all.
+          echo 'int LLVMFuzzerTestOneInput(const unsigned char*d,unsigned long s){return 0;}' > /tmp/probe.c
+          clang -fsanitize=fuzzer,address -o /tmp/probe /tmp/probe.c
+          echo "libFuzzer + ASan link OK"
+      - name: fuzz self-test
+        run: |
+          set -euo pipefail
+          go run ./cmd/fuzz-selftest \
+            -target "${{ github.event.inputs.target || 'yajl-210' }}" \
+            -wall "${{ github.event.inputs.wall || '240' }}"
+      - name: Keep the session artifacts when it fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-selftest-session
+          path: |
+            reports/oss-cve-libfuzzer/*/corpus/.hunt-run/session.stderr
+            reports/oss-cve-libfuzzer/*/corpus/.hunt-run/session_stats.json
+            reports/oss-cve-libfuzzer/*/corpus/.hunt-run/libfuzzer.dict
+          if-no-files-found: ignore
+          retention-days: 14
