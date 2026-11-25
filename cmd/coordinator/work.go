@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
@@ -2786,9 +2787,9 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 		if relaySkip != "" || !chainSolve.OK {
 			if relaySkip == "" {
 				m.baselineRelayReject++
-				noteBoundedReason(&m.baselineRelayRejectReasons, chainSolve.Reason)
+				noteBoundedReason(&m.baselineRelayRejectReasons, normalizeRelayReason(chainSolve.Reason))
 			} else {
-				noteBoundedReason(&m.baselineRelaySkipReasons, relaySkip)
+				noteBoundedReason(&m.baselineRelaySkipReasons, normalizeRelayReason(relaySkip))
 			}
 			chainSolve = orderSolveRelayResult{}
 			// Put the lease back so downgradeRelayFound / share pay can consume it once.
@@ -3869,81 +3870,81 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 			}
 			return 0
 		}(),
-		"total_payout_units":           chain.HMCToUnits(m.totalPayoutHMC),
-		"share_rate_min":               m.shareRateMin,
-		"share_rate_min_expected":      m.shareRateMinExpected,
-		"share_rate_reject":            m.shareRateReject,
-		"share_accepts":                m.shareAccepts,
-		"share_rejects":                m.shareRejects,
-		"share_reject_dup":             m.shareRejectDup,
-		"share_reject_oor":             m.shareRejectOOR,
-		"share_reject_bad_poh":         m.shareRejectBadPoH,
-		"share_paid_submits":           m.sharePaidSubmits,
-		"share_rate_low_flags":         m.shareRateLowFlags,
-		"share_rate_low_rejects":       m.shareRateLowRejects,
-		"now_unix":                     now,
-		"next_nonce":                   m.nextNonce.Load(),
-		"issued_ranges":                m.issuedRanges,
-		"reissued_ranges":              m.reissuedRanges,
-		"submitted_items":              m.submittedItems,
-		"found_hits":                   m.foundHits,
-		"baseline_relay_enabled":       m.baselineRelayEnabled(),
-		"baseline_relay_mode":          m.baselineRelayMode(),
-		"baseline_relay_ok":            m.baselineRelayOK,
-		"baseline_relay_reject":        m.baselineRelayReject,
-		"baseline_relay_would":         m.baselineRelayWould,
-		"baseline_relay_downgraded":    m.baselineRelayDowngraded,
+		"total_payout_units":            chain.HMCToUnits(m.totalPayoutHMC),
+		"share_rate_min":                m.shareRateMin,
+		"share_rate_min_expected":       m.shareRateMinExpected,
+		"share_rate_reject":             m.shareRateReject,
+		"share_accepts":                 m.shareAccepts,
+		"share_rejects":                 m.shareRejects,
+		"share_reject_dup":              m.shareRejectDup,
+		"share_reject_oor":              m.shareRejectOOR,
+		"share_reject_bad_poh":          m.shareRejectBadPoH,
+		"share_paid_submits":            m.sharePaidSubmits,
+		"share_rate_low_flags":          m.shareRateLowFlags,
+		"share_rate_low_rejects":        m.shareRateLowRejects,
+		"now_unix":                      now,
+		"next_nonce":                    m.nextNonce.Load(),
+		"issued_ranges":                 m.issuedRanges,
+		"reissued_ranges":               m.reissuedRanges,
+		"submitted_items":               m.submittedItems,
+		"found_hits":                    m.foundHits,
+		"baseline_relay_enabled":        m.baselineRelayEnabled(),
+		"baseline_relay_mode":           m.baselineRelayMode(),
+		"baseline_relay_ok":             m.baselineRelayOK,
+		"baseline_relay_reject":         m.baselineRelayReject,
+		"baseline_relay_would":          m.baselineRelayWould,
+		"baseline_relay_downgraded":     m.baselineRelayDowngraded,
 		"baseline_relay_reject_reasons": copyReasonMap(m.baselineRelayRejectReasons),
 		"baseline_relay_skip_reasons":   copyReasonMap(m.baselineRelaySkipReasons),
-		"found_audit_mode":             foundAuditMode(),
-		"found_audit_flagged":          m.foundAuditFlagged,
-		"found_audit_flagged_now":      m.foundAuditFlaggedNowLocked(),
-		"expired_leases":               m.expiredLeases,
-		"unknown_submits":              m.unknownSubmits,
-		"stale_submits":                m.staleSubmits,
-		"rejected_submits":             m.rejectedSubmits,
-		"dedup_submits":                m.dedupSubmits,
-		"dedup_found_nonce":            m.dedupFoundNonce,
-		"stale_found_dropped":          m.staleFoundDropped,
-		"fleet_address_conflicts":      m.fleetAddressConflicts,
-		"accepted_attempts":            m.totalAttempts,
-		"total_payout_hmc":             m.totalPayoutHMC,
-		"total_payout_sup":             m.totalPayoutSUP,
-		"pool_budget":                  m.poolBudgetStats(),
-		"sup_policy":                   m.supPolicyStats(),
-		"claim_per_min":                m.claimPerMin,
-		"submit_per_min":               m.submitPerMin,
-		"ban_sec":                      m.banSec,
-		"bad_strikes_to_ban":           m.badStrikesToBan,
-		"workers_tracked":              len(m.worker),
-		"active_leases_count":          len(m.active),
-		"abuse_count":                  len(m.abuse),
-		"max_workers":                  m.maxWorkers,
-		"max_active_leases":            m.maxActiveLeases,
-		"max_active_leases_per_worker": m.maxActiveLeasesPerWorker,
-		"max_dedup_entries":            m.maxDedupEntries,
-		"ingress_q_len":                inFlight,
-		"drop_reason_count":            drops,
-		"ack_latency_ms":               ackAvg,
-		"scheduler_mode":               mode,
-		"scheduler_transitions":        transitions,
-		"orders_active":                ordersActive,
-		"orders_probe_unix":            lastProbe,
-		"orders_probe_configured":      ordersProbeConfigured,
-		"active_order_task_id":         activeOrderID,
-		"active_order_reward_hmc":      activeOrderReward,
-		"hybrid_signer_enabled":        m.hybridSignerEnabled,
-		"hybrid_signer_strict":         m.hybridSignerStrict,
-		"hybrid_require_found_sig":     m.hybridRequireFoundSig,
-		"claim_require_pubkey":         m.claimRequirePubKey && m.hybridSignerEnabled,
-		"signed_submits_accepted":      m.signedAccepts,
-		"signed_submits_rejected":      m.signedRejects,
-		"last_signed_miner_address":    m.lastSignedMiner,
-		"poh_formula":                  m.pohFormula,
-		"poh_formula_version":          m.pohFormulaVersion,
-		"poh_activation_height":        m.pohActivationHeight,
-		"tip_hash":                     m.tipHash,
-		"tip_height":                   m.tipHeight,
+		"found_audit_mode":              foundAuditMode(),
+		"found_audit_flagged":           m.foundAuditFlagged,
+		"found_audit_flagged_now":       m.foundAuditFlaggedNowLocked(),
+		"expired_leases":                m.expiredLeases,
+		"unknown_submits":               m.unknownSubmits,
+		"stale_submits":                 m.staleSubmits,
+		"rejected_submits":              m.rejectedSubmits,
+		"dedup_submits":                 m.dedupSubmits,
+		"dedup_found_nonce":             m.dedupFoundNonce,
+		"stale_found_dropped":           m.staleFoundDropped,
+		"fleet_address_conflicts":       m.fleetAddressConflicts,
+		"accepted_attempts":             m.totalAttempts,
+		"total_payout_hmc":              m.totalPayoutHMC,
+		"total_payout_sup":              m.totalPayoutSUP,
+		"pool_budget":                   m.poolBudgetStats(),
+		"sup_policy":                    m.supPolicyStats(),
+		"claim_per_min":                 m.claimPerMin,
+		"submit_per_min":                m.submitPerMin,
+		"ban_sec":                       m.banSec,
+		"bad_strikes_to_ban":            m.badStrikesToBan,
+		"workers_tracked":               len(m.worker),
+		"active_leases_count":           len(m.active),
+		"abuse_count":                   len(m.abuse),
+		"max_workers":                   m.maxWorkers,
+		"max_active_leases":             m.maxActiveLeases,
+		"max_active_leases_per_worker":  m.maxActiveLeasesPerWorker,
+		"max_dedup_entries":             m.maxDedupEntries,
+		"ingress_q_len":                 inFlight,
+		"drop_reason_count":             drops,
+		"ack_latency_ms":                ackAvg,
+		"scheduler_mode":                mode,
+		"scheduler_transitions":         transitions,
+		"orders_active":                 ordersActive,
+		"orders_probe_unix":             lastProbe,
+		"orders_probe_configured":       ordersProbeConfigured,
+		"active_order_task_id":          activeOrderID,
+		"active_order_reward_hmc":       activeOrderReward,
+		"hybrid_signer_enabled":         m.hybridSignerEnabled,
+		"hybrid_signer_strict":          m.hybridSignerStrict,
+		"hybrid_require_found_sig":      m.hybridRequireFoundSig,
+		"claim_require_pubkey":          m.claimRequirePubKey && m.hybridSignerEnabled,
+		"signed_submits_accepted":       m.signedAccepts,
+		"signed_submits_rejected":       m.signedRejects,
+		"last_signed_miner_address":     m.lastSignedMiner,
+		"poh_formula":                   m.pohFormula,
+		"poh_formula_version":           m.pohFormulaVersion,
+		"poh_activation_height":         m.pohActivationHeight,
+		"tip_hash":                      m.tipHash,
+		"tip_height":                    m.tipHeight,
 	}
 	out["target_mod_min"] = minStat
 	out["target_mod_max"] = maxStat
@@ -4900,4 +4901,37 @@ func copyReasonMap(src map[string]uint64) map[string]uint64 {
 		out[k] = v
 	}
 	return out
+}
+
+// relayReasonMaxLen caps a counted reason. The reject reason arrives in the chain host's
+// reply body, and the counters are published by /api/work/stats, which needs no token —
+// so an unbounded string would let whoever provokes the error install arbitrary text as a
+// permanent key in a public payload.
+const relayReasonMaxLen = 64
+
+var (
+	relayReasonQuoted = regexp.MustCompile(`"[^"]*"|'[^']*'`)
+	relayReasonDigits = regexp.MustCompile(`[0-9]+`)
+)
+
+// normalizeRelayReason reduces a reply to a failure CLASS. Chain errors embed the operand
+// they rejected — a quoted miner address, an HTTP code — so counting the text verbatim
+// burned the bounded key budget on near-duplicates of one class and blinded the counter in
+// exactly the case it exists for. Quoted operands and digit runs collapse, so
+// relay_http_429 and relay_http_503 land together and an echoed address cannot multiply.
+func normalizeRelayReason(reason string) string {
+	s := strings.ToLower(logsafe.ID(reason))
+	if s == "-" {
+		return "unspecified"
+	}
+	s = relayReasonQuoted.ReplaceAllString(s, "_")
+	s = relayReasonDigits.ReplaceAllString(s, "N")
+	s = strings.Join(strings.Fields(s), " ")
+	if r := []rune(s); len(r) > relayReasonMaxLen {
+		s = string(r[:relayReasonMaxLen])
+	}
+	if s == "" {
+		return "unspecified"
+	}
+	return s
 }

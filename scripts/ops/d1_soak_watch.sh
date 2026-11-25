@@ -54,6 +54,15 @@ stats, status, settle, prim, leg = map(load, ("stats.json", "status.json", "sett
 ok = float(stats.get("baseline_relay_ok") or 0)
 rej = float(stats.get("baseline_relay_reject") or 0)
 tot = ok + rej
+# Why the chain refused, not just how often. A bare rate cannot separate two miners
+# racing the same height — which costs the miner nothing, the lease's shares stay
+# payable — from a defect, so the alarm named a number nobody could act on.
+def _reasons(key):
+    v = stats.get(key)
+    return {str(k): int(n) for k, n in v.items()} if isinstance(v, dict) else {}
+reject_reasons = _reasons("baseline_relay_reject_reasons")
+skip_reasons = _reasons("baseline_relay_skip_reasons")
+top_reject = max(reject_reasons.items(), key=lambda kv: (kv[1], kv[0]))[0] if reject_reasons else ""
 reject_pct = (100.0 * rej / tot) if tot else None
 unpaid = float(settle.get("fleet_unpaid_hmc") or settle.get("total_unpaid_hmc") or 0)
 prim_bal = float((prim or {}).get("balance_hmc") or 0)
@@ -86,6 +95,8 @@ row = {
     "relay_ok": int(ok),
     "relay_reject": int(rej),
     "reject_pct": None if reject_pct is None else round(reject_pct, 3),
+    "baseline_relay_reject_reasons": reject_reasons,
+    "baseline_relay_skip_reasons": skip_reasons,
     "share_strict": stats.get("share_strict"),
     "share_accepts": stats.get("share_accepts"),
     "pool_gh": stats.get("pool_hashrate_gh_s"),
@@ -105,9 +116,9 @@ if str(stats.get("baseline_relay_mode") or "").lower() not in ("on", "1", "true"
     hard.append("relay_not_on")
 if reject_pct is not None and reject_pct > max_rej:
     if tot >= min_samples:
-        hard.append(f"reject_pct>{max_rej}")
+        hard.append(f"reject_pct>{max_rej}" + (f"({top_reject})" if top_reject else ""))
     else:
-        soft.append(f"reject_pct>{max_rej}_warmup_n={int(tot)}")
+        soft.append(f"reject_pct>{max_rej}_warmup_n={int(tot)}" + (f"({top_reject})" if top_reject else ""))
 if unpaid > max_unpaid:
     if stats_stale:
         soft.append(f"fleet_unpaid>{max_unpaid}_stats_stale")
