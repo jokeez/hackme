@@ -301,6 +301,8 @@ func (a *app) handleOrdersPoolEscrow(w http.ResponseWriter, r *http.Request) {
 			// Escrow opened before the failure: refunding the full funding now would pay twice
 			// (once here, once more when that escrow closes). Close it instead; the close path
 			// (ordersPoolRefundOnClose) returns its unspent part, the overpayment goes now.
+			a.recordCampaignCancelReason(ctx, req.CampaignID, "escrow_create_failed",
+				fmt.Sprintf("audit create http %d: %s", res.StatusCode, strings.TrimSpace(string(out))))
 			if _, cerr := a.db.ExecContext(ctx, `UPDATE fuzz_campaigns SET status='cancelled', completed_at=? WHERE id=? AND status IN ('planned','running')`, now, req.CampaignID); cerr == nil {
 				a.tryCloseFuzzEscrowForStatus(ctx, req.CampaignID, "cancelled")
 			}
