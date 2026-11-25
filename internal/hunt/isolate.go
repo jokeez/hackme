@@ -72,11 +72,28 @@ func BubblewrapAvailable() bool {
 }
 
 var (
-	bwrapProbeMu   sync.Mutex
-	bwrapProbeOK   bool
-	bwrapProbeDone bool
-	bwrapProbePath string
+	bwrapProbeMu     sync.Mutex
+	bwrapProbeOK     bool
+	bwrapProbeDone   bool
+	bwrapProbePath   string
+	bwrapProbeDetail string
 )
+
+// bwrapProbeDetailMax caps the kept probe output. It is bwrap's own stderr, not
+// untrusted program output, but the string lands in operator-facing errors.
+const bwrapProbeDetailMax = 160
+
+// BubblewrapProbeDetail returns why the last cage probe failed, or "" when it passed or
+// never ran. The probe used to discard this: a host where bwrap exists but cannot cage
+// reported only "bwrap required (probe failed)", which names no cause an operator could
+// act on. The real line is usually specific — on a restricted host it reads
+// "bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted", which says plainly
+// that the sandbox cannot create a network namespace.
+func BubblewrapProbeDetail() string {
+	bwrapProbeMu.Lock()
+	defer bwrapProbeMu.Unlock()
+	return bwrapProbeDetail
+}
 
 // BubblewrapWorking probes that bwrap can run /bin/true in a minimal cage.
 // Result is cached per resolved bwrap path (PATH changes in tests re-probe).
@@ -91,7 +108,7 @@ func BubblewrapWorking() bool {
 	if bwrapProbeDone && bwrapProbePath == bwrap {
 		return bwrapProbeOK
 	}
-	bwrapProbeOK = probeBubblewrap()
+	bwrapProbeOK, bwrapProbeDetail = probeBubblewrap()
 	bwrapProbePath = bwrap
 	bwrapProbeDone = true
 	return bwrapProbeOK
@@ -106,10 +123,10 @@ func ResetBubblewrapProbeForTest() {
 	bwrapProbePath = ""
 }
 
-func probeBubblewrap() bool {
+func probeBubblewrap() (bool, string) {
 	bwrap, err := exec.LookPath("bwrap")
 	if err != nil {
-		return false
+		return false, "bwrap not on PATH"
 	}
 	trueBin, err := exec.LookPath("true")
 	if err != nil {
@@ -127,10 +144,19 @@ func probeBubblewrap() bool {
 		"--", trueBin,
 	)
 	if out, err := cmd.CombinedOutput(); err != nil {
-		_ = out
-		return false
+		detail := strings.TrimSpace(string(out))
+		if i := strings.IndexAny(detail, "\r\n"); i >= 0 {
+			detail = strings.TrimSpace(detail[:i])
+		}
+		if detail == "" {
+			detail = err.Error()
+		}
+		if r := []rune(detail); len(r) > bwrapProbeDetailMax {
+			detail = string(r[:bwrapProbeDetailMax])
+		}
+		return false, detail
 	}
-	return true
+	return true, ""
 }
 
 // isolateEffectiveUID is os.Geteuid; tests override to exercise root refuse without root.
@@ -187,7 +213,7 @@ func RunIsolated(ctx context.Context, opts IsolateOpts) error {
 	}
 	if !useBwrap {
 		if IsolateStrict() && !opts.AllowBare {
-			return fmt.Errorf("hunt isolate: bwrap required (HACKME_HUNT_ISOLATE_STRICT)")
+			return fmt.Errorf("hunt isolate: bwrap required (HACKME_HUNT_ISOLATE_STRICT)%s", bwrapProbeSuffix())
 		}
 		// Missing bwrap: AllowBare or non-STRICT → bare; else fail closed.
 		return runBareIsolated(runCtx, opts, env, wall)
@@ -636,4 +662,12 @@ func LibFuzzerVersionHint() string {
 		return v
 	}
 	return "libfuzzer"
+}
+
+// bwrapProbeSuffix renders the probe reason for an error string, empty when unknown.
+func bwrapProbeSuffix() string {
+	if d := BubblewrapProbeDetail(); d != "" {
+		return ": " + d
+	}
+	return ""
 }

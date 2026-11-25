@@ -95,7 +95,7 @@ func RunBuildIsolated(ctx context.Context, opts BuildIsolateOpts) error {
 		// Hub (STRICT default ON): fail closed — never bare-compile customer code.
 		// Desk/CI with HACKME_HUNT_ISOLATE_STRICT=0: scrubbed bare build only.
 		if IsolateStrict() {
-			return fmt.Errorf("hunt build isolate: bwrap required for harness builds (probe failed)")
+			return fmt.Errorf("hunt build isolate: bwrap required for harness builds (probe failed%s)", bwrapProbeSuffix())
 		}
 		return runBareBuild(ctx, BuildIsolateOpts{
 			Bin: opts.Bin, Args: opts.Args, Dir: dir,
