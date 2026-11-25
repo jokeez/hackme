@@ -1,0 +1,36 @@
+# Free Fuzz Week promo intake. Temporary by design: stop and disable this unit when the
+# promo ends — the page keeps working and shows its closed state on its own.
+[Unit]
+Description=HackMe Free Fuzz Week intake (public submission form receiver)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=hackme
+Group=hackme
+WorkingDirectory=/opt/hackme
+EnvironmentFile=/opt/hackme/.env.fuzzweek
+ExecStart=/opt/hackme/hackme-fuzzweek-intake
+Restart=always
+RestartSec=5
+TimeoutStopSec=15
+# Submissions live here; systemd creates it with the right ownership.
+StateDirectory=hackme/fuzzweek
+StateDirectoryMode=0750
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+LockPersonality=true
+MemoryMax=192M
+LimitNOFILE=4096
+
+[Install]
+WantedBy=multi-user.target
