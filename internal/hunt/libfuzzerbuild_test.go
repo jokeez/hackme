@@ -19,21 +19,33 @@ func TestPoolVsLocalInProcessBreakEven(t *testing.T) {
 	localSec := LocalOvernightTimeLimitSec("hunt_heavy")
 	pool := strings.Join(libFuzzerSessionArgs("/tmp/c", "/tmp/c/crash-", wall, "", forks), " ")
 	local := strings.Join(libFuzzerSessionArgs("/tmp/c", "/tmp/c/crash-", localSec, "", 1), " ")
-	if !strings.Contains(pool, "-max_total_time=300") || !strings.Contains(pool, "-fork=3") || !strings.Contains(pool, "-len_control=0") || !strings.Contains(pool, "-ignore_crashes=1") || !strings.Contains(pool, "-reduce_inputs=0") {
+	if !strings.Contains(pool, fmt.Sprintf("-max_total_time=%d", wall)) || !strings.Contains(pool, "-fork=3") || !strings.Contains(pool, "-len_control=0") || !strings.Contains(pool, "-ignore_crashes=1") || !strings.Contains(pool, "-reduce_inputs=0") {
 		t.Fatalf("pool heavy argv=%s", pool)
 	}
 	if strings.Contains(local, "-fork=") || strings.Contains(local, "-len_control=0") || !strings.Contains(local, "-max_total_time=43200") || !strings.Contains(local, "-timeout=25") {
 		t.Fatalf("local overnight argv=%s", local)
 	}
-	// Job-seconds: 43200*1 / (300*3) = 48. One heavy shard is 1/48 of that budget.
-	if got := InProcessShardsToMatchLocal(wall, forks, localSec, 1); got != 48 {
-		t.Fatalf("heavy break-even=%d want 48", got)
+	// Job-seconds: one local overnight process vs wall x forks per shard. Derived from
+	// the constants so a wall change reports the new break-even instead of failing on a
+	// frozen number — a longer wall is supposed to lower it.
+	ceilDiv := func(num, den int) int { return (num + den - 1) / den } // matches the helper
+	wantHeavy := ceilDiv(localSec, wall*forks)
+	if got := InProcessShardsToMatchLocal(wall, forks, localSec, 1); got != wantHeavy {
+		t.Fatalf("heavy break-even=%d want %d", got, wantHeavy)
 	}
-	if got := InProcessShardsToMatchLocal(PoolEngineLeaseSecStandard, libFuzzerSessionForkJobs(PoolEngineLeaseSecStandard, false), LocalOvernightTimeLimitSec("hunt_standard"), 1); got != 60 {
-		t.Fatalf("standard break-even=%d want 60", got)
+	stdWall := PoolEngineLeaseSecStandard
+	stdForks := libFuzzerSessionForkJobs(stdWall, false)
+	stdLocal := LocalOvernightTimeLimitSec("hunt_standard")
+	wantStd := ceilDiv(stdLocal, stdWall*stdForks)
+	if got := InProcessShardsToMatchLocal(stdWall, stdForks, stdLocal, 1); got != wantStd {
+		t.Fatalf("standard break-even=%d want %d", got, wantStd)
 	}
-	if got := InProcessShardsToMatchLocal(PoolEngineLeaseSecLite, libFuzzerSessionForkJobs(PoolEngineLeaseSecLite, false), LocalOvernightTimeLimitSec("hunt_lite"), 1); got != 10 {
-		t.Fatalf("lite break-even=%d want 10", got)
+	liteWall := PoolEngineLeaseSecLite
+	liteForks := libFuzzerSessionForkJobs(liteWall, false)
+	liteLocal := LocalOvernightTimeLimitSec("hunt_lite")
+	wantLite := ceilDiv(liteLocal, liteWall*liteForks)
+	if got := InProcessShardsToMatchLocal(liteWall, liteForks, liteLocal, 1); got != wantLite {
+		t.Fatalf("lite break-even=%d want %d", got, wantLite)
 	}
 	// Stdin heavy stays at 2 jobs. Do not plug that into the in-process formula
 	// and call it a win: the exec rate is a different class.

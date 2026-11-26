@@ -38,6 +38,12 @@ func CampaignConfig(ctx context.Context, repoRoot string, req CreateRequest) (ma
 
 	var pin *RepoPinResult
 	var invRoot string
+	// An already-published harness is identified by hash. Joining the
+	// customer's relative path onto the hub install root (/opt/hackme) and
+	// Lstat'ing it fails closed with invalid_hunt_config before the
+	// coordinator probe can run. A local Repo pin still resolves, so a
+	// desktop create keeps the source-hash check.
+	publishedAttach := req.PoolDistributed && strings.TrimSpace(req.HarnessHash) != ""
 	if req.Repo != nil && (strings.TrimSpace(req.Repo.Path) != "" || strings.TrimSpace(req.Repo.GitURL) != "") {
 		p, err := PinRepo(ctx, repoRoot, *req.Repo)
 		if err != nil {
@@ -45,7 +51,7 @@ func CampaignConfig(ctx context.Context, repoRoot string, req CreateRequest) (ma
 		}
 		pin = p
 		invRoot = p.Path
-	} else if req.Inventory != nil && strings.TrimSpace(req.Inventory.Path) != "" {
+	} else if !publishedAttach && req.Inventory != nil && strings.TrimSpace(req.Inventory.Path) != "" {
 		abs, err := resolveInventoryRoot(repoRoot, invRootFromInventory(req.Inventory))
 		if err != nil {
 			return nil, "", err
@@ -108,9 +114,19 @@ func CampaignConfig(ctx context.Context, repoRoot string, req CreateRequest) (ma
 		wantHash := strings.TrimSpace(strings.ToLower(req.HarnessHash))
 		if pool && wantHash != "" {
 			// Windows / no-bwrap Orders: attach campaign to already-published pool harness.
-			hash, _, aErr := AttachPublishedInventoryHarness(repoRoot, buildPin, invRoot, sourceRel, wantHash)
-			if aErr != nil {
-				return nil, "", aErr
+			// Without a local pin there is nothing to hash on disk — the coordinator
+			// content sha below is what binds the campaign to the uploaded binary.
+			var hash string
+			if buildPin != nil || strings.TrimSpace(invRoot) != "" {
+				var aErr error
+				hash, _, aErr = AttachPublishedInventoryHarness(repoRoot, buildPin, invRoot, sourceRel, wantHash)
+				if aErr != nil {
+					return nil, "", aErr
+				}
+			} else if !ValidHarnessHash(wantHash) {
+				return nil, "", fmt.Errorf("hunt: invalid harness_hash %q", wantHash)
+			} else {
+				hash = wantHash
 			}
 			ok, contentSHA := ProbeCoordinatorHarness(ctx, hash)
 			if !ok {

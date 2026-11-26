@@ -214,3 +214,52 @@ func TestCampaignConfigAttachRejectsContentSHAMismatch(t *testing.T) {
 		t.Fatal("expected content sha mismatch")
 	}
 }
+
+// Hub orders attach a harness that was already published. The customer's
+// source is not on the box, and the install root must not be Lstat'd.
+func TestCampaignConfigPoolAttachSkipsMissingLocalTree(t *testing.T) {
+	hubRoot := t.TempDir()
+	hash := strings.Repeat("ab", 32)
+	contentSHA := strings.Repeat("cd", 32)
+	prev := ProbeCoordinatorHarness
+	ProbeCoordinatorHarness = func(ctx context.Context, h string) (bool, string) {
+		if h == hash {
+			return true, contentSHA
+		}
+		return false, ""
+	}
+	t.Cleanup(func() { ProbeCoordinatorHarness = prev })
+
+	cfg, _, err := CampaignConfig(context.Background(), hubRoot, CreateRequest{
+		Title:                "hub-attach",
+		Package:              "hunt_lite",
+		BudgetHMC:            20,
+		PoolDistributed:      true,
+		HarnessHash:          hash,
+		HarnessContentSHA256: contentSHA,
+		Inventory:            &TargetSummary{Path: "fuzz/target.c", Title: "uploaded"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg["harness_pool_attached"] != true || cfg["harness_hash"] != hash {
+		t.Fatalf("attach cfg=%v", cfg)
+	}
+	if cfg["harness_content_sha256"] != contentSHA {
+		t.Fatalf("content=%v", cfg["harness_content_sha256"])
+	}
+	if _, ok := cfg["hunt_pin_path"]; ok {
+		t.Fatalf("hub attach pinned a local path: %v", cfg["hunt_pin_path"])
+	}
+	if cfg["hunt_edge_pay"] != "floor_only" {
+		t.Fatalf("edge pay=%v", cfg["hunt_edge_pay"])
+	}
+
+	_, _, err = CampaignConfig(context.Background(), hubRoot, CreateRequest{
+		Title: "no-hash", Package: "hunt_lite", BudgetHMC: 20, PoolDistributed: true,
+		Inventory: &TargetSummary{Path: "fuzz/target.c"},
+	})
+	if err == nil || !strings.Contains(err.Error(), "lstat") && !strings.Contains(err.Error(), "inventory") {
+		t.Fatalf("missing harness_hash must still refuse the absent tree, got %v", err)
+	}
+}

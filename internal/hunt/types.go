@@ -66,7 +66,10 @@ type CreateRequest struct {
 	OwnerRef        string          `json:"owner_ref,omitempty"`
 	// HarnessHash attaches a pool inventory campaign to an already-published
 	// coordinator harness (Windows/Orders OOTB — skip local bwrap/clang build).
-	// Must equal InventoryHarnessHash(pin, source_rel, source bytes); pool must serve it.
+	// The hub must not Lstat the customer tree or its own install root
+	// (/opt/hackme): the coordinator content sha is the check. When a local
+	// pin is actually present, the hash must still equal
+	// InventoryHarnessHash(pin, source_rel, source bytes).
 	HarnessHash string `json:"harness_hash,omitempty"`
 	// HarnessContentSHA256 is the builder-attested sha256 of the published binary
 	// (from POST /api/fuzz/pool/hunt/harness). Required for pool attach so a
