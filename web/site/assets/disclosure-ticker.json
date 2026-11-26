@@ -7,9 +7,9 @@
       "kind": "product",
       "badge": "FREE",
       "title": "Free Fuzz Week — 23–30 Nov · top 3 repos",
-      "detail": "Public OSS repo. Dig/Hunt is free this week. 1st 300 · 2nd 150 · 3rd 50 HMC, on-chain 1 Dec. Three repos per person.",
-      "cta": "Orders",
-      "href": "/orders.html",
+      "detail": "Public OSS repo. Dig/Hunt is free this week. 1st 300 · 2nd 150 · 3rd 50 HMC, on-chain 1 Dec. Three repos per person. Register at hackme.tech/fuzz-week.html.",
+      "cta": "Register",
+      "href": "/fuzz-week.html",
       "accent": "success",
       "stats": [
         "300",
