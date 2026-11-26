@@ -36,6 +36,9 @@ func HarnessSpecFromConfig(cfg map[string]any) HarnessSpec {
 }
 
 func toString(v any) string {
+	if v == nil {
+		return ""
+	}
 	switch x := v.(type) {
 	case string:
 		return x
