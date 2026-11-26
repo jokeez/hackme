@@ -1,6 +1,8 @@
-# HackMe 0.1.0 stable — remaining blockers (post-rc20)
+# HackMe 0.1.0 stable — remaining blockers (post-rc20, no rc21)
 
-**Verdict (2026-11-17):** **Not ready to tag `0.1.0` stable.** Ship **`0.1.0-rc21`** next (gates + honesty), then stable only after the blockers below clear.
+**Verdict (2026-11-26):** **Not ready to tag `0.1.0` stable.** There will be no `rc21` — the channel stays on **`0.1.0-rc20`** and the next cut is `0.1.0` itself, once the blockers below clear.
+
+*(Superseded: the 2026-11-17 verdict recommended shipping an `rc21` first. That cut was dropped; its package has been removed from the apt repo, which now serves `rc20` only.)*
 
 Channel today: `0.1.0-rc20` (`scripts/release/CURRENT_VERSION`).
 
@@ -25,7 +27,7 @@ Channel today: `0.1.0-rc20` (`scripts/release/CURRENT_VERSION`).
 4. **Release notes + site channel consistency** — `docs/releases/HACKME_0.1.0_RELEASE.md` must exist with soft-launch disclosure; listing/roadmap/downloads must match `CURRENT_VERSION` (avoid stomping parallel site-banner work — coordinate cut).
 5. **Treasury payout discipline** — bounty pays only from `HMC-719006d93916ad52` (unchanged ops rule).
 
-## Deferred (acceptable for rc21 / early stable if labeled)
+## Deferred (acceptable for early stable if labeled)
 
 - Algebraic prepaid mint / `LOCAL_SIGN` break-glasses (lab-only; keep unset on prod)
 - `HACKME_ORDERS_ALLOW_LOCAL_FALLBACK` (default off)
@@ -36,7 +38,17 @@ Channel today: `0.1.0-rc20` (`scripts/release/CURRENT_VERSION`).
 
 | Cut | When |
 |-----|------|
-| **`0.1.0-rc21`** | After this hardening is on `main` + Windows OpenCL rebuild verified in a full local release |
-| **`0.1.0`** | After blockers 1–4 above; `HACKME_CLAIM_STABLE=1 bash scripts/tests/stable_readiness_gate.sh` must PASS (today it correctly FAILs) |
+| **`0.1.0`** | After blockers 1–4 above; `HACKME_CLAIM_STABLE=1 bash scripts/tests/stable_readiness_gate.sh` must PASS |
+
+**Where the gate stands (2026-11-26):** every structural check passes and the money-path
+proof is accepted; the only remaining failure is blocker 1 — `HACKME_UPDATE_SIG_MODE`
+must default to `require`.
+
+**Do not flip that default first.** The verification key does not reach installs today:
+it is absent from the published `.deb`, returns 404 on the site, and is not present on a
+running node. `scripts/release/inject_updaters_into_dist.sh` places it in `dist/linux`
+and `dist/windows`, but the published `rc20` does not carry it. Ship the key with a cut,
+confirm an install can verify a signature, and only then make `require` the default —
+otherwise self-update dies for everyone on the first run.
 
 Do **not** set `HACKME_CLAIM_STABLE=1` or tag `0.1.0` until the gate passes.

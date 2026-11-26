@@ -137,7 +137,7 @@ if [[ "$(id -u)" -ne 0 ]]; then
   done
 fi
 
-# Keep RELEASE_MANIFEST.json honest after a standalone ISO build (rc21+).
+# Keep RELEASE_MANIFEST.json honest after a standalone ISO build (post-rc20 cuts).
 if [[ -f "${OUT_DIR}/SHA256SUMS.txt" ]]; then
   VERSION="${VERSION}" bash "${ROOT_DIR}/scripts/release/refresh_release_manifest.sh" "${OUT_DIR}"
 fi
