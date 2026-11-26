@@ -213,6 +213,39 @@ else
   echo "[deploy-hackme-site] WARN: unexpected HTTP ${code:-error}" >&2
 fi
 
+# Status codes cannot detect a missing page here: nginx ends in "try_files $uri $uri/
+# /index.html", so a deleted page answers 200 with the home page. A deploy run from a
+# branch that lacked a page once removed it from the server (rsync --delete) and every
+# HTTP check still passed. Compare titles instead — a page serving the home page's title
+# is a page that is gone.
+echo "[deploy-hackme-site] content smoke (title match, catches try_files fallback)"
+home_title="$(curl -fsS --max-time 15 "https://hackme.tech/" 2>/dev/null \
+  | grep -oE '<title>[^<]*</title>' | head -1 || true)"
+smoke_bad=0
+smoke_n=0
+for f in "$ROOT_DIR"/web/site/*.html; do
+  name="$(basename "$f")"
+  case "$name" in healthz.html) continue ;; esac
+  want="$(grep -oE '<title>[^<]*</title>' "$f" | head -1 || true)"
+  [[ -z "$want" ]] && continue
+  got="$(curl -fsS --max-time 12 "https://hackme.tech/${name}" 2>/dev/null \
+    | grep -oE '<title>[^<]*</title>' | head -1 || true)"
+  smoke_n=$((smoke_n + 1))
+  if [[ "$got" != "$want" ]]; then
+    if [[ -n "$home_title" && "$got" == "$home_title" ]]; then
+      echo "[deploy-hackme-site] FAIL ${name} serves the home page — it is missing on the server" >&2
+    else
+      echo "[deploy-hackme-site] FAIL ${name} title mismatch: want ${want:-<none>} got ${got:-<none>}" >&2
+    fi
+    smoke_bad=$((smoke_bad + 1))
+  fi
+done
+if [[ "$smoke_bad" -gt 0 ]]; then
+  echo "[deploy-hackme-site] content smoke FAILED for ${smoke_bad}/${smoke_n} page(s)" >&2
+  exit 1
+fi
+echo "[deploy-hackme-site] content smoke PASS (${smoke_n} pages)"
+
 if command -v jq >/dev/null 2>&1; then
   wcode="$(curl -fsS --max-time 15 -o /dev/null -w "%{http_code}" "https://hackme.tech/api/wallet" || true)"
   if [[ "$wcode" == "200" ]]; then
