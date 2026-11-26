@@ -38,10 +38,16 @@ fi
 # Verify the credentials BEFORE writing them, so a typo cannot leave the service
 # configured with something that does not work.
 echo "[fuzzweek-tg] checking the bot and chat…"
-resp="$(curl -s --max-time 15 "https://api.telegram.org/bot${token}/sendMessage" \
-  --data-urlencode "chat_id=${chat}" \
-  --data-urlencode "text=HackMe Free Fuzz Week intake is now wired to this chat. Submissions will arrive here." \
-  --data-urlencode "disable_web_page_preview=true" || true)"
+# Everything, the token included, goes to curl through a stdin config file: putting the
+# URL in argv would expose the token to any user running ps while the request is open.
+resp="$(printf '%s\n' \
+  "url = \"https://api.telegram.org/bot${token}/sendMessage\"" \
+  'data-urlencode = "chat_id='"${chat}"'"' \
+  'data-urlencode = "text=HackMe Free Fuzz Week intake is now wired to this chat. Submissions will arrive here."' \
+  'data-urlencode = "disable_web_page_preview=true"' \
+  'silent' \
+  'max-time = 15' \
+  | curl --config - || true)"
 case "$resp" in
   *'"ok":true'*) echo "[fuzzweek-tg] test message delivered" ;;
   *)
