@@ -4,7 +4,13 @@
 set -euo pipefail
 
 : "${GH_TOKEN:?}" "${HFA_REPO:?}" "${HFA_PR:?}" "${HFA_BODY:?}"
-marker='<!-- hackme-fuzz-action -->'
+# One sticky comment per kind. Only these exact markers are accepted, which
+# also makes it safe to splice the marker into the jq filter below.
+case "${HFA_MARKER:-dry-run}" in
+  dry-run) marker='<!-- hackme-fuzz-action -->' ;;
+  gate)    marker='<!-- hackme-fuzz-action:gate -->' ;;
+  *) echo "::warning title=HackMe Dig::unknown comment kind: skipping comment"; exit 0 ;;
+esac
 
 warn() { echo "::warning title=HackMe Dig::$*"; exit 0; }
 
@@ -25,7 +31,7 @@ fi
 
 existing="$(
   gh api --paginate "repos/$HFA_REPO/issues/$HFA_PR/comments?per_page=100" \
-    --jq '.[] | select(.body | startswith("<!-- hackme-fuzz-action -->")) | [.id, .user.login] | @tsv' \
+    --jq ".[] | select(.body | startswith(\"$marker\")) | [.id, .user.login] | @tsv" \
     2>/dev/null \
   | awk -F '\t' -v me="$me" '$2 == me { id = $1 } END { print id }'
 )" || existing=""
