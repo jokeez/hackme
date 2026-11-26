@@ -67,10 +67,12 @@ func leaseSecondsForConfig(cfg map[string]any) int64 {
 				if sec < 120 {
 					sec = 120
 				}
-				// 480s (was 360): a 210s Heavy wall plus merge slack no longer
-				// expires the lease mid-upload. Byte Hunt keeps the 360s cap below.
-				if sec > 480 {
-					sec = 480
+				// Must stay above the longest engine wall: a lease that expires while
+				// the engine is still running hands the range to another worker and the
+				// finished shard is thrown away. Tied to the wall constants so raising
+				// one without the other cannot silently invert it.
+				if cap := int64(hunt.PoolReclaimLeaseCapSec); sec > cap {
+					sec = cap
 				}
 				return sec
 			}

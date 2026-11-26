@@ -50,14 +50,14 @@ func TestPoolEngineLeaseDefaultsByPackage(t *testing.T) {
 		}
 		return cfg
 	}
-	if got := mk("hunt_lite")["engine_lease_sec"]; got != 180 {
-		t.Fatalf("lite lease=%v", got)
+	if got := mk("hunt_lite")["engine_lease_sec"]; got != PoolEngineLeaseSecLite {
+		t.Fatalf("lite lease=%v want %d", got, PoolEngineLeaseSecLite)
 	}
-	if got := mk("hunt_standard")["engine_lease_sec"]; got != 240 {
-		t.Fatalf("standard lease=%v", got)
+	if got := mk("hunt_standard")["engine_lease_sec"]; got != PoolEngineLeaseSecStandard {
+		t.Fatalf("standard lease=%v want %d", got, PoolEngineLeaseSecStandard)
 	}
-	if got := mk("hunt_heavy")["engine_lease_sec"]; got != 300 {
-		t.Fatalf("heavy lease=%v", got)
+	if got := mk("hunt_heavy")["engine_lease_sec"]; got != PoolEngineLeaseSecHeavy {
+		t.Fatalf("heavy lease=%v want %d", got, PoolEngineLeaseSecHeavy)
 	}
 }
 

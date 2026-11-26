@@ -22,18 +22,27 @@ const (
 
 // Default fleet / deep lease walls (seconds). Caps keep reclaim healthy.
 const (
-	DefaultLibFuzzerLeaseSec = 180
-	DefaultAFLPPLeaseSec     = 180
-	MaxEngineLeaseSec        = 300
+	DefaultLibFuzzerLeaseSec = 300
+	DefaultAFLPPLeaseSec     = 300
+	MaxEngineLeaseSec        = 600
 	MinEngineLeaseSec        = 15
 
-	// Pool package walls. Reclaim lease is ≥2× wall (see leaseSecondsForConfig)
-	// and clips at 480s, so heavy 300s lands on that cap (wall + 180s slack).
-	// Throughput inside the wall (fork + len_control) is what multiplies execs;
-	// these seconds are the budget that actually runs.
-	PoolEngineLeaseSecLite     = 180
-	PoolEngineLeaseSecStandard = 240
-	PoolEngineLeaseSecHeavy    = 300
+	// Pool package walls. Reclaim lease is ≥2× wall (see leaseSecondsForConfig) and
+	// clips at PoolReclaimLeaseCapSec, which must stay above the longest wall here —
+	// a lease shorter than the wall hands a live worker's range to someone else.
+	// TestReclaimLeaseOutlivesEveryWall guards that.
+	//
+	// Lite used to sit at exactly LeakDetectWallSec (180), so leak detection switched
+	// on at the instant the run ended and found nothing. These walls give it room, and
+	// amortise the corpus load every run pays before it fuzzes anything.
+	PoolEngineLeaseSecLite     = 300
+	PoolEngineLeaseSecStandard = 360
+	PoolEngineLeaseSecHeavy    = 600
+
+	// Reclaim ceiling. Raising the walls without raising this would invert the
+	// invariant above. The cost is recovery time: a worker that dies mid-lease holds
+	// its range until this expires, so it is 2x the longest wall and no more.
+	PoolReclaimLeaseCapSec = 1200
 )
 
 // ParseHuntEngine normalizes campaign/claim engine ids.
