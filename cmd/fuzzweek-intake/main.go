@@ -47,8 +47,12 @@ const (
 	maxNoteLen     = 1000
 	maxCampaignLen = 80
 	maxWalletLen   = 72
-	perIPPerHour   = 3
-	notifyTimeout  = 10 * time.Second
+	// The promo allows three repositories per person, so a limit of three left no room:
+	// a corrected resubmission costs a token, and two participants behind one office NAT
+	// or VPN would lock each other out. Abuse is still bounded by the daily cap and by a
+	// human reading every submission.
+	perIPPerHour  = 6
+	notifyTimeout = 10 * time.Second
 )
 
 // knownForges are flagged in the operator notification as a quick legitimacy signal.

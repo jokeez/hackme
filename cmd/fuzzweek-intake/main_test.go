@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -107,6 +108,32 @@ func TestParseWindowBoundAndOpenState(t *testing.T) {
 	}
 	if open, state := windowOpen(after, openAt, deadline); open || state != "closed" {
 		t.Fatalf("after the window: open=%v state=%s", open, state)
+	}
+}
+
+// The promo permits three repositories per person, so the per-IP budget has to leave
+// room for a correction or a shared address rather than sitting exactly on three.
+func TestPerIPBudgetLeavesRoomForThreeRepos(t *testing.T) {
+	if perIPPerHour <= 3 {
+		t.Fatalf("perIPPerHour=%d leaves no headroom for the three repos the rules allow", perIPPerHour)
+	}
+	s, _ := newTestServer(t, time.Now())
+	for i := 1; i <= 3; i++ {
+		rec := post(s, url.Values{
+			"repo": {fmt.Sprintf("https://github.com/person/repo%d", i)}, "contact": {"me@example.com"},
+			"campaign_id": {fmt.Sprintf("hunt-2026112500%d", i)}, "wallet": {"HMC-73bdd7dd362e93d1"},
+		})
+		if rec.Code != http.StatusOK {
+			t.Fatalf("repo %d of the three allowed was refused: %d %s", i, rec.Code, rec.Body.String())
+		}
+	}
+	// A correction after the third must still get through.
+	rec := post(s, url.Values{
+		"repo": {"https://github.com/person/repo3-corrected"}, "contact": {"me@example.com"},
+		"campaign_id": {"hunt-20261125004"}, "wallet": {"HMC-73bdd7dd362e93d1"},
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("a correction right after three submissions was refused: %d", rec.Code)
 	}
 }
 
