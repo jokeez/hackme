@@ -168,17 +168,40 @@ func TestSubmitStoresAndDeduplicates(t *testing.T) {
 	}
 }
 
-func TestSubmitHoneypotIsAcceptedButNotNotified(t *testing.T) {
+func TestSubmitHoneypotLooksNormalButIsNeverStored(t *testing.T) {
 	s, path := newTestServer(t, time.Now())
 	rec := post(s, url.Values{
 		"repo": {"https://github.com/spam/bot"}, "contact": {"x@y.zz"}, "website": {"http://spam"},
-	}) // a honeypot hit skips field validation on purpose
+	})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("a honeypot hit must look normal to the bot, got %d", rec.Code)
 	}
-	body, _ := os.ReadFile(path)
-	if !strings.Contains(string(body), `"spam":true`) {
-		t.Fatalf("honeypot submission must be marked spam: %s", body)
+	if body, _ := os.ReadFile(path); len(body) != 0 {
+		t.Fatalf("a honeypot hit must not be written to disk, got %q", body)
+	}
+}
+
+// A filled honeypot used to skip the rate limiter and the daily cap while still being
+// fsynced to disk, which made the trap an unmetered write path on a public endpoint.
+func TestHoneypotFloodCannotGrowTheStoreOrEscapeTheLimiter(t *testing.T) {
+	s, path := newTestServer(t, time.Now())
+	for i := 0; i < 50; i++ {
+		if code := post(s, url.Values{
+			"repo": {"https://github.com/spam/x"}, "contact": {"x@y.zz"}, "website": {"bot"},
+		}).Code; code != http.StatusOK {
+			t.Fatalf("submission %d: honeypot must stay opaque, got %d", i, code)
+		}
+	}
+	if body, _ := os.ReadFile(path); len(body) != 0 {
+		t.Fatalf("50 honeypot hits wrote %d bytes; want none", len(body))
+	}
+	// Those hits consumed the per-IP budget, so a real submission now has to wait.
+	real := post(s, url.Values{
+		"repo": {"https://github.com/real/project"}, "contact": {"me@example.com"},
+		"campaign_id": {"hunt-20261125t065107"}, "wallet": {"HMC-73bdd7dd362e93d1"},
+	})
+	if real.Code != http.StatusTooManyRequests {
+		t.Fatalf("honeypot hits must cost rate-limit tokens, got %d", real.Code)
 	}
 }
 

@@ -74,7 +74,6 @@ type Submission struct {
 	Note       string `json:"note,omitempty"`
 	KnownForge bool   `json:"known_forge"`
 	IPHash     string `json:"ip_hash,omitempty"`
-	Spam       bool   `json:"spam,omitempty"`
 }
 
 // scrub removes control characters and collapses runaway whitespace, then caps length.
@@ -315,7 +314,7 @@ func newStore(path string, maxDay int) (*store, error) {
 		if rec.Repo != "" {
 			s.seen[rec.Repo] = true
 		}
-		if !rec.Spam && strings.HasPrefix(rec.TS, today) {
+		if strings.HasPrefix(rec.TS, today) {
 			s.dayN++
 		}
 	}
@@ -331,14 +330,14 @@ var errDayFull = errors.New("day_full")
 func (s *store) append(rec Submission) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if !rec.Spam && s.seen[rec.Repo] {
+	if s.seen[rec.Repo] {
 		return errDuplicate
 	}
 	today := time.Now().UTC().Format("2006-01-02")
 	if today != s.day {
 		s.day, s.dayN = today, 0
 	}
-	if !rec.Spam && s.maxDay > 0 && s.dayN >= s.maxDay {
+	if s.maxDay > 0 && s.dayN >= s.maxDay {
 		return errDayFull
 	}
 	line, err := json.Marshal(rec)
@@ -356,10 +355,8 @@ func (s *store) append(rec Submission) error {
 	if err := f.Sync(); err != nil {
 		return err
 	}
-	if !rec.Spam {
-		s.seen[rec.Repo] = true
-		s.dayN++
-	}
+	s.seen[rec.Repo] = true
+	s.dayN++
 	return nil
 }
 
@@ -514,11 +511,24 @@ func (s *server) handleSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Every request costs a token, honeypot hits included: a bot that fills the trap must
+	// not get an unmetered path. Only a real submission is told it was limited, so the
+	// trap stays invisible to whatever filled it.
 	ip := clientIP(r)
-	if honeypot == "" && !s.limiter.allow(ip, now) {
+	withinLimit := s.limiter.allow(ip, now)
+	if honeypot == "" && !withinLimit {
 		writeJSON(w, http.StatusTooManyRequests, map[string]any{
 			"ok": false, "error": "too many submissions from this address — try again later",
 		})
+		return
+	}
+
+	if honeypot != "" {
+		// Answer exactly as a success looks, but write nothing: these records are never
+		// notified and never read, so storing attacker-controlled lines would only hand
+		// out an unbounded disk write per request.
+		log.Printf("[fuzzweek] honeypot submission dropped ip=%s", ip)
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "status": "received"})
 		return
 	}
 
@@ -531,7 +541,6 @@ func (s *server) handleSubmit(w http.ResponseWriter, r *http.Request) {
 		Wallet:     wallet,
 		Note:       scrub(r.PostFormValue("note"), maxNoteLen),
 		KnownForge: knownForge,
-		Spam:       honeypot != "",
 	}
 
 	switch err := s.store.append(rec); {
@@ -552,12 +561,6 @@ func (s *server) handleSubmit(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{
 			"ok": false, "error": "could not record the submission — please retry",
 		})
-		return
-	}
-
-	if rec.Spam {
-		log.Printf("[fuzzweek] honeypot submission dropped ip=%s", ip)
-		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "status": "received"})
 		return
 	}
 
