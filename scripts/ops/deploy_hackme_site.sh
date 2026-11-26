@@ -228,8 +228,19 @@ for f in "$ROOT_DIR"/web/site/*.html; do
   case "$name" in healthz.html) continue ;; esac
   want="$(grep -oE '<title>[^<]*</title>' "$f" | head -1 || true)"
   [[ -z "$want" ]] && continue
-  got="$(curl -fsS --max-time 12 "https://hackme.tech/${name}" 2>/dev/null \
-    | grep -oE '<title>[^<]*</title>' | head -1 || true)"
+  # Some pages are deliberate redirects (developer-console.html -> downloads.html), so a
+  # 3xx is routing working, not a missing file. Only a 200 can hide the try_files
+  # fallback this check exists to catch.
+  body="$(curl -sS --max-time 12 -w '\n%{http_code}' "https://hackme.tech/${name}" 2>/dev/null || true)"
+  status="${body##*$'\n'}"
+  case "$status" in
+    3*) continue ;;
+    200) ;;
+    *)
+      echo "[deploy-hackme-site] FAIL ${name} returned HTTP ${status:-error}" >&2
+      smoke_n=$((smoke_n + 1)); smoke_bad=$((smoke_bad + 1)); continue ;;
+  esac
+  got="$(printf '%s' "${body%$'\n'*}" | grep -oE '<title>[^<]*</title>' | head -1 || true)"
   smoke_n=$((smoke_n + 1))
   if [[ "$got" != "$want" ]]; then
     if [[ -n "$home_title" && "$got" == "$home_title" ]]; then
