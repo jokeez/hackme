@@ -74,7 +74,7 @@ if __name__ == "__main__":
     os.environ["VERSION"] = "0.1.0"
     ok, detail = soft_pickup_override_allowed()
     assert not ok and "stable" in detail, detail
-    os.environ["VERSION"] = "0.1.0-rc21"
+    os.environ["VERSION"] = "0.1.0-rc99"  # any -rc value; synthetic so it names no real cut
     ok, _ = soft_pickup_override_allowed()
     assert ok, "rc versions may soft-override with reason"
     print("soft_pickup_gate self-check PASS", flush=True)

@@ -138,7 +138,7 @@ publish_stable_pool_token() {
   if [[ -n "$ver" && -f "${ROOT_DIR}/dist/release_${ver}/linux/pool.miner.token" ]]; then
     src="${ROOT_DIR}/dist/release_${ver}/linux/pool.miner.token"
   else
-    # Prefer CURRENT_VERSION / published channel — sort -V picks rc21 over rc20 if a partial cut exists.
+    # Prefer CURRENT_VERSION / published channel — sort -V would pick a higher partial cut over the released one.
     cur=""
     [[ -f "${ROOT_DIR}/scripts/release/CURRENT_VERSION" ]] && cur="$(tr -d " \n\r" <"${ROOT_DIR}/scripts/release/CURRENT_VERSION" || true)"
     if [[ -n "$cur" && -f "${ROOT_DIR}/dist/release_${cur}/linux/pool.miner.token" ]]; then
