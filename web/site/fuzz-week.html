@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HackMe Free Fuzz Week — register your repository</title>
+  <meta name="description" content="Free Fuzz Week, 23–30 November 2026: the pool runs Dig or Hunt free on a public open-source repository you bring. On 1 December the top 3 repos are paid 300 / 150 / 50 HMC on-chain." />
+  <link rel="canonical" href="https://hackme.tech/fuzz-week.html" />
+  <meta property="og:title" content="HackMe — Free Fuzz Week" />
+  <meta property="og:description" content="Bring a public OSS repo, Dig or Hunt runs free this week. Top 3 repos: 300 / 150 / 50 HMC on 1 December." />
+  <meta property="og:url" content="https://hackme.tech/fuzz-week.html" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./assets/styles.css?v=20261105mb1" />
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  <link rel="icon" href="/assets/favicon.png" type="image/png" />
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+  <style>
+    /* Page-scoped only: everything else reuses the site's shared stylesheet. */
+    .fw-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0.9rem; margin: 1.1rem 0 0; padding: 0; list-style: none; }
+    .fw-step { position: relative; padding: 1rem 1rem 1rem 3rem; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); font-size: 0.9rem; color: var(--muted); }
+    .fw-step b { display: block; color: var(--text); font-size: 0.95rem; margin-bottom: 0.2rem; }
+    .fw-step-n { position: absolute; left: 0.95rem; top: 0.95rem; width: 1.6rem; height: 1.6rem; display: grid; place-items: center; border-radius: 50%; background: rgba(77, 228, 255, 0.14); border: 1px solid var(--line); color: var(--primary); font-family: "Space Grotesk", sans-serif; font-weight: 700; font-size: 0.82rem; }
+    .fw-prizes { display: flex; flex-wrap: wrap; gap: 0.8rem; margin: 1rem 0 0; padding: 0; list-style: none; }
+    .fw-prize { flex: 1 1 150px; padding: 0.9rem 1rem; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
+    .fw-prize span { display: block; font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+    .fw-prize b { font-family: "Space Grotesk", sans-serif; font-size: 1.5rem; color: var(--ok); }
+    .fw-prize.fw-prize-2 b { color: var(--primary); }
+    .fw-prize.fw-prize-3 b { color: var(--text); }
+    .fw-hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+    .fw-actions { display: flex; flex-wrap: wrap; gap: 0.7rem; align-items: center; margin-top: 1.1rem; }
+    .fw-msg { margin-top: 0.95rem; padding: 0.85rem 1rem; border-radius: 12px; border: 1px solid var(--line); background: rgba(8, 14, 26, 0.6); font-size: 0.9rem; color: var(--muted); display: none; }
+    .fw-msg[data-state="ok"] { display: block; border-color: rgba(110, 255, 173, 0.45); color: var(--ok); }
+    .fw-msg[data-state="err"] { display: block; border-color: rgba(255, 138, 138, 0.45); color: #ff9d9d; }
+    .fw-msg[data-state="info"] { display: block; }
+    .fw-window { font-family: "Space Grotesk", sans-serif; color: var(--primary); }
+    .fw-closed { display: none; }
+    .fw-fineprint { font-size: 0.84rem; color: var(--muted); }
+    .fw-fineprint li { margin-bottom: 0.4rem; }
+    @media (max-width: 560px) { .fw-step { padding-left: 2.8rem; } }
+  </style>
+</head>
+<body>
+  <div class="bg-glow bg-glow-a" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-b" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="./index.html"><img class="brand-logo" src="./assets/logo-hex.png" alt="HackMe logo" /><span>HackMe Network</span></a>
+    <nav class="nav" data-site-page="orders"></nav>
+  </header>
+
+  <main class="container">
+    <section class="hero glass hero-small">
+      <p class="kicker">Promo · 23–30 November 2026</p>
+      <h1>Free Fuzz Week</h1>
+      <p class="hero-copy">
+        Bring a <strong>public open-source repository</strong> and the pool runs <strong>Dig or Hunt on it for free</strong>
+        this week — no invoice. On <strong>1 December</strong> we name the top three repositories and pay
+        <strong>300 / 150 / 50 HMC</strong> on-chain.
+      </p>
+      <div class="contacts-hero-meta" aria-label="Promo facts">
+        <span class="contacts-pill" style="--pill-color:#4de4ff"><span class="contacts-pill-dot"></span> <span id="fw-window-pill" class="fw-window">Open through 30 Nov</span></span>
+        <span class="contacts-pill" style="--pill-color:#6effad"><span class="contacts-pill-dot"></span> Free Dig / Hunt run</span>
+        <span class="contacts-pill" style="--pill-color:#ffd166"><span class="contacts-pill-dot"></span> Three repos per person</span>
+        <span class="contacts-pill" style="--pill-color:#8ea3c2"><span class="contacts-pill-dot"></span> Public repo + clear licence</span>
+      </div>
+      <ul class="fw-prizes" aria-label="Prizes paid on 1 December">
+        <li class="fw-prize"><span>1st place</span><b>300 HMC</b></li>
+        <li class="fw-prize fw-prize-2"><span>2nd place</span><b>150 HMC</b></li>
+        <li class="fw-prize fw-prize-3"><span>3rd place</span><b>50 HMC</b></li>
+      </ul>
+      <div class="fw-actions">
+        <a class="btn btn-primary" href="#submit">Register a repository</a>
+        <a class="btn btn-secondary" href="./orders.html">Place the campaign first</a>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>How it works</h2>
+      <ol class="fw-steps">
+        <li class="fw-step"><span class="fw-step-n">1</span><b>Place the campaign</b>Put Dig or Hunt on your repo at <a href="./orders.html">Orders</a>. It is free this week.</li>
+        <li class="fw-step"><span class="fw-step-n">2</span><b>Register it here</b>Send us the repo, the campaign id and an HMC wallet using the form below.</li>
+        <li class="fw-step"><span class="fw-step-n">3</span><b>We rank it by hand</b>We judge the target and the run — not how many detectors fired.</li>
+        <li class="fw-step"><span class="fw-step-n">4</span><b>1 December</b>The top three repos are paid 300 / 150 / 50 HMC on-chain.</li>
+      </ol>
+      <p class="muted">
+        This form replaces sending the same details to Discord, Telegram or email — those still work if you
+        prefer them, but the form makes sure nothing gets lost.
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>The rules, in full</h2>
+      <ul class="list">
+        <li><strong>Three repositories per person.</strong></li>
+        <li><strong>The repository must be public</strong> and carry a clear licence.</li>
+        <li><strong>The campaign has to actually run.</strong> A placed-but-never-started campaign cannot be ranked.</li>
+        <li><strong>We rank the target and the run.</strong> A detector counter does not win — a thin target that trips many detectors loses to real work on code that matters.</li>
+        <li><strong>This is not a CVE promise.</strong> Fuzzing finds what it finds; a clean run is still a real result.</li>
+      </ul>
+    </section>
+
+    <section class="card fw-form-card" id="submit">
+      <h2>Register your repository</h2>
+
+      <div class="fw-closed" id="fw-closed">
+        <p class="fw-msg" data-state="info" id="fw-closed-msg" style="display:block">
+          Registration for Free Fuzz Week is closed.
+        </p>
+        <p>
+          Results are published on <a href="./news.html">News</a>, and ordering a campaign the normal way
+          stays open on <a href="./orders.html">Orders</a> — same engine, same report, priced per run.
+          To hear about the next free week, follow
+          <a href="https://t.me/hackme_tech" target="_blank" rel="noreferrer">Telegram</a>
+          or write to <strong>support@hackme.tech</strong>.
+        </p>
+      </div>
+
+      <form id="fw-form" novalidate>
+        <p class="muted" style="margin-top:0">
+          One repository per submission, up to three per person. Place the campaign at
+          <a href="./orders.html">Orders</a> first — we need its id to rank the run.
+        </p>
+        <div class="dev-grid-2">
+          <label class="dev-field dev-field-full">
+            <span>Repository link <span aria-hidden="true">*</span></span>
+            <input id="fw-repo" name="repo" type="url" inputmode="url" required maxlength="300"
+                   placeholder="https://github.com/you/your-project" autocomplete="off" />
+          </label>
+          <label class="dev-field">
+            <span>Campaign id <span aria-hidden="true">*</span></span>
+            <input id="fw-campaign" name="campaign_id" type="text" required maxlength="80"
+                   placeholder="hunt-20261125t065107" autocomplete="off" />
+          </label>
+          <label class="dev-field">
+            <span>HMC wallet for the prize <span aria-hidden="true">*</span></span>
+            <input id="fw-wallet" name="wallet" type="text" required maxlength="72"
+                   placeholder="HMC-…" autocomplete="off" />
+          </label>
+          <label class="dev-field">
+            <span>How we reach you <span aria-hidden="true">*</span></span>
+            <input id="fw-contact" name="contact" type="text" required maxlength="200"
+                   placeholder="you@example.com or @telegram" autocomplete="off" />
+          </label>
+          <label class="dev-field">
+            <span>Main language</span>
+            <select id="fw-lang" name="lang">
+              <option value="">Not sure / mixed</option>
+              <option value="C">C</option>
+              <option value="C++">C++</option>
+              <option value="Rust">Rust</option>
+              <option value="Go">Go</option>
+              <option value="Other">Other</option>
+            </select>
+          </label>
+          <label class="dev-field dev-field-full">
+            <span>What should we fuzz, and why does it matter? <span class="muted">(optional, but it helps you rank)</span></span>
+            <textarea id="fw-note" name="note" rows="4" maxlength="1000"
+                      placeholder="e.g. the PNG decoder in src/png.c — it reads untrusted files and has no fuzzing in CI"></textarea>
+          </label>
+        </div>
+
+        <!-- Spam trap: a real person never sees or fills this. -->
+        <div class="fw-hp" aria-hidden="true">
+          <label>Website<input name="website" type="text" tabindex="-1" autocomplete="off" /></label>
+        </div>
+
+        <div class="fw-actions">
+          <button class="btn btn-primary" id="fw-submit" type="submit">Register repository</button>
+          <span class="muted" id="fw-window-note">Registration closes 30 November</span>
+        </div>
+        <p class="fw-msg" id="fw-msg" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>The honest fine print</h2>
+      <ul class="list fw-fineprint">
+        <li><strong>We read every registration by hand.</strong> That is also how we keep the promo from being abused.</li>
+        <li><strong>No promise of bugs.</strong> A clean run is a real result, and the corpus is still yours.</li>
+        <li><strong>Coordinated disclosure.</strong> Findings go to you first; we publish nothing about your code without your agreement.</li>
+        <li><strong>We store only what you typed here</strong> — the link, campaign id, wallet, contact and note — to rank the run and pay the prize.</li>
+        <li><strong>Prizes are paid on-chain on 1 December</strong> to the HMC wallet you give us. Check it carefully; an on-chain payment cannot be undone.</li>
+        <li><strong>After the week</strong> this page stays up and the form closes by itself. Ordering a campaign normally stays open on <a href="./orders.html">Orders</a>.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>HackMe Network</p>
+    <p class="muted">Useful proof of work: the hashes that secure the chain also fuzz real software.</p>
+    <div class="footer-nav"></div>
+  </footer>
+
+  <script src="./assets/site-shell.js?v=20261024eco1"></script>
+  <script src="./assets/app.js?v=20260914dev1"></script>
+  <script>
+    // The server owns the promo window, so the page asks it rather than trusting the
+    // visitor's clock, and falls back to showing the form if the probe fails.
+    (function () {
+      var form = document.getElementById("fw-form");
+      var closed = document.getElementById("fw-closed");
+      var closedMsg = document.getElementById("fw-closed-msg");
+      var msg = document.getElementById("fw-msg");
+      var btn = document.getElementById("fw-submit");
+      var windowPill = document.getElementById("fw-window-pill");
+      var windowNote = document.getElementById("fw-window-note");
+
+      function say(state, text) {
+        msg.textContent = text;
+        msg.setAttribute("data-state", state);
+      }
+
+      // The deadline is defined in UTC and the page is written in English, so the date
+      // is rendered in UTC with an explicit locale. Using the visitor's zone would show
+      // "1 December" to anyone east of UTC, and their language on an English page.
+      function fmtClose(deadline) {
+        try {
+          return new Date(deadline).toLocaleDateString("en-GB", {
+            month: "long", day: "numeric", timeZone: "UTC"
+          });
+        } catch (e) { return null; }
+      }
+
+      fetch("/api/fuzz-week/status", { headers: { Accept: "application/json" } })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (s) {
+          if (!s) return;
+          var close = s.deadline ? fmtClose(s.deadline) : null;
+          if (close) {
+            if (windowPill) windowPill.textContent = "Open through " + close;
+            if (windowNote) windowNote.textContent = "Registration closes " + close;
+          }
+          if (s.open === false) {
+            form.style.display = "none";
+            closed.style.display = "block";
+            // Do not keep advertising an open window once it has shut.
+            if (windowPill) {
+              windowPill.textContent = s.state === "not_open_yet"
+                ? "Opens 23 November"
+                : "Registration closed";
+            }
+            if (s.state === "not_open_yet") {
+              closedMsg.textContent = "Free Fuzz Week has not opened yet.";
+            }
+          }
+        })
+        .catch(function () { /* leave the form usable rather than block on a probe */ });
+
+      form.addEventListener("submit", function (ev) {
+        ev.preventDefault();
+        var required = [
+          ["fw-repo", "Please paste a link to the repository."],
+          ["fw-campaign", "Please give the campaign id — place the campaign at Orders first."],
+          ["fw-wallet", "Please give an HMC wallet so a prize can be paid."],
+          ["fw-contact", "Please leave a contact so we can reply."]
+        ];
+        for (var i = 0; i < required.length; i++) {
+          if (!document.getElementById(required[i][0]).value.trim()) {
+            say("err", required[i][1]);
+            return;
+          }
+        }
+
+        var body = new URLSearchParams(new FormData(form));
+        btn.disabled = true;
+        say("info", "Sending…");
+
+        fetch("/api/fuzz-week/submit", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: body.toString()
+        })
+          .then(function (r) { return r.json().then(function (j) { return { status: r.status, json: j }; }); })
+          .then(function (res) {
+            var j = res.json || {};
+            if (j.ok) {
+              say("ok", j.message || "Got it — we will be in touch.");
+              if (j.status !== "duplicate") form.reset();
+            } else {
+              say("err", j.error || j.message || "Could not send the registration. Please try again.");
+            }
+          })
+          .catch(function () {
+            say("err", "Network error — nothing was sent. Please try again, or write to support@hackme.tech.");
+          })
+          .then(function () { btn.disabled = false; });
+      });
+    })();
+  </script>
+</body>
+</html>
