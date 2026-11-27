@@ -33,24 +33,10 @@ ADMIN="$(grep -m1 '^HACKME_ADMIN_TOKEN=' "$INSTALL/.env" | cut -d= -f2- | tr -d 
 source "$(dirname "$0")/load_coord_token.sh"
 load_bootstrap_coord_token
 
-# Fleet-safe defaults: prefer libfuzzer walls (AFL only when instrumented harness exists).
-# Note: do not pre-set ENGINE_LEASE_SEC=0 — `${var:-90}` will not override an explicit 0.
-HUNT_ENGINE="${HUNT_ENGINE:-}"
-case "$PKG" in
-  hunt_lite|lite)
-    HUNT_ENGINE="${HUNT_ENGINE:-libfuzzer}"
-    ENGINE_LEASE_SEC="${ENGINE_LEASE_SEC:-60}"
-    ;;
-  hunt_standard|standard|hunt_heavy|heavy)
-    HUNT_ENGINE="${HUNT_ENGINE:-libfuzzer}"
-    ENGINE_LEASE_SEC="${ENGINE_LEASE_SEC:-90}"
-    ;;
-  *)
-    HUNT_ENGINE="${HUNT_ENGINE:-libfuzzer}"
-    ENGINE_LEASE_SEC="${ENGINE_LEASE_SEC:-60}"
-    ;;
-esac
-ENGINE_LEASE_SEC="${ENGINE_LEASE_SEC:-60}"
+# Fleet-safe defaults: prefer libfuzzer. Leave the lease unset so the package
+# wall (300/360/600s) is used. An explicit ENGINE_LEASE_SEC still overrides.
+HUNT_ENGINE="${HUNT_ENGINE:-libfuzzer}"
+ENGINE_LEASE_SEC="${ENGINE_LEASE_SEC:-}"
 
 echo "[bootstrap-hunt $(date -u +%H:%M:%S)] PLACE $CID pkg=$PKG shards=${SHARDS:-pkg_default} engine=$HUNT_ENGINE lease=${ENGINE_LEASE_SEC}s"
 payload="$(jq -nc \
@@ -59,7 +45,7 @@ payload="$(jq -nc \
   --arg pkg "$PKG" \
   --arg tid "$TARGET" \
   --arg eng "$HUNT_ENGINE" \
-  --argjson lease "$ENGINE_LEASE_SEC" \
+  --arg lease "$ENGINE_LEASE_SEC" \
   --arg shards "${SHARDS:-}" \
   '{
     id: $id,
@@ -69,9 +55,9 @@ payload="$(jq -nc \
     status: "running",
     catalog: true,
     target_id: $tid,
-    hunt_engine: $eng,
-    engine_lease_sec: $lease
-  } + (if ($shards|tonumber? // 0) > 0 then {budget_shards: ($shards|tonumber)} else {} end)')"
+    hunt_engine: $eng
+  } + (if ($lease|tonumber? // 0) > 0 then {engine_lease_sec: ($lease|tonumber)} else {} end)
+    + (if ($shards|tonumber? // 0) > 0 then {budget_shards: ($shards|tonumber)} else {} end)')"
 resp="$(curl -sS --max-time 900 -X POST "$BASE/api/hunt/campaigns" \
   -H "Content-Type: application/json" \
   -H "X-Hackme-Admin-Token: $ADMIN" \

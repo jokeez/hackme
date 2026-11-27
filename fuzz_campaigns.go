@@ -1148,6 +1148,14 @@ func (a *app) rollbackNewCampaignEscrow(ctx context.Context, campaignID string) 
 	if campaignID == "" {
 		return
 	}
+	// The Orders client often drops the connection while clang is still running.
+	// The request context is then cancelled, and a rollback on that context leaves
+	// the escrow locked and the campaign "running" with no pool registration.
+	if ctx == nil || ctx.Err() != nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+	}
 	if a.chain != nil {
 		// Full undo (escrow + v2 fee) while nothing was paid. Do not fall back to Cancel:
 		// Cancel keeps the platform fee, so a create that never ran would still charge ~10%.
