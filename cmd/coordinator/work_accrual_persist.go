@@ -325,6 +325,8 @@ func (m *workManager) deleteWorkerAccrualLocked(workerID string) {
 	}
 	accrualPersistMu.Lock()
 	delete(accrualPersistLast, workerID)
+	delete(accrualDirty, workerID)
+	delete(accrualTrail, workerID)
 	accrualPersistMu.Unlock()
 }
 

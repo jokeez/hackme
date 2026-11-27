@@ -61,7 +61,7 @@ func (s *Service) EnqueueSettleOutbox(ctx context.Context, kind, campaignID, min
 		return 0, fmt.Errorf("poolfuzz: settle outbox missing kind or campaign_id")
 	}
 	minerAddress = strings.TrimSpace(minerAddress)
-	severity = strings.TrimSpace(severity)
+	severity = canonicalSettleSeverity(severity)
 	if workItemID < 0 {
 		workItemID = 0
 	}
@@ -83,11 +83,7 @@ func (s *Service) EnqueueSettleOutbox(ctx context.Context, kind, campaignID, min
 	}()
 
 	var existing int64
-	err = conn.QueryRowContext(ctx,
-		`SELECT id FROM fuzz_settle_outbox
-		 WHERE campaign_id=? AND kind=? AND miner_address=? AND severity=? AND work_item_id=?
-		 ORDER BY id ASC LIMIT 1`,
-		campaignID, kind, minerAddress, severity, workItemID).Scan(&existing)
+	err = scanExistingSettleOutbox(ctx, conn, kind, campaignID, minerAddress, severity, workItemID, &existing)
 	if err == nil && existing > 0 {
 		if _, err := conn.ExecContext(ctx, `COMMIT`); err != nil {
 			return 0, err
@@ -106,11 +102,7 @@ func (s *Service) EnqueueSettleOutbox(ctx context.Context, kind, campaignID, min
 	if err != nil {
 		// UNIQUE race: another writer won — return their row.
 		var raced int64
-		if qerr := conn.QueryRowContext(ctx,
-			`SELECT id FROM fuzz_settle_outbox
-			 WHERE campaign_id=? AND kind=? AND miner_address=? AND severity=? AND work_item_id=?
-			 ORDER BY id ASC LIMIT 1`,
-			campaignID, kind, minerAddress, severity, workItemID).Scan(&raced); qerr == nil && raced > 0 {
+		if qerr := scanExistingSettleOutbox(ctx, conn, kind, campaignID, minerAddress, severity, workItemID, &raced); qerr == nil && raced > 0 {
 			if _, cerr := conn.ExecContext(ctx, `COMMIT`); cerr == nil {
 				committed = true
 			}
@@ -127,6 +119,50 @@ func (s *Service) EnqueueSettleOutbox(ctx context.Context, kind, campaignID, min
 	}
 	committed = true
 	return id, nil
+}
+
+func canonicalSettleSeverity(v string) string {
+	switch strings.TrimSpace(strings.ToLower(v)) {
+	case "", "info", "low", "medium", "high", "critical":
+		return strings.TrimSpace(strings.ToLower(v))
+	case "med":
+		return "medium"
+	case "crit":
+		return "critical"
+	default:
+		// Free text must not become its own payout key.
+		return ""
+	}
+}
+
+type settleRowQueryer interface {
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
+// scanExistingSettleOutbox finds the row a replay must reuse. Severity is not part
+// of the identity for a finding or for a per-shard run: a second string would
+// otherwise enqueue a second payout for the same work.
+func scanExistingSettleOutbox(ctx context.Context, q settleRowQueryer, kind, campaignID, minerAddress, severity string, workItemID int64, dest *int64) error {
+	switch {
+	case kind == "finding":
+		return q.QueryRowContext(ctx,
+			`SELECT id FROM fuzz_settle_outbox
+			 WHERE campaign_id=? AND kind=?
+			 ORDER BY id ASC LIMIT 1`,
+			campaignID, kind).Scan(dest)
+	case workItemID > 0:
+		return q.QueryRowContext(ctx,
+			`SELECT id FROM fuzz_settle_outbox
+			 WHERE campaign_id=? AND kind=? AND work_item_id=?
+			 ORDER BY id ASC LIMIT 1`,
+			campaignID, kind, workItemID).Scan(dest)
+	default:
+		return q.QueryRowContext(ctx,
+			`SELECT id FROM fuzz_settle_outbox
+			 WHERE campaign_id=? AND kind=? AND miner_address=? AND severity=? AND work_item_id=?
+			 ORDER BY id ASC LIMIT 1`,
+			campaignID, kind, minerAddress, severity, workItemID).Scan(dest)
+	}
 }
 
 // CountPendingSettleOutbox returns how many pending settle rows exist for campaignID.

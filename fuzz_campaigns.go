@@ -1208,7 +1208,9 @@ func (a *app) retryFailedCampaignRollbacks(ctx context.Context) {
 		WHERE e.status='open' AND e.runs_paid_units=0 AND e.bounty_paid_units=0
 		  AND COALESCE(e.crash_bonus_paid_units,0)=0 AND COALESCE(e.refunded_bounty_units,0)=0
 		  AND NOT EXISTS (SELECT 1 FROM fuzz_campaigns c WHERE c.id=e.campaign_id)
-		LIMIT 16`)
+		  AND COALESCE(e.created_at,0) > 0
+		  AND COALESCE(e.created_at,0) < ?
+		LIMIT 16`, time.Now().Unix()-120)
 	if err != nil {
 		return
 	}
