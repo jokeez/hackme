@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"hackme/internal/chain"
 	"hackme/internal/fuzzengine"
 	"hackme/internal/fuzzescrow"
 	"hackme/internal/fuzzingcli"
@@ -1143,29 +1144,86 @@ func (a *app) fullCrashClassSeverityCounts(ctx context.Context, campaignID strin
 }
 
 // rollbackNewCampaignEscrow refunds a create that already locked escrow and then failed.
+// The campaign row is deleted only after the escrow undo commits. A failed undo keeps
+// the row (status rollback_failed) so the locked funds stay joinable for a retry.
 func (a *app) rollbackNewCampaignEscrow(ctx context.Context, campaignID string) {
 	campaignID = strings.TrimSpace(campaignID)
 	if campaignID == "" {
 		return
 	}
-	// The Orders client often drops the connection while clang is still running.
-	// The request context is then cancelled, and a rollback on that context leaves
-	// the escrow locked and the campaign "running" with no pool registration.
-	if ctx == nil || ctx.Err() != nil {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-	}
+	// The Orders client often drops the connection while clang is still running, and
+	// Go cancels the request context. Undo on that context fails mid-transaction and
+	// used to delete the only row that pointed at the still-open escrow.
+	_ = ctx
+	rbCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 	if a.chain != nil {
 		// Full undo (escrow + v2 fee) while nothing was paid. Do not fall back to Cancel:
 		// Cancel keeps the platform fee, so a create that never ran would still charge ~10%.
-		if err := a.chain.RollbackUnstartedFuzzEscrow(ctx, campaignID); err != nil {
-			log.Printf("fuzz escrow: CRITICAL unstarted rollback failed %s: %s — leaving escrow open for ops (not cancelling; cancel would retain fee)",
-				logsafe.ID(campaignID), logsafe.Err(err))
+		if err := a.chain.RollbackUnstartedFuzzEscrow(rbCtx, campaignID); err != nil {
+			status := "rollback_failed"
+			if errors.Is(err, chain.ErrFuzzEscrowStarted) {
+				// Already paid or refunded: deleting the row would hide a live escrow,
+				// and retrying the unstarted undo can never succeed.
+				status = "rollback_blocked"
+			}
+			log.Printf("fuzz escrow: CRITICAL unstarted rollback failed %s: %s — keeping campaign row status=%s (not cancelling; cancel would retain fee)",
+				logsafe.ID(campaignID), logsafe.Err(err), status)
+			if a.db != nil {
+				_, _ = a.db.ExecContext(rbCtx, `UPDATE fuzz_campaigns SET status=?, completed_at=? WHERE id=?`,
+					status, time.Now().Unix(), campaignID)
+			}
+			return
 		}
 	}
 	if a.db != nil {
-		_, _ = a.db.ExecContext(ctx, `DELETE FROM fuzz_campaigns WHERE id=?`, campaignID)
+		_, _ = a.db.ExecContext(rbCtx, `DELETE FROM fuzz_campaigns WHERE id=?`, campaignID)
+	}
+}
+
+// retryFailedCampaignRollbacks retries undos that failed after the escrow was locked,
+// and undoes an open unpaid escrow whose campaign row is already gone.
+func (a *app) retryFailedCampaignRollbacks(ctx context.Context) {
+	if a == nil || a.db == nil || a.chain == nil {
+		return
+	}
+	rbCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	rows, err := a.db.QueryContext(rbCtx, `SELECT id FROM fuzz_campaigns WHERE status='rollback_failed' LIMIT 16`)
+	if err == nil {
+		var ids []string
+		for rows.Next() {
+			var id string
+			if rows.Scan(&id) == nil && strings.TrimSpace(id) != "" {
+				ids = append(ids, id)
+			}
+		}
+		rows.Close()
+		for _, id := range ids {
+			a.rollbackNewCampaignEscrow(context.Background(), id)
+		}
+	}
+	orphans, err := a.db.QueryContext(rbCtx, `
+		SELECT e.campaign_id FROM fuzz_campaign_escrow e
+		WHERE e.status='open' AND e.runs_paid_units=0 AND e.bounty_paid_units=0
+		  AND COALESCE(e.crash_bonus_paid_units,0)=0 AND COALESCE(e.refunded_bounty_units,0)=0
+		  AND NOT EXISTS (SELECT 1 FROM fuzz_campaigns c WHERE c.id=e.campaign_id)
+		LIMIT 16`)
+	if err != nil {
+		return
+	}
+	defer orphans.Close()
+	var gone []string
+	for orphans.Next() {
+		var id string
+		if orphans.Scan(&id) == nil && strings.TrimSpace(id) != "" {
+			gone = append(gone, id)
+		}
+	}
+	for _, id := range gone {
+		if err := a.chain.RollbackUnstartedFuzzEscrow(rbCtx, id); err != nil {
+			log.Printf("fuzz escrow: orphan rollback still failed %s: %s", logsafe.ID(id), logsafe.Err(err))
+		}
 	}
 }
 
@@ -2927,14 +2985,14 @@ func (a *app) handleFuzzCampaignReportCSV(w http.ResponseWriter, r *http.Request
 	_ = cw.Write([]string{"campaign", "id", campaign.ID})
 	_ = cw.Write([]string{"campaign", "type", campaign.CampaignType})
 	_ = cw.Write([]string{"campaign", "status", campaign.Status})
-	_ = cw.Write([]string{"campaign", "title", campaign.Title})
-	_ = cw.Write([]string{"campaign", "owner_ref", campaign.OwnerRef})
+	_ = cw.Write([]string{"campaign", "title", csvSafeCell(campaign.Title)})
+	_ = cw.Write([]string{"campaign", "owner_ref", csvSafeCell(campaign.OwnerRef)})
 	_ = cw.Write([]string{"summary", "verdict", verdict})
-	_ = cw.Write([]string{"summary", "human_summary", toString(report["human_summary"])})
-	_ = cw.Write([]string{"summary", "assurance_note", toString(report["assurance_note"])})
+	_ = cw.Write([]string{"summary", "human_summary", csvSafeCell(toString(report["human_summary"]))})
+	_ = cw.Write([]string{"summary", "assurance_note", csvSafeCell(toString(report["assurance_note"]))})
 	if gate, ok := report["gate"].(map[string]any); ok {
 		_ = cw.Write([]string{"gate", "pass", toString(gate["pass"])})
-		_ = cw.Write([]string{"gate", "reasons", strings.Join(toStringSlice(gate["reasons"]), "; ")})
+		_ = cw.Write([]string{"gate", "reasons", csvSafeCell(strings.Join(toStringSlice(gate["reasons"]), "; "))})
 		if observed, ok := gate["observed"].(map[string]any); ok {
 			_ = cw.Write([]string{"gate_observed", "raw_findings_total", toString(observed["raw_findings_total"])})
 			_ = cw.Write([]string{"gate_observed", "grouped_rows_visible", toString(observed["grouped_rows_visible"])})
@@ -2989,7 +3047,7 @@ func (a *app) handleFuzzCampaignReportCSV(w http.ResponseWriter, r *http.Request
 		_ = cw.Write([]string{})
 		_ = cw.Write([]string{"coverage_noise", "id", "severity", "finding_type", "title"})
 		for _, it := range noise {
-			_ = cw.Write([]string{"coverage_noise", it.ID, it.Severity, it.FindingType, it.Title})
+			_ = cw.Write([]string{"coverage_noise", it.ID, it.Severity, it.FindingType, csvSafeCell(it.Title)})
 		}
 	}
 }

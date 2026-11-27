@@ -509,6 +509,7 @@ func (a *app) ordersPoolRefundTick(ctx context.Context) {
 	}
 	a.sweepUnclaimedPoolFunding(ctx)
 	a.recoverOrphanPoolFunding(ctx)
+	a.retryFailedCampaignRollbacks(ctx)
 	type pend struct {
 		campaign, owner, status, tx, memo string
 		units, sentUnits                  uint64

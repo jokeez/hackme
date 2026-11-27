@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-23",
+  "updated": "2026-11-27",
   "program": {
     "asset": "HMC",
     "monthly_budget_hmc": 500,
@@ -14,9 +14,9 @@
     "note": "Pre-fork hardening month: the November cap was raised from 200 to 1000 HMC to close findings before Economics v2 (block 550,000)."
   },
   "stats": {
-    "total_paid_hmc": 2277,
+    "total_paid_hmc": 2508,
     "researchers": 9,
-    "reports_accepted": 77
+    "reports_accepted": 78
   },
   "researchers": [
     {
@@ -135,8 +135,19 @@
       "id": "fimasw",
       "name": "fimasw",
       "handle": "fimasw",
-      "total_paid_hmc": 1190,
+      "total_paid_hmc": 1230,
       "findings": [
+        {
+          "title": "Failed escrow rollback still deleted the campaign row (HACKME-2026-ROLLBACK-01)",
+          "severity": "high",
+          "paid_hmc": 40,
+          "date": "2026-11-27",
+          "reported": "2026-11-27",
+          "commit": "",
+          "txid": "a85807b33e1611a4b60f5d73562f4e0d4e56c7a68da4bbe881bf6c9eabe7f272",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "High, bottom of the band: a failed unstarted undo still deleted the campaign row, so the open escrow had no join key. Funds were stranded, not stolen. Fixed: detached context, delete only after the undo commits, retry the failed rows. Paid 40 HMC → HMC-a6d09759a4c12019 tx a85807b3… @584662."
+        },
         {
           "title": "Withdrawal TOTP looks like an off-by-one right after enrolment (HACKME-2026-TOTP-01)",
           "severity": "low",
@@ -612,70 +623,84 @@
       "id": "valax",
       "name": "Valax",
       "handle": "valax.eth",
-      "total_paid_hmc": 0,
+      "total_paid_hmc": 191,
       "findings": [
         {
           "title": "Hunt corpus_delta: crash-preserving mutation re-earns full PayRun (95761fde bypass)",
           "severity": "high",
-          "paid_hmc": 0,
-          "date": "2026-11-16",
+          "paid_hmc": 70,
+          "date": "2026-11-27",
           "reported": "2026-11-15",
           "commit": "20d0d1be",
-          "note": "Accepted High (70 HMC reserved). Exact-byte stale-crash dedupe missed same-trap 1-byte mutants; also concurrent lease race. Fixed: StableCrashBucket novelty + withCampaignSettle around check/insert; stamp stable_crash_key. Send HMC-… payout address to claim."
+          "txid": "8094bf1c7f3814303b8d2f518c70e6473af4402f8786ce60a25180fa72dda37e",
+          "payout_address": "HMC-ec43d8087aae11c5",
+          "note": "Accepted High, 70 of the 191 batch. Exact-byte stale-crash dedupe missed same-trap 1-byte mutants. Fixed in 20d0d1be. Paid with the other six reserved findings → HMC-ec43d8087aae11c5 tx 8094bf1c… @584066."
         },
         {
           "title": "SUP empty-hash recovery settles on payer nonce movement alone",
           "severity": "medium",
-          "paid_hmc": 0,
-          "date": "2026-11-16",
+          "paid_hmc": 30,
+          "date": "2026-11-27",
           "reported": "2026-11-15",
           "commit": "20d0d1be",
-          "note": "Accepted Medium (30 HMC reserved). Mirror HMC stranded resolver: match payer→payout amount via /api/sup/tx/by-nonce + SUPTxHashKnown. Send HMC-… payout address."
+          "txid": "8094bf1c7f3814303b8d2f518c70e6473af4402f8786ce60a25180fa72dda37e",
+          "payout_address": "HMC-ec43d8087aae11c5",
+          "note": "Accepted Medium, 30 of the 191 batch. Same tx 8094bf1c… @584066."
         },
         {
           "title": "Cancelled campaign resurrected by app recomputeCampaignProgress; cancel mid deferred-bounty flush still pays",
           "severity": "medium",
-          "paid_hmc": 0,
-          "date": "2026-11-16",
+          "paid_hmc": 30,
+          "date": "2026-11-27",
           "reported": "2026-11-15",
           "commit": "20d0d1be",
-          "note": "Accepted Medium (30 HMC reserved). Guard cancelled in fuzz_runner recompute; re-check campaignAcceptsSettle under settle lock. Send HMC-… payout address."
+          "txid": "8094bf1c7f3814303b8d2f518c70e6473af4402f8786ce60a25180fa72dda37e",
+          "payout_address": "HMC-ec43d8087aae11c5",
+          "note": "Accepted Medium, 30 of the 191 batch. Same tx 8094bf1c… @584066."
         },
         {
           "title": "serveSecurityAudit missing stampEscrowBudgetClaim (Dig pool register sibling)",
           "severity": "medium",
-          "paid_hmc": 0,
-          "date": "2026-11-16",
+          "paid_hmc": 25,
+          "date": "2026-11-27",
           "reported": "2026-11-15",
           "commit": "20d0d1be",
-          "note": "Accepted Medium (25 HMC reserved). Audit create now stamps post-fee escrow budget like Dig/Hunt. Send HMC-… payout address."
+          "txid": "8094bf1c7f3814303b8d2f518c70e6473af4402f8786ce60a25180fa72dda37e",
+          "payout_address": "HMC-ec43d8087aae11c5",
+          "note": "Accepted Medium, 25 of the 191 batch. Same tx 8094bf1c… @584066."
         },
         {
           "title": "Concurrent corpus_delta leases double-credit same crash family (Finding 1 race sibling)",
           "severity": "medium",
-          "paid_hmc": 0,
-          "date": "2026-11-16",
+          "paid_hmc": 20,
+          "date": "2026-11-27",
           "reported": "2026-11-15",
           "commit": "20d0d1be",
-          "note": "Accepted Medium (20 HMC reserved). Same invariant as crash-mutation High; novelty+insert serialized under withCampaignSettle. Send HMC-… payout address."
+          "txid": "8094bf1c7f3814303b8d2f518c70e6473af4402f8786ce60a25180fa72dda37e",
+          "payout_address": "HMC-ec43d8087aae11c5",
+          "note": "Accepted Medium, 20 of the 191 batch. Same tx 8094bf1c… @584066."
         },
         {
           "title": "finalizeLocalCampaignEscrow refuses bounty_paid rows (stranded unpaid runs)",
           "severity": "low",
-          "paid_hmc": 0,
-          "date": "2026-11-16",
+          "paid_hmc": 8,
+          "date": "2026-11-27",
           "reported": "2026-11-15",
           "commit": "20d0d1be",
-          "note": "Accepted Low (8 HMC reserved). Local finalize now accepts open|bounty_paid like chain Finalize. Send HMC-… payout address."
+          "txid": "8094bf1c7f3814303b8d2f518c70e6473af4402f8786ce60a25180fa72dda37e",
+          "payout_address": "HMC-ec43d8087aae11c5",
+          "note": "Accepted Low, 8 of the 191 batch. Same tx 8094bf1c… @584066."
         },
         {
           "title": "defaultPoolWorkerID uses only 24 bits of wallet entropy (hostname collision lockout)",
           "severity": "low",
-          "paid_hmc": 0,
-          "date": "2026-11-16",
+          "paid_hmc": 8,
+          "date": "2026-11-27",
           "reported": "2026-11-15",
           "commit": "20d0d1be",
-          "note": "Accepted Low (8 HMC reserved). Suffix widened to 12 hex (~48 bits). Send HMC-… payout address."
+          "txid": "8094bf1c7f3814303b8d2f518c70e6473af4402f8786ce60a25180fa72dda37e",
+          "payout_address": "HMC-ec43d8087aae11c5",
+          "note": "Accepted Low, 8 of the 191 batch. Same tx 8094bf1c… @584066."
         }
       ]
     },
