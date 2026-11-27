@@ -224,7 +224,9 @@ func (s *Service) RegisterCampaign(ctx context.Context, c Campaign) error {
 	// used to zero completed_at, replace the summary, and let EnsureWorkItems spend
 	// the budget again.
 	switch strings.TrimSpace(strings.ToLower(existingStatus)) {
-	case "completed", "cancelled", "rollback_failed", "rollback_blocked":
+	case "completed", "rollback_failed", "rollback_blocked":
+		// Cancelled stays reopenable: pool resync registers it as running again.
+		// Completed and a failed escrow undo must not be spent a second time.
 		return nil
 	}
 	// Fresh prepaid stamp binds attested budget caps so admin UPSERT cannot raise unpaid work.
@@ -1263,7 +1265,9 @@ func (s *Service) ClaimWithOptions(ctx context.Context, workerID string, now int
 			// Clear predecessor prove before / with ownership transfer.
 			clearLeaseProven(e.camp, int64(e.id))
 			res, err := s.DB.ExecContext(ctx,
-				`UPDATE fuzz_work_items SET status='leased', lease_owner=?, lease_until=?, updated_at=?
+				`UPDATE fuzz_work_items SET status='leased', lease_owner=?, lease_until=?, updated_at=?,
+				     hunt_proven_seeds=0, hunt_proven_edges=0, hunt_proven_crashes=0,
+				     hunt_proven_engine='', hunt_proven_engine_ver=''
 				 WHERE id=? AND campaign_id=? AND status='leased' AND lease_until < ?`,
 				workerID, now+leaseSec, now, int64(e.id), e.camp, now)
 			if err != nil {
@@ -1385,7 +1389,9 @@ func (s *Service) ReleaseWorkLease(ctx context.Context, campaignID string, itemI
 	now := time.Now().Unix()
 	res, err := s.DB.ExecContext(ctx, `
 		UPDATE fuzz_work_items
-		   SET status='pending', lease_owner='', lease_until=0, updated_at=?
+		   SET status='pending', lease_owner='', lease_until=0, updated_at=?,
+		       hunt_proven_seeds=0, hunt_proven_edges=0, hunt_proven_crashes=0,
+		       hunt_proven_engine='', hunt_proven_engine_ver=''
 		 WHERE id=? AND campaign_id=? AND status='leased' AND lease_owner=?`,
 		now, itemID, campaignID, workerID)
 	if err != nil {
@@ -1442,7 +1448,9 @@ func (s *Service) claimOnePendingInCampaignOpts(ctx context.Context, workerID, c
 	leaseSec := leaseSecondsForConfig(cfg)
 	res, err := s.DB.ExecContext(ctx, `
 		UPDATE fuzz_work_items
-		   SET status='leased', lease_owner=?, lease_until=?, updated_at=?
+		   SET status='leased', lease_owner=?, lease_until=?, updated_at=?,
+		       hunt_proven_seeds=0, hunt_proven_edges=0, hunt_proven_crashes=0,
+		       hunt_proven_engine='', hunt_proven_engine_ver=''
 		 WHERE id = (
 		   SELECT id FROM fuzz_work_items
 		    WHERE campaign_id=? AND status='pending'
