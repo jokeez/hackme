@@ -207,17 +207,27 @@ func (s *Service) RegisterCampaign(ctx context.Context, c Campaign) error {
 			_, _ = conn.ExecContext(ctx, `ROLLBACK`)
 		}
 	}()
-	var existingCfgJSON string
+	var existingCfgJSON, existingStatus string
 	var prevBudgetRuns int
 	qerr := conn.QueryRowContext(ctx,
-		`SELECT COALESCE(config_json,'{}'), COALESCE(budget_runs,0) FROM fuzz_campaigns WHERE id=?`, c.ID).
-		Scan(&existingCfgJSON, &prevBudgetRuns)
+		`SELECT COALESCE(status,''), COALESCE(config_json,'{}'), COALESCE(budget_runs,0) FROM fuzz_campaigns WHERE id=?`, c.ID).
+		Scan(&existingStatus, &existingCfgJSON, &prevBudgetRuns)
 	if qerr != nil && qerr != sql.ErrNoRows {
 		return qerr
 	}
 	if qerr == sql.ErrNoRows {
 		prevBudgetRuns = 0
 		existingCfgJSON = "{}"
+		existingStatus = ""
+	}
+	// A finished campaign must not be reopened by a later register. That upsert
+	// used to zero completed_at, replace the summary, and let EnsureWorkItems spend
+	// the budget again.
+	switch strings.TrimSpace(strings.ToLower(existingStatus)) {
+	case "completed", "rollback_failed", "rollback_blocked":
+		// Cancelled stays reopenable: pool resync registers it as running again.
+		// Completed and a failed escrow undo must not be spent a second time.
+		return nil
 	}
 	// Fresh prepaid stamp binds attested budget caps so admin UPSERT cannot raise unpaid work.
 	if configTruthyAny(cfg, "prepaid_attested") {

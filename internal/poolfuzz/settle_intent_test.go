@@ -277,3 +277,73 @@ func TestEnqueueSettleOutboxConcurrentUnique(t *testing.T) {
 		t.Fatalf("want 1 outbox row after race, got %d", count)
 	}
 }
+
+func TestEnqueueSettleOutboxIgnoresSeverityAlias(t *testing.T) {
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "settle-sev.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	svc := &Service{DB: db}
+	ctx := context.Background()
+	first, err := svc.EnqueueSettleOutbox(ctx, "finding", "camp-sev", "HMC-abc", "high", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := svc.EnqueueSettleOutbox(ctx, "finding", "camp-sev", "HMC-other", "critical", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first != second {
+		t.Fatalf("finding replay with a new severity minted %d and %d", first, second)
+	}
+	runA, err := svc.EnqueueSettleOutbox(ctx, "run", "camp-sev", "HMC-abc", "", 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runB, err := svc.EnqueueSettleOutbox(ctx, "run", "camp-sev", "HMC-abc", "critical", 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if runA != runB {
+		t.Fatalf("same shard minted two run rows: %d %d", runA, runB)
+	}
+}
+
+func TestRegisterCampaignLeavesFinishedCampaign(t *testing.T) {
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "reg-done.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	svc := &Service{DB: db}
+	ctx := context.Background()
+	id := "camp-finished"
+	if err := svc.RegisterCampaign(ctx, Campaign{
+		ID: id, CampaignType: "fuzz", Status: "running", BudgetRuns: 8,
+		Config: map[string]any{"pool_distributed": true},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE fuzz_campaigns SET status='completed', completed_at=42, summary_json='{"kept":1}', title='done' WHERE id=?`, id); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.RegisterCampaign(ctx, Campaign{
+		ID: id, CampaignType: "fuzz", Status: "running", Title: "reopened", BudgetRuns: 8000,
+		Config: map[string]any{"pool_distributed": true},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	var status, title, summary string
+	var completed int64
+	var budget int
+	if err := db.QueryRowContext(ctx, `SELECT status, title, summary_json, completed_at, budget_runs FROM fuzz_campaigns WHERE id=?`, id).
+		Scan(&status, &title, &summary, &completed, &budget); err != nil {
+		t.Fatal(err)
+	}
+	if status != "completed" || completed != 42 || title != "done" || budget != 8 || summary != `{"kept":1}` {
+		t.Fatalf("finished campaign rewritten: status=%s title=%s summary=%s completed=%d budget=%d", status, title, summary, completed, budget)
+	}
+}
