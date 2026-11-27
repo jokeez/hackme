@@ -5,9 +5,50 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 
 	"hackme/internal/store"
 )
+
+func TestThrottledAccrualFlushesAfterGap(t *testing.T) {
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "accrual-trail.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	const id = "trail-worker"
+	t.Cleanup(func() {
+		accrualPersistMu.Lock()
+		delete(accrualPersistLast, id)
+		delete(accrualDirty, id)
+		delete(accrualTrail, id)
+		accrualPersistMu.Unlock()
+	})
+	wm := &workManager{worker: map[string]workerPayoutStat{}}
+	wm.attachDedupDB(db)
+	wm.mu.Lock()
+	wm.worker[id] = workerPayoutStat{AcceptedAtt: 10, PayoutHMC: 1}
+	wm.mu.Unlock()
+	wm.persistWorkerAccrual(id, true)
+	wm.mu.Lock()
+	wm.worker[id] = workerPayoutStat{AcceptedAtt: 11, PayoutHMC: 2}
+	wm.mu.Unlock()
+	wm.persistWorkerAccrual(id, false)
+	st, ok := wm.fetchDurableAccrual(id)
+	if !ok || st.PayoutHMC > 1+1e-9 {
+		t.Fatalf("throttle should not write immediately: ok=%v st=%+v", ok, st)
+	}
+	deadline := time.Now().Add(4 * time.Second)
+	for time.Now().Before(deadline) {
+		st, ok = wm.fetchDurableAccrual(id)
+		if ok && st.PayoutHMC >= 2-1e-9 {
+			return
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	t.Fatalf("trailing flush missed the second credit: ok=%v st=%+v", ok, st)
+}
 
 func TestRevokeWorkerDeletesDurableAccrual(t *testing.T) {
 	dir := t.TempDir()

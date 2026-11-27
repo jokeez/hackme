@@ -228,10 +228,74 @@ func (m *workManager) ensureWorkerAccrualLocked(workerID string) workerPayoutSta
 var (
 	accrualPersistMu   sync.Mutex
 	accrualPersistLast = map[string]int64{}
+	// accrualDirty marks a credit that the 2s throttle skipped or a write that failed.
+	// A trailing persist flushes it; the throttle must not drop the last credit of a burst.
+	accrualDirty = map[string]bool{}
+	accrualTrail = map[string]bool{}
 )
 
 func accrualPersistMinGapSec() int64 {
 	return 2 // throttle DB writes on the hot submit path
+}
+
+// scheduleAccrualTrail flushes a throttled or failed credit once the gap elapses.
+// force=true so the trailing write is not dropped by the same throttle.
+func (m *workManager) scheduleAccrualTrail(workerID string) {
+	gap := time.Duration(accrualPersistMinGapSec()) * time.Second
+	time.AfterFunc(gap, func() {
+		accrualPersistMu.Lock()
+		accrualTrail[workerID] = false
+		dirty := accrualDirty[workerID]
+		accrualPersistMu.Unlock()
+		if dirty {
+			m.persistWorkerAccrual(workerID, true)
+		}
+	})
+}
+
+// noteAccrualUnpersisted keeps a failed write dirty so the trailing flush retries it.
+func (m *workManager) noteAccrualUnpersisted(workerID string) {
+	if m == nil || workerID == "" {
+		return
+	}
+	accrualPersistMu.Lock()
+	accrualDirty[workerID] = true
+	schedule := !accrualTrail[workerID]
+	if schedule {
+		accrualTrail[workerID] = true
+	}
+	accrualPersistMu.Unlock()
+	if schedule {
+		m.scheduleAccrualTrail(workerID)
+	}
+}
+
+// clearAccrualDirtyIfCaughtUp drops the dirty bit only when memory is not ahead of
+// the row just committed. A credit that landed during the write stays dirty.
+func (m *workManager) clearAccrualDirtyIfCaughtUp(workerID string, persistedUnits uint64) {
+	m.mu.Lock()
+	st, ok := m.worker[workerID]
+	m.mu.Unlock()
+	memUnits := uint64(0)
+	if ok {
+		memUnits = st.PayoutUnits
+		if memUnits == 0 && st.PayoutHMC > 0 {
+			memUnits = chain.HMCToUnits(st.PayoutHMC)
+		}
+	}
+	accrualPersistMu.Lock()
+	defer accrualPersistMu.Unlock()
+	if !ok || memUnits <= persistedUnits {
+		delete(accrualDirty, workerID)
+		return
+	}
+	if !accrualTrail[workerID] {
+		accrualTrail[workerID] = true
+		accrualDirty[workerID] = true
+		go m.scheduleAccrualTrail(workerID)
+	} else {
+		accrualDirty[workerID] = true
+	}
 }
 
 // deleteWorkerAccrualLocked removes durable unpaid for workerID and stamps a revoke tombstone.
@@ -387,7 +451,15 @@ func (m *workManager) persistWorkerAccrual(workerID string, force bool) {
 		accrualPersistMu.Lock()
 		last := accrualPersistLast[workerID]
 		if now-last < accrualPersistMinGapSec() {
+			accrualDirty[workerID] = true
+			schedule := !accrualTrail[workerID]
+			if schedule {
+				accrualTrail[workerID] = true
+			}
 			accrualPersistMu.Unlock()
+			if schedule {
+				m.scheduleAccrualTrail(workerID)
+			}
 			return
 		}
 		accrualPersistLast[workerID] = now
@@ -434,6 +506,7 @@ func (m *workManager) persistWorkerAccrual(workerID string, force bool) {
 	defer tx.Close()
 	if _, err := tx.ExecContext(ctx, `BEGIN IMMEDIATE`); err != nil {
 		log.Printf("worker accrual begin id=%s err=%v", sanitizeLogToken(workerID), err)
+		m.noteAccrualUnpersisted(workerID)
 		return
 	}
 	committed := false
@@ -497,6 +570,7 @@ WHERE excluded.accepted_attempts >= worker_accrual.accepted_attempts
 		snap.LastHashrateGHS, snap.PeakHashrateGHS, snap.LastSeenUnix, snap.LastPoHSeenUnix, snap.LastFuzzSeenUnix, now)
 	if err != nil {
 		log.Printf("worker accrual persist id=%s err=%v", sanitizeLogToken(workerID), err)
+		m.noteAccrualUnpersisted(workerID)
 		return
 	}
 	n, _ := res.RowsAffected()
@@ -506,6 +580,7 @@ WHERE excluded.accepted_attempts >= worker_accrual.accepted_attempts
 INSERT INTO accrual_journal (worker_id, delta_units, payout_units, created_at)
 VALUES (?, ?, ?, ?)`, workerID, delta, pu, now); jerr != nil {
 			log.Printf("accrual journal id=%s err=%v", sanitizeLogToken(workerID), jerr)
+			m.noteAccrualUnpersisted(workerID)
 			return
 		}
 	}
@@ -516,9 +591,14 @@ VALUES (?, ?, ?, ?)`, workerID, delta, pu, now); jerr != nil {
 	}
 	if _, err := tx.ExecContext(ctx, `COMMIT`); err != nil {
 		log.Printf("worker accrual commit id=%s err=%v", sanitizeLogToken(workerID), err)
+		m.noteAccrualUnpersisted(workerID)
 		return
 	}
 	committed = true
+	accrualPersistMu.Lock()
+	accrualPersistLast[workerID] = time.Now().Unix()
+	accrualPersistMu.Unlock()
+	m.clearAccrualDirtyIfCaughtUp(workerID, pu)
 
 	// Belt-and-suspenders: if epoch moved in the commit window, drop the row only.
 	// Do NOT re-stamp worker_accrual_revoked — that would tombstone a soft-revoked

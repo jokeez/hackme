@@ -36,12 +36,16 @@ var (
 	checkCompileMu   sync.Mutex
 	checkCompiled    sync.Map // sha256 hex -> wazero.CompiledModule (owned by checkRuntime)
 	checkCompiledLRU []string
-	checkQuarantine  sync.Map // sha256 hex -> reason string (blocked signatures)
-	checkRuntime     wazero.Runtime
-	checkRuntimeMu   sync.Mutex
-	checkInstSerial  uint64
-	checkInvokeOnce  sync.Once
-	checkInvokeSem   chan struct{}
+	// checkCompiledCost is an approximate retained-heap charge (input bytes × compile
+	// amplification). The LRU is also entry-capped; without a byte budget a few
+	// authenticated br_table modules can sit in the cache at ~38× their upload size.
+	checkCompiledCost = map[string]int{}
+	checkQuarantine   sync.Map // sha256 hex -> reason string (blocked signatures)
+	checkRuntime      wazero.Runtime
+	checkRuntimeMu    sync.Mutex
+	checkInstSerial   uint64
+	checkInvokeOnce   sync.Once
+	checkInvokeSem    chan struct{}
 )
 
 type PolicySnapshot struct {
@@ -151,6 +155,7 @@ func resetCheckRuntime() {
 		return true
 	})
 	checkCompiledLRU = nil
+	checkCompiledCost = map[string]int{}
 	checkCompileMu.Unlock()
 }
 
@@ -378,21 +383,59 @@ func ValidateCheckWasm(ctx context.Context, wasm []byte) error {
 		return nil
 	}
 	checkQuarantine.Delete(key)
+	cost := compiledRetentionCost(len(stripped))
+	// A single module bigger than the budget is valid but must not stay resident.
+	// The RLIMIT child already bounded this compile; the next call compiles again.
+	if cost > compiledCacheByteBudget {
+		_ = compiled.Close(validateCtx)
+		return nil
+	}
 	checkCompiled.Store(key, compiled)
+	checkCompiledCost[key] = cost
 	checkCompiledLRU = append(checkCompiledLRU, key)
 	maxEntries := compiledCacheMax()
-	for len(checkCompiledLRU) > maxEntries {
+	guard := len(checkCompiledLRU) + 2
+	for guard > 0 && len(checkCompiledLRU) > 1 && (len(checkCompiledLRU) > maxEntries || compiledRetentionTotal() > compiledCacheByteBudget) {
+		guard--
 		evictKey := checkCompiledLRU[0]
 		checkCompiledLRU = checkCompiledLRU[1:]
 		if evictKey == key {
+			checkCompiledLRU = append(checkCompiledLRU, evictKey)
 			continue
 		}
 		if old, ok := checkCompiled.Load(evictKey); ok {
 			checkCompiled.Delete(evictKey)
+			delete(checkCompiledCost, evictKey)
 			_ = old.(wazero.CompiledModule).Close(validateCtx)
+		} else {
+			delete(checkCompiledCost, evictKey)
 		}
 	}
 	return nil
+}
+
+// compiledCacheByteBudget caps retained compiled modules. 38× is the measured
+// br_table amplification; 256 MiB keeps a full cache of ordinary gates and
+// evicts a pile of large authenticated modules.
+const compiledCacheByteBudget = 256 << 20
+
+func compiledRetentionCost(n int) int {
+	if n < 0 {
+		return 0
+	}
+	cost := n * 40
+	if cost < n {
+		return n
+	}
+	return cost
+}
+
+func compiledRetentionTotal() int {
+	total := 0
+	for _, n := range checkCompiledCost {
+		total += n
+	}
+	return total
 }
 
 func loadCompiledModule(key string) (wazero.CompiledModule, bool) {
@@ -412,7 +455,10 @@ func dropCompiledModule(key string) {
 	defer checkCompileMu.Unlock()
 	if old, ok := checkCompiled.Load(key); ok {
 		checkCompiled.Delete(key)
+		delete(checkCompiledCost, key)
 		_ = old.(wazero.CompiledModule).Close(context.Background())
+	} else {
+		delete(checkCompiledCost, key)
 	}
 	// Drop stale LRU entries for this key (best-effort; duplicates are skipped on eviction).
 	dst := checkCompiledLRU[:0]
