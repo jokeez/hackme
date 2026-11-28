@@ -190,8 +190,12 @@ func TestReport27AdminUnbindClearsClaimSquat(t *testing.T) {
 		"hunt_engines": "libfuzzer,aflpp,byte",
 	}, false)
 	reason, _ := out["reason"].(string)
-	if code != http.StatusForbidden || !strings.Contains(reason, "locked="+signerAddr(atkPub)) {
+	if code != http.StatusForbidden || reason != "payout_address_locked" {
 		t.Fatalf("victim must be locked out before unbind: %d %v", code, out)
+	}
+	raw, _ := json.Marshal(out)
+	if strings.Contains(string(raw), signerAddr(atkPub)) || strings.Contains(string(raw), signerAddr(vicPub)) {
+		t.Fatalf("lock reject must not echo a payout address: %s", raw)
 	}
 
 	code, out = report27Post(t, mux, "/api/work/admin/unbind-payout-lock", map[string]any{
