@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-27",
+  "updated": "2026-11-28",
   "program": {
     "asset": "HMC",
     "monthly_budget_hmc": 500,
@@ -14,17 +14,28 @@
     "note": "Pre-fork hardening month: the November cap was raised from 200 to 1000 HMC to close findings before Economics v2 (block 550,000)."
   },
   "stats": {
-    "total_paid_hmc": 2508,
+    "total_paid_hmc": 2513,
     "researchers": 9,
-    "reports_accepted": 78
+    "reports_accepted": 79
   },
   "researchers": [
     {
       "id": "az",
       "name": "AZ",
       "handle": "AZ",
-      "total_paid_hmc": 53,
+      "total_paid_hmc": 58,
       "findings": [
+        {
+          "title": "Payout-lock rejection echoed the locked payout address",
+          "severity": "low",
+          "paid_hmc": 5,
+          "date": "2026-11-28",
+          "reported": "2026-11-25",
+          "commit": "291dada1",
+          "txid": "3f19c2d8a8a3610c8ba88f77d73a413793fa605df4e24ea69f0f14e920200bd1",
+          "payout_address": "HMC-e55dff78252ef2f6e20c841d43d39e04e9479ed86f0ff17107f0b7e2df0f50d3",
+          "note": "Low: /api/work/claim returned payout_address_locked:locked=<address>, including a stale pre-rebind lock that the public stats row no longer shows. Fixed: the client reason is the constant payout_address_locked. Paid 5 HMC → tx 3f19c2d8… @586268."
+        },
         {
           "title": "CLEAR_PENDING_HMC_FORCE parsed but never read — stranded pending stuck",
           "severity": "medium",
