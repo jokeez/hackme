@@ -33,6 +33,9 @@ func (s *Service) lockHuntGuidedWorkItem(ctx context.Context, campaignID string,
 	if err := s.EnsureGuidedCorpusSeeded(ctx, campaignID, cfg, now); err != nil {
 		return 0, nil, nil, err
 	}
+	// After the stamp fold, so this claim's inputs and the shipped corpus are
+	// the same slice. Replay rebuilds it from input_n before it re-executes.
+	spreadCatalogClaimSeeds(cfg, inputN)
 	if err := s.seedHuntPoolCorpusBootstrap(ctx, campaignID, cfg, now); err != nil {
 		return 0, nil, nil, err
 	}

@@ -20,10 +20,13 @@ const (
 	// rankedLibFuzzerSeedCap matches the claim wire item budget (96). A smaller
 	// cap dropped freshly exported coverage units before first-fit trim ran.
 	rankedLibFuzzerSeedCap = 96
-	// sharedSeedByteCap stops one catalog target from filling the disk. The
-	// file cap matches what a claim can ship; bytes past that are not useful
-	// to the next campaign and are a write amplifier.
-	sharedSeedByteCap = 2 << 20
+	// sharedSeedFileCap is how many units one catalog target remembers on disk.
+	// A claim still ships only rankedLibFuzzerSeedCap, but a later shard can
+	// take an older slice instead of everyone mutating the same newest 96.
+	sharedSeedFileCap = 384
+	// sharedSeedByteCap stops one catalog target from filling the disk.
+	// 384 typical seeds fit; a multi-megabyte unit still yields to eviction.
+	sharedSeedByteCap = 8 << 20
 )
 
 // LibFuzzerSeedDir is the on-disk import path for libFuzzer corpus files per catalog target.
@@ -85,6 +88,102 @@ func SharedSeedGeneration(repoRoot, targetID string) (string, error) {
 		}
 	}
 	return fmt.Sprintf("%d:%d:%d:%d", n, total, maxMod, sumMod), nil
+}
+
+// SampleLibFuzzerSeedWindow reads one claim-sized slice of the shared cache.
+// The newest third is on every claim. The rest rotates by shift, so two shards
+// do not spend the wall mutating the same older units. Files past the wire
+// budget stay on disk. A symlink is not a seed and is not followed.
+func SampleLibFuzzerSeedWindow(repoRoot, targetID string, shift uint64, limit int) ([][]byte, error) {
+	if limit <= 0 {
+		limit = rankedLibFuzzerSeedCap
+	}
+	dir := LibFuzzerSeedDir(repoRoot, targetID)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	root := strings.TrimSpace(repoRoot)
+	if root == "" {
+		root = RepoRoot()
+	}
+	type seedName struct {
+		name string
+		mod  int64
+		ord  int
+	}
+	hits := make([]seedName, 0, len(entries))
+	for _, ent := range entries {
+		name := ent.Name()
+		if !loadableSeedName(name) {
+			continue
+		}
+		abs, jerr := SafeJoinUnder(dir, name)
+		if jerr != nil {
+			continue
+		}
+		st, ok := isRegularCorpusFileUnder(root, abs)
+		if !ok || st.Size() <= 0 || st.Size() > libFuzzerSeedMaxBytes {
+			continue
+		}
+		hits = append(hits, seedName{name: name, mod: st.ModTime().UnixNano(), ord: len(hits)})
+	}
+	sort.SliceStable(hits, func(i, j int) bool {
+		if hits[i].mod == hits[j].mod {
+			return hits[i].ord < hits[j].ord
+		}
+		return hits[i].mod > hits[j].mod
+	})
+	if len(hits) > sharedSeedFileCap {
+		hits = hits[:sharedSeedFileCap]
+	}
+	pinN := limit / 3
+	if pinN < 1 {
+		pinN = 1
+	}
+	if pinN > len(hits) {
+		pinN = len(hits)
+	}
+	selected := append([]seedName(nil), hits[:pinN]...)
+	if len(hits) > limit {
+		rest := hits[pinN:]
+		need := limit - pinN
+		if need > len(rest) {
+			need = len(rest)
+		}
+		start := 0
+		if len(rest) > 0 && need > 0 {
+			start = int((shift * uint64(need)) % uint64(len(rest)))
+		}
+		for i := 0; i < need; i++ {
+			selected = append(selected, rest[(start+i)%len(rest)])
+		}
+	} else if pinN < len(hits) {
+		selected = append(selected, hits[pinN:]...)
+	}
+	out := make([][]byte, 0, len(selected))
+	seen := map[string]struct{}{}
+	for _, h := range selected {
+		abs, jerr := SafeJoinUnder(dir, h.name)
+		if jerr != nil {
+			continue
+		}
+		b, rerr := ReadRegularCorpusFileUnder(root, abs, libFuzzerSeedMaxBytes)
+		if rerr != nil || len(b) == 0 || genericBootSeed(b) {
+			continue
+		}
+		sum := sha256.Sum256(b)
+		key := hex.EncodeToString(sum[:])
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, b)
+	}
+	return out, nil
 }
 
 // LoadLibFuzzerSeedFiles reads seed inputs from a libFuzzer corpus directory.
@@ -473,7 +572,7 @@ func listSharedSeedFiles(dir string) ([]sharedSeedFile, error) {
 }
 
 func sharedSeedFull(have []sharedSeedFile, next int) bool {
-	if len(have) >= rankedLibFuzzerSeedCap {
+	if len(have) >= sharedSeedFileCap {
 		return true
 	}
 	used := 0

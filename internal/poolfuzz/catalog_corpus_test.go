@@ -3,6 +3,7 @@ package poolfuzz
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -12,6 +13,60 @@ import (
 	"hackme/internal/hunt"
 	"hackme/internal/store"
 )
+
+func TestSpreadCatalogClaimSeedsRotatesAndSkipsInventory(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HACKME_REPO_ROOT", dir)
+	seedDir := hunt.LibFuzzerSeedDir(dir, "mpack")
+	if err := os.MkdirAll(seedDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	for i := 0; i < 120; i++ {
+		path := filepath.Join(seedDir, fmt.Sprintf("unit-%03d.bin", i))
+		if err := os.WriteFile(path, []byte(fmt.Sprintf("unit-%03d", i)), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		mt := now.Add(time.Duration(i) * time.Second)
+		if err := os.Chtimes(path, mt, mt); err != nil {
+			t.Fatal(err)
+		}
+	}
+	first := map[string]any{
+		"campaign_type":      "hunt",
+		"hunt_source":        "catalog",
+		"upstream_target_id": "mpack",
+	}
+	second := map[string]any{
+		"campaign_type":      "hunt",
+		"hunt_source":        "catalog",
+		"upstream_target_id": "mpack",
+	}
+	spreadCatalogClaimSeeds(first, 0)
+	spreadCatalogClaimSeeds(second, 1)
+	if !seedCorpusHas(first["seed_byte_corpus"].([]any), hex.EncodeToString([]byte("unit-119"))) {
+		t.Fatal("newest unit missing")
+	}
+	if !seedCorpusHas(second["seed_byte_corpus"].([]any), hex.EncodeToString([]byte("unit-119"))) {
+		t.Fatal("newest unit missing on the next shard")
+	}
+	if seedCorpusHas(first["seed_byte_corpus"].([]any), hex.EncodeToString([]byte("unit-017"))) {
+		t.Fatal("first shard took the next shard's older slice")
+	}
+	if !seedCorpusHas(second["seed_byte_corpus"].([]any), hex.EncodeToString([]byte("unit-017"))) {
+		t.Fatal("next shard missed its older slice")
+	}
+	inv := map[string]any{
+		"campaign_type":      "hunt",
+		"hunt_source":        "inventory",
+		"upstream_target_id": "mpack",
+		"seed_byte_corpus":   []any{"aa"},
+	}
+	spreadCatalogClaimSeeds(inv, 0)
+	if seedCorpusHas(inv["seed_byte_corpus"].([]any), hex.EncodeToString([]byte("unit-119"))) {
+		t.Fatal("inventory claim read the shared catalog cache")
+	}
+}
 
 func TestCatalogSeedReachesTheNextCampaign(t *testing.T) {
 	dir := t.TempDir()

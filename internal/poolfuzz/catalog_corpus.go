@@ -104,6 +104,23 @@ func (s *Service) mergeCatalogSeedCache(ctx context.Context, campaignID string, 
 	})
 }
 
+// spreadCatalogClaimSeeds fills this claim from the on-disk cache. The campaign
+// config keeps the newest fold; the claim adds a shard-specific older slice
+// when the cache holds more than one wire budget. Inventory is not catalog,
+// so this reads nothing. The window is not written back: the next claim with
+// the same input_n rebuilds it, and a different input_n takes the next slice.
+func spreadCatalogClaimSeeds(cfg map[string]any, inputN uint64) {
+	targetID := catalogSharedTarget(cfg)
+	if targetID == "" || cfg == nil {
+		return
+	}
+	seeds, err := hunt.SampleLibFuzzerSeedWindow(hunt.RepoRoot(), targetID, inputN, 0)
+	if err != nil || len(seeds) == 0 {
+		return
+	}
+	cfg["seed_byte_corpus"] = foldSharedSeedCorpus(cfg["seed_byte_corpus"], seeds)
+}
+
 // absorbCatalogSeeds reads the shared cache and folds it into cfg. The stamp
 // is the caller's job, and only after this returns, so a generation is never
 // marked seen before its bytes are in the campaign corpus.

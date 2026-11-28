@@ -379,7 +379,7 @@ func TestExportLibFuzzerSeedsReplacesOldestAtCap(t *testing.T) {
 	}
 	oldest := filepath.Join(seedDir, fmt.Sprintf("lf-%032x.bin", 0))
 	now := time.Now()
-	for i := 0; i < rankedLibFuzzerSeedCap; i++ {
+	for i := 0; i < sharedSeedFileCap; i++ {
 		path := filepath.Join(seedDir, fmt.Sprintf("lf-%032x.bin", i))
 		if err := os.WriteFile(path, []byte{byte(i + 1)}, 0o600); err != nil {
 			t.Fatal(err)
@@ -428,8 +428,66 @@ func TestExportLibFuzzerSeedsReplacesOldestAtCap(t *testing.T) {
 			regular++
 		}
 	}
-	if regular != rankedLibFuzzerSeedCap {
-		t.Fatalf("regular seeds=%d want %d", regular, rankedLibFuzzerSeedCap)
+	if regular != sharedSeedFileCap {
+		t.Fatalf("regular seeds=%d want %d", regular, sharedSeedFileCap)
+	}
+}
+
+func TestSampleLibFuzzerSeedWindowRotates(t *testing.T) {
+	dir := t.TempDir()
+	seedDir := LibFuzzerSeedDir(dir, "mpack")
+	if err := os.MkdirAll(seedDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	const n = 120
+	for i := 0; i < n; i++ {
+		path := filepath.Join(seedDir, fmt.Sprintf("unit-%03d.bin", i))
+		if err := os.WriteFile(path, []byte(fmt.Sprintf("unit-%03d", i)), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		mt := now.Add(time.Duration(i) * time.Second)
+		if err := os.Chtimes(path, mt, mt); err != nil {
+			t.Fatal(err)
+		}
+	}
+	outside := filepath.Join(dir, "outside.txt")
+	if err := os.WriteFile(outside, []byte("secret"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(seedDir, "planted")); err != nil {
+		t.Fatal(err)
+	}
+	a, err := SampleLibFuzzerSeedWindow(dir, "mpack", 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := SampleLibFuzzerSeedWindow(dir, "mpack", 1, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(a) != rankedLibFuzzerSeedCap || len(b) != rankedLibFuzzerSeedCap {
+		t.Fatalf("windows %d and %d, want %d", len(a), len(b), rankedLibFuzzerSeedCap)
+	}
+	has := func(set [][]byte, body string) bool {
+		for _, b := range set {
+			if string(b) == body {
+				return true
+			}
+		}
+		return false
+	}
+	if !has(a, "unit-119") || !has(b, "unit-119") {
+		t.Fatal("newest unit missing from a claim window")
+	}
+	if has(a, "secret") || has(b, "secret") {
+		t.Fatal("symlink target entered the window")
+	}
+	if !has(a, "unit-047") || has(b, "unit-047") {
+		t.Fatal("older unit did not stay on the first shard's slice")
+	}
+	if has(a, "unit-017") || !has(b, "unit-017") {
+		t.Fatal("next shard did not take the following slice")
 	}
 }
 

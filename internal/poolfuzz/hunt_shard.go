@@ -70,6 +70,7 @@ func (s *Service) buildHuntClaimedWork(ctx context.Context, campaignID string, i
 			return ClaimedWork{}, err
 		}
 	} else {
+		spreadCatalogClaimSeeds(cfg, inputN)
 		inputB = HuntShardInputBytes(campaignID, inputN, cfg)
 		inputU = fuzzengine.PackInputBytesToU64(inputB)
 		if err := s.storeExpectedInputs(ctx, campaignID, itemID, inputU, inputB); err != nil {
@@ -317,6 +318,9 @@ func (s *Service) evalHuntSubmitCheckProgress(ctx context.Context, campaignID st
 	if maxB <= 0 {
 		maxB = 4096
 	}
+	// Same slice the claim shipped for this input_n. A later stamp fold must
+	// not make replay mutate a different corpus than the worker did.
+	spreadCatalogClaimSeeds(cfg, inputN)
 	rep, err := hunt.ReplayShard(ctx, hunt.ReplayShardOpts{
 		RepoRoot:             hunt.RepoRoot(),
 		Spec:                 hunt.HarnessSpecFromConfig(cfg),
