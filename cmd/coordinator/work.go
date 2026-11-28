@@ -2081,12 +2081,11 @@ func deriveAddressFromPubHex(pubHex string) (string, bool) {
 }
 
 func payoutAddressLockedReason(locked, submitted string) string {
-	locked = strings.TrimSpace(locked)
-	submitted = strings.TrimSpace(submitted)
-	if locked == "" && submitted == "" {
-		return "payout_address_locked"
-	}
-	return fmt.Sprintf("payout_address_locked:locked=%s:submitted=%s", locked, submitted)
+	// Client-facing reason stays constant. The locked and submitted addresses
+	// used to be interpolated here, so one claim against a known worker_id
+	// returned that rig's payout address, including a stale pre-rebind lock.
+	_, _ = locked, submitted
+	return "payout_address_locked"
 }
 
 // checkClaimMinerIdentity validates claim pubkey/address against a locked worker payout.
@@ -4064,25 +4063,6 @@ func redactPublicWorkerStat(st workerPayoutStat) workerPayoutStat {
 	return st
 }
 
-func parsePayoutLockedReason(reason string) (locked, submitted string) {
-	reason = strings.TrimSpace(reason)
-	if !strings.HasPrefix(reason, "payout_address_locked") {
-		return "", ""
-	}
-	rest := strings.TrimPrefix(reason, "payout_address_locked")
-	rest = strings.TrimPrefix(rest, ":")
-	for _, part := range strings.Split(rest, ":") {
-		part = strings.TrimSpace(part)
-		if strings.HasPrefix(part, "locked=") {
-			locked = strings.TrimPrefix(part, "locked=")
-		}
-		if strings.HasPrefix(part, "submitted=") {
-			submitted = strings.TrimPrefix(part, "submitted=")
-		}
-	}
-	return locked, submitted
-}
-
 // workersByPayoutAddress returns pool workers paying out to the given HMC address (case-insensitive).
 // Client IPs are redacted — this route is public.
 func (m *workManager) workersByPayoutAddress(addr string) map[string]workerPayoutStat {
@@ -4438,15 +4418,6 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 			"payout_hmc":     payout,
 			"signed_submit":  signedSubmit,
 			"signer_address": signerAddr,
-		}
-		if strings.HasPrefix(reason, "payout_address_locked") {
-			locked, submittedAddr := parsePayoutLockedReason(reason)
-			if locked != "" {
-				out["locked_payout_address"] = locked
-			}
-			if submittedAddr != "" {
-				out["submitted_payout_address"] = submittedAddr
-			}
 		}
 		if strings.HasPrefix(reason, "order_chain_solve_failed:") {
 			out["order_chain_solve"] = false
