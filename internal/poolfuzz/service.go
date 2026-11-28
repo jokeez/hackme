@@ -1909,7 +1909,7 @@ func (s *Service) SubmitWithOutcome(ctx context.Context, req SubmitRequest) (Sub
 		 WHERE id=? AND campaign_id=?
 		   AND status='leased'
 		   AND lease_owner=?`,
-			boolToInt(pass), req.DurationMS, strings.TrimSpace(req.Trap), now,
+			boolToInt(pass), req.DurationMS, sealedWorkNote(cfg, req.Trap), now,
 			minerBind, runSettleStatus, runSettleStatus,
 			req.ItemID, req.CampaignID, workerID)
 		if err != nil {
@@ -2294,6 +2294,18 @@ func (s *Service) bountyAllowed(ctx context.Context, cfg map[string]any, finding
 
 // crashFindingAlreadyKnown reports whether this sanitizer/crash trap was already recorded
 // for the campaign (exact bytes or StableCrashBucket). Empty trap → not a crash novelty gate.
+// sealedWorkNote is what a work row may store. The sanitizer text stays in the
+// customer box, not in last_error.
+func sealedWorkNote(cfg map[string]any, trap string) string {
+	if fuzzreport.Pub(cfg) == nil {
+		return strings.TrimSpace(trap)
+	}
+	if strings.TrimSpace(trap) == "" {
+		return ""
+	}
+	return "sealed"
+}
+
 func (s *Service) crashFindingAlreadyKnown(ctx context.Context, campaignID string, req SubmitRequest, cfg map[string]any) (bool, error) {
 	trap := strings.TrimSpace(req.Trap)
 	if trap == "" {
@@ -2369,8 +2381,9 @@ func (s *Service) insertFinding(ctx context.Context, req SubmitRequest, cfg map[
 	severity = sev
 	findingID = fmt.Sprintf("finding-pool-%s-%d-%d", req.CampaignID, req.ItemID, now)
 	op, itemID, qty := fuzzengine.WasmCheckInputParts(req.ActualInput)
-	wasmHex := wasmHexFromConfig(cfg)
-	_ = fuzzartifacts.WriteWasmHex(req.CampaignID, wasmHex)
+	if sealPub == nil {
+		_ = fuzzartifacts.WriteWasmHex(req.CampaignID, wasmHexFromConfig(cfg))
+	}
 	triage := fuzzengine.ClassifyFinding(ft, sev)
 	detailMap := map[string]any{
 		"source":          "pool_fuzz_worker_v2",

@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -52,6 +54,21 @@ func TestSealedReportOmitsPayload(t *testing.T) {
 	}
 	if !strings.Contains(string(body), "opaque-box") {
 		t.Fatal("customer box was dropped")
+	}
+	req := httptest.NewRequest(http.MethodGet, "/api/fuzz/campaigns/"+camp+"/crashes", nil)
+	req.Header.Set("X-Hackme-Report-Token", token)
+	rec := httptest.NewRecorder()
+	a.handleFuzzCampaigns(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("crashes %d %s", rec.Code, rec.Body.String())
+	}
+	for _, leak := range []string{"parse_exr", "deadbeef", "/tmp/secret-input", "heap-overflow", "native_crash"} {
+		if strings.Contains(rec.Body.String(), leak) {
+			t.Fatalf("crashes list still contains %q", leak)
+		}
+	}
+	if !strings.Contains(rec.Body.String(), "opaque-box") {
+		t.Fatal("crashes list dropped the box")
 	}
 	if !strings.Contains(string(body), "nacl-box-v1") {
 		t.Fatal("seal marker missing")

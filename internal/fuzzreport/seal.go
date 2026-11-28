@@ -165,12 +165,24 @@ func pepper() []byte {
 		}
 		buf := make([]byte, 32)
 		if _, err := rand.Read(buf); err != nil {
-			sum := sha256.Sum256([]byte("fuzzreport-pepper-fallback"))
-			pepperKey = sum[:]
+			// No shared constant. A failed RNG must not make every hub use the
+			// same fingerprint key.
+			pepperKey = make([]byte, 32)
 			return
 		}
 		_ = os.MkdirAll(filepath.Dir(path), 0o755)
-		if err := os.WriteFile(path, buf, 0o600); err != nil {
+		f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+		if err != nil {
+			if b, rerr := os.ReadFile(path); rerr == nil && len(b) >= 32 {
+				pepperKey = append([]byte(nil), b[:32]...)
+				return
+			}
+			pepperKey = buf
+			return
+		}
+		_, werr := f.Write(buf)
+		cerr := f.Close()
+		if werr != nil || cerr != nil {
 			pepperKey = buf
 			return
 		}

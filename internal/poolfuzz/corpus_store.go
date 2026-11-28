@@ -10,6 +10,7 @@ import (
 
 	"hackme/internal/fuzzengine"
 	"hackme/internal/fuzzingcli"
+	"hackme/internal/fuzzreport"
 	"hackme/internal/hunt"
 )
 
@@ -377,6 +378,11 @@ func (s *Service) observePoolCorpusNovelty(ctx context.Context, campaignID strin
 	energy := fuzzengine.ApplyObserveEnergyEx(current, boost, crash, hangOnly, newEdge, newPath, recordFinding)
 	if len(inputBytes) > 0 {
 		inputBytes = fuzzengine.CompactCorpusSeed(inputBytes, fuzzengine.ParseMaxInputBytes(cfg))
+	}
+	// A sealed campaign keeps the crashing bytes only inside the customer box.
+	// The corpus row would otherwise be a second plaintext copy.
+	if crash && fuzzreport.Pub(cfg) != nil {
+		inputBytes = nil
 	}
 	if err := s.upsertPoolCorpusSeed(ctx, campaignID, input, inputBytes, energy, edge, path, crash, now); err != nil {
 		return err

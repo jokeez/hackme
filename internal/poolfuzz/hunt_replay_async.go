@@ -755,7 +755,7 @@ func (s *Service) finalizeHuntSubmit(ctx context.Context, p finalizeHuntSubmitPa
 		 WHERE id=? AND campaign_id=?
 		   AND status=?
 		   AND lease_owner=CASE WHEN ?='leased' THEN ? ELSE lease_owner END`,
-			boolToInt(p.pass), p.req.DurationMS, strings.TrimSpace(p.req.Trap), p.now,
+			boolToInt(p.pass), p.req.DurationMS, sealedWorkNote(p.cfg, p.req.Trap), p.now,
 			minerBind, runSettleStatus, runSettleStatus,
 			p.req.ItemID, p.req.CampaignID, statusWhere, statusWhere, p.req.WorkerID)
 		if err != nil {

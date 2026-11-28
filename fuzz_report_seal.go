@@ -1,6 +1,8 @@
 package main
 
 import (
+	"strings"
+
 	"hackme/internal/fuzzreport"
 )
 
@@ -26,6 +28,7 @@ func redactSealedReport(c fuzzCampaign, report map[string]any) map[string]any {
 			report[key] = sealedTopIssues(rows)
 		}
 	}
+	report["dig_depth"] = map[string]any{"withheld": true}
 	report["finding_families"] = map[string]any{"withheld": true}
 	report["sanitizer_summary"] = map[string]any{"withheld": true}
 	report["target_fingerprint"] = map[string]any{"available": false, "note": "withheld"}
@@ -74,6 +77,8 @@ func sealedFindingRows(rows []fuzzFinding) []fuzzFinding {
 			box, _ = f.Detail["box"].(string)
 		}
 		f.Title = "sealed"
+		f.FindingType = "sealed"
+		f.Severity = "sealed"
 		f.InputSHA256 = ""
 		f.Artifact = ""
 		f.ReproCmd = ""
@@ -86,14 +91,38 @@ func sealedFindingRows(rows []fuzzFinding) []fuzzFinding {
 	return out
 }
 
+// sealStoredFinding moves an uploaded finding into the customer box. On a
+// seal failure the plaintext is not written.
+func sealStoredFinding(campaignID string, cfg map[string]any, title, inputSHA, artifact, repro string, detail map[string]any) (string, string, string, string, string) {
+	pub := fuzzreport.Pub(cfg)
+	if pub == nil {
+		return title, inputSHA, artifact, repro, marshalMapJSON(detail)
+	}
+	payload := map[string]any{}
+	for k, v := range detail {
+		payload[k] = v
+	}
+	payload["title"] = title
+	payload["input_sha256"] = inputSHA
+	payload["artifact_path"] = artifact
+	payload["repro_cmd"] = repro
+	env, err := fuzzreport.Envelope(pub, payload, "")
+	if err != nil {
+		env = `{"seal":"nacl-box-v1"}`
+	}
+	sha := ""
+	if strings.TrimSpace(inputSHA) != "" {
+		sha = fuzzreport.InputFingerprint(campaignID, inputSHA)
+	}
+	return "sealed", sha, "", "", env
+}
+
 func sealedTopIssues(rows []fuzzProductTopIssue) []fuzzProductTopIssue {
 	out := make([]fuzzProductTopIssue, len(rows))
 	for i := range rows {
 		out[i] = fuzzProductTopIssue{
-			ID:          rows[i].ID,
-			Severity:    rows[i].Severity,
-			FindingType: rows[i].FindingType,
-			Title:       "sealed",
+			ID:    rows[i].ID,
+			Title: "sealed",
 		}
 	}
 	return out
