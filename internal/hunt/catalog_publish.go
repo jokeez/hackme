@@ -1,6 +1,7 @@
 package hunt
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -122,7 +123,8 @@ type publishHit struct {
 // CollectLibFuzzerPublishUnits reads corpus units this wall has not shared yet.
 // Crash artifacts, boot starters, symlinks, and anything that is not a regular
 // file are left out. skipHashes are contents already shared or already on disk
-// when the wall started. The result is newest-first and stops at the tick cap.
+// when the wall started. A tick pins its newest third, then fills by structural
+// rarity and compactness, and stops at the item and byte caps.
 func CollectLibFuzzerPublishUnits(corpusDir string, skipHashes map[string]struct{}, maxItems, maxBytes int) [][]byte {
 	units, _, _ := scanLibFuzzerPublish(corpusDir, nil, skipHashes, maxItems, maxBytes)
 	return units
@@ -180,14 +182,22 @@ func scanLibFuzzerPublish(corpusDir string, skipNames map[string]fileStamp, skip
 		}
 		return hits[i].stamp.mod > hits[j].stamp.mod
 	})
-	total := 0
-	seenBatch := map[string]struct{}{}
+	// Boots and bytes already shared are not candidates. Remember them so the
+	// next tick does not read them again. Ranking sees only units that could
+	// actually be posted.
+	candidates := make([]publishHit, 0, len(hits))
 	for _, hit := range hits {
 		if hit.skip {
 			names = append(names, hit.name)
 			stamps = append(stamps, hit.stamp)
 			continue
 		}
+		candidates = append(candidates, hit)
+	}
+	ordered := rankPublishCandidates(candidates, maxItems)
+	total := 0
+	seenBatch := map[string]struct{}{}
+	for _, hit := range ordered {
 		if len(units) >= maxItems {
 			break
 		}
@@ -206,6 +216,34 @@ func scanLibFuzzerPublish(corpusDir string, skipNames map[string]fileStamp, skip
 		total += len(hit.body)
 	}
 	return units, names, stamps
+}
+
+// rankPublishCandidates orders a newest-first candidate list the way
+// RankLibFuzzerSeeds orders a claim: the newest third of the tick stays
+// pinned, and structural rarity / compactness fills the rest. A pile of
+// newer trivial mutants no longer crowds out the unit that opened a new edge.
+func rankPublishCandidates(candidates []publishHit, maxItems int) []publishHit {
+	if len(candidates) == 0 {
+		return nil
+	}
+	bodies := make([][]byte, len(candidates))
+	for i, hit := range candidates {
+		bodies[i] = hit.body
+	}
+	ranked := RankLibFuzzerSeeds(bodies, maxItems)
+	used := make([]bool, len(candidates))
+	ordered := make([]publishHit, 0, len(ranked))
+	for _, b := range ranked {
+		for i, hit := range candidates {
+			if used[i] || !bytes.Equal(hit.body, b) {
+				continue
+			}
+			used[i] = true
+			ordered = append(ordered, hit)
+			break
+		}
+	}
+	return ordered
 }
 
 // publishLibFuzzerSeeds posts units this wall grew. A failed post leaves them
