@@ -30,7 +30,7 @@ func TestCrashFindingAlreadyKnownBucketAndBytes(t *testing.T) {
 
 	// Different bytes, same trap → known via bucket.
 	mut := SubmitRequest{CampaignID: id, Trap: trap, InputBytes: []byte("AAAAAAABCrash!"), ActualInput: 2}
-	known, err := svc.crashFindingAlreadyKnown(ctx, id, mut)
+	known, err := svc.crashFindingAlreadyKnown(ctx, id, mut, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,7 +39,7 @@ func TestCrashFindingAlreadyKnownBucketAndBytes(t *testing.T) {
 	}
 
 	// Empty trap is not gated as a crash novelty check.
-	known, err = svc.crashFindingAlreadyKnown(ctx, id, SubmitRequest{CampaignID: id, Trap: ""})
+	known, err = svc.crashFindingAlreadyKnown(ctx, id, SubmitRequest{CampaignID: id, Trap: ""}, nil)
 	if err != nil || known {
 		t.Fatalf("empty trap must be novel: known=%v err=%v", known, err)
 	}
@@ -68,11 +68,11 @@ func TestCrashFindingDifferentPCIsNovel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	known, err := svc.crashFindingAlreadyKnown(ctx, id, SubmitRequest{CampaignID: id, Trap: trapA, InputBytes: []byte("same-bug-other-bytes")})
+	known, err := svc.crashFindingAlreadyKnown(ctx, id, SubmitRequest{CampaignID: id, Trap: trapA, InputBytes: []byte("same-bug-other-bytes")}, nil)
 	if err != nil || !known {
 		t.Fatalf("same PC must be known: known=%v err=%v", known, err)
 	}
-	known, err = svc.crashFindingAlreadyKnown(ctx, id, SubmitRequest{CampaignID: id, Trap: trapB, InputBytes: []byte("other-bug")})
+	known, err = svc.crashFindingAlreadyKnown(ctx, id, SubmitRequest{CampaignID: id, Trap: trapB, InputBytes: []byte("other-bug")}, nil)
 	if err != nil || known {
 		t.Fatalf("different PC must still pay: known=%v err=%v", known, err)
 	}

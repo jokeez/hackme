@@ -11,6 +11,21 @@ import (
 	"testing"
 )
 
+func TestLibFuzzerFleetSeedAndReload(t *testing.T) {
+	if libFuzzerSeedFlag(0) != "" {
+		t.Fatal("zero seed must stay random")
+	}
+	if libFuzzerSeedFlag(1) != "-seed=1" {
+		t.Fatalf("seed flag %q", libFuzzerSeedFlag(1))
+	}
+	if libFuzzerSeedFlag(2) == libFuzzerSeedFlag(4) {
+		t.Fatal("distinct shards collapsed to one seed")
+	}
+	if libFuzzerReloadSec(90) != 0 || libFuzzerReloadSec(120) != 20 {
+		t.Fatalf("reload 90=%d 120=%d", libFuzzerReloadSec(90), libFuzzerReloadSec(120))
+	}
+}
+
 func TestPoolVsLocalInProcessBreakEven(t *testing.T) {
 	// Same corpus argv shape. Pool heavy wall vs one local overnight process.
 	// Numbers come from the flags, not from a fabricated exec count.

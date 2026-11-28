@@ -62,20 +62,6 @@ func genericBootSeed(b []byte) bool {
 	return len(b) == 1 && (b[0] == 0x00 || b[0] == 0x80)
 }
 
-// claimSeedCorpusNeedsL2Merge is true only when the campaign config has no
-// coverage unit yet. Delta accept already pinned fresh units at the front of
-// seed_byte_corpus (96 items / 256KiB). Re-reading the L2 directory on every
-// claim and replay re-hashes that cache on the request path. Empty or
-// boot-only corpora still merge once so the first claim is not seedless.
-func claimSeedCorpusNeedsL2Merge(cfg map[string]any) bool {
-	for _, b := range fuzzengine.ParseByteCorpus(cfg) {
-		if len(b) > 0 && !genericBootSeed(b) {
-			return false
-		}
-	}
-	return true
-}
-
 // capAcceptedSeedBytes bounds a delta's fresh units to the claim wire budget
 // before they are hex-copied into campaign JSON.
 func capAcceptedSeedBytes(in [][]byte) [][]byte {
@@ -188,6 +174,117 @@ func fmtItem(item any) string {
 			return ""
 		}
 		return string(b)
+	}
+}
+
+// foldSharedSeedCorpus keeps the campaign's own units at the front and still
+// makes room for seeds that just showed up in the shared cache. Appending and
+// then trimming would drop those seeds once the campaign already holds a full
+// wire budget, and the stamp would then skip them forever.
+func foldSharedSeedCorpus(existing any, shared [][]byte) []any {
+	maxItems, maxBytes := seedCorpusWireCaps()
+	if maxItems < 1 {
+		maxItems = 1
+	}
+	seen := map[string]struct{}{}
+	type piece struct {
+		item any
+		n    int
+	}
+	var own, boots []piece
+	for _, item := range corpusItems(existing) {
+		n := seedCorpusItemWireBytes(item)
+		if n <= 0 {
+			continue
+		}
+		b, ok := seedItemBytes(item)
+		if !ok {
+			key := "raw:" + strings.TrimSpace(strings.ToLower(fmtItem(item)))
+			if key == "raw:" {
+				continue
+			}
+			if _, dup := seen[key]; dup {
+				continue
+			}
+			seen[key] = struct{}{}
+			own = append(own, piece{item: item, n: n})
+			continue
+		}
+		key := hex.EncodeToString(b)
+		if _, dup := seen[key]; dup {
+			continue
+		}
+		seen[key] = struct{}{}
+		if genericBootSeed(b) {
+			boots = append(boots, piece{item: item, n: n})
+			continue
+		}
+		own = append(own, piece{item: item, n: n})
+	}
+	var fresh []piece
+	for _, b := range shared {
+		if len(b) == 0 || genericBootSeed(b) {
+			continue
+		}
+		key := hex.EncodeToString(b)
+		if _, dup := seen[key]; dup {
+			continue
+		}
+		seen[key] = struct{}{}
+		item := hex.EncodeToString(b)
+		fresh = append(fresh, piece{item: item, n: len(item)})
+		if len(fresh) >= maxItems {
+			break
+		}
+	}
+	sum := func(ps []piece) int {
+		n := 0
+		for _, p := range ps {
+			n += p.n
+		}
+		return n
+	}
+	// Drop the oldest own units first, then the oldest of the new ones. The
+	// front own unit stays while a new seed still fits beside it.
+	for len(fresh) > 0 && (len(own)+len(fresh) > maxItems || sum(own)+sum(fresh) > maxBytes) {
+		if len(own) > 1 {
+			own = own[:len(own)-1]
+			continue
+		}
+		if len(fresh) > 1 {
+			fresh = fresh[:len(fresh)-1]
+			continue
+		}
+		if len(own) == 1 && sum(own)+sum(fresh) > maxBytes {
+			fresh = nil
+		}
+		break
+	}
+	out := make([]any, 0, len(own)+len(fresh)+len(boots))
+	for _, p := range own {
+		out = append(out, p.item)
+	}
+	for _, p := range fresh {
+		out = append(out, p.item)
+	}
+	for _, p := range boots {
+		out = append(out, p.item)
+	}
+	return TrimSeedByteCorpusForWire(out)
+}
+
+func corpusItems(raw any) []any {
+	switch list := raw.(type) {
+	case []any:
+		return list
+	case []string:
+		out := make([]any, len(list))
+		for i, item := range list {
+			out[i] = item
+		}
+		return out
+	default:
+		return nil
 	}
 }
 

@@ -366,4 +366,191 @@ func TestLibFuzzerSeedDir(t *testing.T) {
 	if got != want {
 		t.Fatalf("got %q want %q", got, want)
 	}
+	if LibFuzzerSeedDir("/repo", "../jsmn") != filepath.Join("/repo", ".cache", "hunt-lf-seeds", "_") {
+		t.Fatal("path-like target id must not leave the cache parent")
+	}
+}
+
+func TestExportLibFuzzerSeedsReplacesOldestAtCap(t *testing.T) {
+	dir := t.TempDir()
+	seedDir := LibFuzzerSeedDir(dir, "mpack")
+	if err := os.MkdirAll(seedDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	oldest := filepath.Join(seedDir, fmt.Sprintf("lf-%032x.bin", 0))
+	now := time.Now()
+	for i := 0; i < sharedSeedFileCap; i++ {
+		path := filepath.Join(seedDir, fmt.Sprintf("lf-%032x.bin", i))
+		if err := os.WriteFile(path, []byte{byte(i + 1)}, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		mt := now.Add(-time.Hour)
+		if i == 0 {
+			mt = now.Add(-48 * time.Hour)
+		}
+		if err := os.Chtimes(path, mt, mt); err != nil {
+			t.Fatal(err)
+		}
+	}
+	outside := filepath.Join(dir, "outside.txt")
+	if err := os.WriteFile(outside, []byte("secret"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	planted := filepath.Join(seedDir, "planted")
+	if err := os.Symlink(outside, planted); err != nil {
+		t.Fatal(err)
+	}
+	n, err := ExportLibFuzzerSeeds(dir, "mpack", [][]byte{[]byte("one-more")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("wrote %d, want the new unit in place of the oldest", n)
+	}
+	if _, err := os.Lstat(oldest); !os.IsNotExist(err) {
+		t.Fatalf("oldest seed still present: %v", err)
+	}
+	if _, err := os.Lstat(planted); err != nil {
+		t.Fatalf("planted symlink removed: %v", err)
+	}
+	got, err := os.ReadFile(outside)
+	if err != nil || string(got) != "secret" {
+		t.Fatalf("symlink was followed: %q err=%v", got, err)
+	}
+	ents, err := os.ReadDir(seedDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	regular := 0
+	for _, ent := range ents {
+		st, lerr := os.Lstat(filepath.Join(seedDir, ent.Name()))
+		if lerr == nil && st.Mode().IsRegular() {
+			regular++
+		}
+	}
+	if regular != sharedSeedFileCap {
+		t.Fatalf("regular seeds=%d want %d", regular, sharedSeedFileCap)
+	}
+}
+
+func TestSampleLibFuzzerSeedWindowRotates(t *testing.T) {
+	dir := t.TempDir()
+	seedDir := LibFuzzerSeedDir(dir, "mpack")
+	if err := os.MkdirAll(seedDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	const n = 120
+	for i := 0; i < n; i++ {
+		path := filepath.Join(seedDir, fmt.Sprintf("unit-%03d.bin", i))
+		if err := os.WriteFile(path, []byte(fmt.Sprintf("unit-%03d", i)), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		mt := now.Add(time.Duration(i) * time.Second)
+		if err := os.Chtimes(path, mt, mt); err != nil {
+			t.Fatal(err)
+		}
+	}
+	outside := filepath.Join(dir, "outside.txt")
+	if err := os.WriteFile(outside, []byte("secret"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(seedDir, "planted")); err != nil {
+		t.Fatal(err)
+	}
+	a, err := SampleLibFuzzerSeedWindow(dir, "mpack", 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := SampleLibFuzzerSeedWindow(dir, "mpack", 1, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(a) != rankedLibFuzzerSeedCap || len(b) != rankedLibFuzzerSeedCap {
+		t.Fatalf("windows %d and %d, want %d", len(a), len(b), rankedLibFuzzerSeedCap)
+	}
+	has := func(set [][]byte, body string) bool {
+		for _, b := range set {
+			if string(b) == body {
+				return true
+			}
+		}
+		return false
+	}
+	if !has(a, "unit-119") || !has(b, "unit-119") {
+		t.Fatal("newest unit missing from a claim window")
+	}
+	if has(a, "secret") || has(b, "secret") {
+		t.Fatal("symlink target entered the window")
+	}
+	if !has(a, "unit-047") || has(b, "unit-047") {
+		t.Fatal("older unit did not stay on the first shard's slice")
+	}
+	if has(a, "unit-017") || !has(b, "unit-017") {
+		t.Fatal("next shard did not take the following slice")
+	}
+}
+
+func TestSharedSeedGenerationIgnoresSymlink(t *testing.T) {
+	dir := t.TempDir()
+	seedDir := LibFuzzerSeedDir(dir, "mpack")
+	if err := os.MkdirAll(seedDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(seedDir, "ok.bin"), []byte("kept"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	before, err := SharedSeedGeneration(dir, "mpack")
+	if err != nil || before == "0:0:0:0" {
+		t.Fatalf("gen %q err=%v", before, err)
+	}
+	outside := filepath.Join(dir, "outside.txt")
+	if err := os.WriteFile(outside, []byte("secret"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(seedDir, "planted")); err != nil {
+		t.Fatal(err)
+	}
+	after, err := SharedSeedGeneration(dir, "mpack")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after != before {
+		t.Fatalf("symlink changed generation %q -> %q", before, after)
+	}
+	if err := os.WriteFile(filepath.Join(seedDir, "more.bin"), []byte("more"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	grown, err := SharedSeedGeneration(dir, "mpack")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if grown == before {
+		t.Fatal("new seed did not change generation")
+	}
+}
+
+func TestLoadLibFuzzerSeedFilesSkipsSymlink(t *testing.T) {
+	dir := t.TempDir()
+	seedDir := LibFuzzerSeedDir(dir, "mpack")
+	if err := os.MkdirAll(seedDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(dir, "outside.txt")
+	if err := os.WriteFile(outside, []byte("secret-bytes"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(seedDir, "seed.bin")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(seedDir, "ok.bin"), []byte("kept"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := LoadLibFuzzerSeedFiles(seedDir, 8)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || string(got[0]) != "kept" {
+		t.Fatalf("loaded %q", got)
+	}
 }

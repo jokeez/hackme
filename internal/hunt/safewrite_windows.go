@@ -3,6 +3,7 @@
 package hunt
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -30,6 +31,17 @@ func writeNewFileBeneath(_ string, path string, data []byte, perm os.FileMode) e
 func createFileBeneath(_ string, path string, perm os.FileMode) (*os.File, error) {
 	_ = os.Remove(path)
 	return os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
+}
+
+func removeRegularBeneath(_ string, path string) error {
+	st, err := os.Lstat(path)
+	if err != nil {
+		return err
+	}
+	if !st.Mode().IsRegular() {
+		return fmt.Errorf("hunt safewrite: refuse to remove non-regular %s", path)
+	}
+	return os.Remove(path)
 }
 
 func mkdirAllBeneath(_ string, dir string, perm os.FileMode) error {

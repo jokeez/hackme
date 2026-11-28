@@ -20,6 +20,7 @@ import (
 	"hackme/internal/fuzzengine"
 	"hackme/internal/fuzzescrow"
 	"hackme/internal/fuzzingcli"
+	"hackme/internal/fuzzreport"
 	"hackme/internal/logsafe"
 	"hackme/internal/poolfuzz"
 	"hackme/internal/poolsync"
@@ -1678,12 +1679,20 @@ func (a *app) handleFuzzCampaignCorpus(w http.ResponseWriter, r *http.Request, c
 		return
 	}
 	defer rows.Close()
+	sealed := false
+	if c, err := a.getFuzzCampaign(r.Context(), campaignID); err == nil {
+		sealed = fuzzreport.Pub(c.Config) != nil
+	}
 	out := make([]fuzzCorpusRow, 0, limit)
 	for rows.Next() {
 		var row fuzzCorpusRow
 		if err := rows.Scan(&row.CampaignID, &row.InputSHA256, &row.FirstSeenAt, &row.LastSeenAt, &row.Hits, &row.LastFinding, &row.ArtifactPath); err != nil {
 			writeAPIError(w, http.StatusInternalServerError, "corpus_decode_failed", "corpus decode failed", nil)
 			return
+		}
+		if sealed {
+			row.InputSHA256 = ""
+			row.ArtifactPath = ""
 		}
 		out = append(out, row)
 	}
@@ -1714,6 +1723,10 @@ func (a *app) handleFuzzCampaignCrashes(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 	defer rows.Close()
+	sealed := false
+	if c, err := a.getFuzzCampaign(r.Context(), campaignID); err == nil {
+		sealed = fuzzreport.Pub(c.Config) != nil
+	}
 	out := make([]fuzzFinding, 0, limit)
 	for rows.Next() {
 		var f fuzzFinding
@@ -1724,6 +1737,9 @@ func (a *app) handleFuzzCampaignCrashes(w http.ResponseWriter, r *http.Request, 
 		}
 		f.Detail = parseMapJSON(detail)
 		out = append(out, f)
+	}
+	if sealed {
+		out = sealedFindingRows(out)
 	}
 	writeJSON(w, map[string]any{
 		"ok":          true,
@@ -2309,6 +2325,9 @@ func (a *app) handleFuzzCampaignIngestFindings(w http.ResponseWriter, r *http.Re
 		writeAPIError(w, http.StatusInternalServerError, "campaign_lookup_failed", "campaign lookup failed", nil)
 		return
 	}
+	var cfgJSON string
+	_ = tx.QueryRowContext(r.Context(), `SELECT COALESCE(config_json,'{}') FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&cfgJSON)
+	ingestCfg := parseMapJSON(cfgJSON)
 	now := time.Now().Unix()
 	inserted := 0
 	dupID := 0
@@ -2327,6 +2346,8 @@ func (a *app) handleFuzzCampaignIngestFindings(w http.ResponseWriter, r *http.Re
 		inputSHA := strings.TrimSpace(strings.ToLower(it.InputSHA256))
 		artifact := sanitizeFindingText(it.Artifact, 1024)
 		repro := sanitizeFindingText(it.ReproCmd, 4096)
+		var detailJSON string
+		title, inputSHA, artifact, repro, detailJSON = sealStoredFinding(campaignID, ingestCfg, title, inputSHA, artifact, repro, it.Detail)
 		var existsNatural int
 		if err := tx.QueryRowContext(r.Context(),
 			`SELECT 1 FROM fuzz_findings
@@ -2341,7 +2362,7 @@ func (a *app) handleFuzzCampaignIngestFindings(w http.ResponseWriter, r *http.Re
 			 (id, campaign_id, finding_type, severity, title, input_sha256, artifact_path, repro_cmd, detail_json, created_at)
 			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			id, campaignID, ftype, sev, title, inputSHA,
-			artifact, repro, marshalMapJSON(it.Detail), now); err != nil {
+			artifact, repro, detailJSON, now); err != nil {
 			// Continue on duplicate IDs to keep ingestion resilient.
 			if sqliteErrKind(err) == "unique" {
 				dupID++
@@ -2798,7 +2819,7 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 		"findings_mirror_error":  poolFindingsPullErr,
 		"findings_mirror_ok":     poolFindingsPullErr == "",
 	}
-	return map[string]any{
+	report := map[string]any{
 		"ok":                 true,
 		"report_version":     "fuzz_report_v2",
 		"fuzz_engine":        engineMeta,
@@ -2902,7 +2923,8 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 			"runs_done":               runsDone,
 		},
 		"findings": findings,
-	}, nil
+	}
+	return redactSealedReport(c, report), nil
 }
 
 func (a *app) handleFuzzCampaignReport(w http.ResponseWriter, r *http.Request, campaignID string) {

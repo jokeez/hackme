@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"hackme/internal/fuzzengine"
 	"hackme/internal/pathsafe"
@@ -19,6 +20,13 @@ const (
 	// rankedLibFuzzerSeedCap matches the claim wire item budget (96). A smaller
 	// cap dropped freshly exported coverage units before first-fit trim ran.
 	rankedLibFuzzerSeedCap = 96
+	// sharedSeedFileCap is how many units one catalog target remembers on disk.
+	// A claim still ships only rankedLibFuzzerSeedCap, but a later shard can
+	// take an older slice instead of everyone mutating the same newest 96.
+	sharedSeedFileCap = 384
+	// sharedSeedByteCap stops one catalog target from filling the disk.
+	// 384 typical seeds fit; a multi-megabyte unit still yields to eviction.
+	sharedSeedByteCap = 8 << 20
 )
 
 // LibFuzzerSeedDir is the on-disk import path for libFuzzer corpus files per catalog target.
@@ -27,6 +35,155 @@ func LibFuzzerSeedDir(repoRoot, targetID string) string {
 		repoRoot = RepoRoot()
 	}
 	return filepath.Join(repoRoot, ".cache", "hunt-lf-seeds", catalogTargetSegment(targetID))
+}
+
+// loadableSeedName is the set of directory entries LoadLibFuzzerSeedFiles will
+// read. The generation fingerprint must count the same names, or a file the
+// loader skips would move the stamp without ever entering a campaign.
+func loadableSeedName(name string) bool {
+	if name == "" || name == "." || name == ".." || strings.Contains(name, string(filepath.Separator)) {
+		return false
+	}
+	low := strings.ToLower(name)
+	if strings.HasPrefix(low, ".") || strings.HasPrefix(low, "crash-") || low == "readme" {
+		return false
+	}
+	return true
+}
+
+// SharedSeedGeneration is a cheap fingerprint of the catalog seed cache.
+// It stats regular files only (no content read, no symlink follow). A new or
+// removed seed changes it; a planted symlink does not.
+func SharedSeedGeneration(repoRoot, targetID string) (string, error) {
+	dir := LibFuzzerSeedDir(repoRoot, targetID)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "0:0:0:0", nil
+		}
+		return "", err
+	}
+	var n int
+	var total int64
+	var maxMod, sumMod int64
+	for _, ent := range entries {
+		name := ent.Name()
+		if !loadableSeedName(name) {
+			continue
+		}
+		st, lerr := os.Lstat(filepath.Join(dir, name))
+		if lerr != nil || !st.Mode().IsRegular() {
+			continue
+		}
+		sz := st.Size()
+		if sz <= 0 || sz > libFuzzerSeedMaxBytes {
+			continue
+		}
+		n++
+		total += sz
+		mt := st.ModTime().UnixNano()
+		sumMod += mt
+		if mt > maxMod {
+			maxMod = mt
+		}
+	}
+	return fmt.Sprintf("%d:%d:%d:%d", n, total, maxMod, sumMod), nil
+}
+
+// SampleLibFuzzerSeedWindow reads one claim-sized slice of the shared cache.
+// The newest third is on every claim. The rest rotates by shift, so two shards
+// do not spend the wall mutating the same older units. Files past the wire
+// budget stay on disk. A symlink is not a seed and is not followed.
+func SampleLibFuzzerSeedWindow(repoRoot, targetID string, shift uint64, limit int) ([][]byte, error) {
+	if limit <= 0 {
+		limit = rankedLibFuzzerSeedCap
+	}
+	dir := LibFuzzerSeedDir(repoRoot, targetID)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	root := strings.TrimSpace(repoRoot)
+	if root == "" {
+		root = RepoRoot()
+	}
+	type seedName struct {
+		name string
+		mod  int64
+		ord  int
+	}
+	hits := make([]seedName, 0, len(entries))
+	for _, ent := range entries {
+		name := ent.Name()
+		if !loadableSeedName(name) {
+			continue
+		}
+		abs, jerr := SafeJoinUnder(dir, name)
+		if jerr != nil {
+			continue
+		}
+		st, ok := isRegularCorpusFileUnder(root, abs)
+		if !ok || st.Size() <= 0 || st.Size() > libFuzzerSeedMaxBytes {
+			continue
+		}
+		hits = append(hits, seedName{name: name, mod: st.ModTime().UnixNano(), ord: len(hits)})
+	}
+	sort.SliceStable(hits, func(i, j int) bool {
+		if hits[i].mod == hits[j].mod {
+			return hits[i].ord < hits[j].ord
+		}
+		return hits[i].mod > hits[j].mod
+	})
+	if len(hits) > sharedSeedFileCap {
+		hits = hits[:sharedSeedFileCap]
+	}
+	pinN := limit / 3
+	if pinN < 1 {
+		pinN = 1
+	}
+	if pinN > len(hits) {
+		pinN = len(hits)
+	}
+	selected := append([]seedName(nil), hits[:pinN]...)
+	if len(hits) > limit {
+		rest := hits[pinN:]
+		need := limit - pinN
+		if need > len(rest) {
+			need = len(rest)
+		}
+		start := 0
+		if len(rest) > 0 && need > 0 {
+			start = int((shift * uint64(need)) % uint64(len(rest)))
+		}
+		for i := 0; i < need; i++ {
+			selected = append(selected, rest[(start+i)%len(rest)])
+		}
+	} else if pinN < len(hits) {
+		selected = append(selected, hits[pinN:]...)
+	}
+	out := make([][]byte, 0, len(selected))
+	seen := map[string]struct{}{}
+	for _, h := range selected {
+		abs, jerr := SafeJoinUnder(dir, h.name)
+		if jerr != nil {
+			continue
+		}
+		b, rerr := ReadRegularCorpusFileUnder(root, abs, libFuzzerSeedMaxBytes)
+		if rerr != nil || len(b) == 0 || genericBootSeed(b) {
+			continue
+		}
+		sum := sha256.Sum256(b)
+		key := hex.EncodeToString(sum[:])
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, b)
+	}
+	return out, nil
 }
 
 // LoadLibFuzzerSeedFiles reads seed inputs from a libFuzzer corpus directory.
@@ -80,19 +237,20 @@ func LoadLibFuzzerSeedFiles(dir string, maxSeeds int) ([][]byte, error) {
 			continue
 		}
 		name := ent.Name()
-		low := strings.ToLower(name)
-		if strings.HasPrefix(low, ".") || strings.HasPrefix(low, "crash-") || low == "readme" {
+		if !loadableSeedName(name) {
 			continue
 		}
 		abs, jerr := SafeJoinUnder(dir, name)
 		if jerr != nil {
 			continue
 		}
-		st, serr := SafeStatUnder(root, abs)
-		if serr != nil || st.IsDir() || st.Size() <= 0 || st.Size() > libFuzzerSeedMaxBytes {
+		// Lstat, then O_NOFOLLOW. SafeStatUnder uses Stat and would ship the
+		// target of a planted symlink as the next campaign's seed.
+		st, ok := isRegularCorpusFileUnder(root, abs)
+		if !ok || st.Size() <= 0 || st.Size() > libFuzzerSeedMaxBytes {
 			continue
 		}
-		b, rerr := SafeReadFileUnder(root, abs)
+		b, rerr := ReadRegularCorpusFileUnder(root, abs, libFuzzerSeedMaxBytes)
 		if rerr != nil || len(b) == 0 {
 			continue
 		}
@@ -335,6 +493,10 @@ func ExportLibFuzzerSeeds(repoRoot, targetID string, seeds [][]byte) (int, error
 	if err := mkdirAllBeneath(parent, dir, 0o755); err != nil {
 		return 0, err
 	}
+	have, err := listSharedSeedFiles(dir)
+	if err != nil {
+		return 0, err
+	}
 	written := 0
 	for _, b := range seeds {
 		if len(b) == 0 || len(b) > libFuzzerSeedMaxBytes {
@@ -343,14 +505,98 @@ func ExportLibFuzzerSeeds(repoRoot, targetID string, seeds [][]byte) (int, error
 		h := sha256.Sum256(b)
 		name := fmt.Sprintf("lf-%s.bin", hex.EncodeToString(h[:16]))
 		path := filepath.Join(dir, name)
-		// Lstat, not Stat: a symlink whose target exists must not count as "already stored".
 		if st, err := os.Lstat(path); err == nil && st.Mode().IsRegular() {
 			continue
+		}
+		have, err = evictSharedSeeds(dir, have, len(b))
+		if err != nil {
+			return written, err
+		}
+		if sharedSeedFull(have, len(b)) {
+			break
 		}
 		if err := writeFileBeneath(dir, path, b, 0o600); err != nil {
 			return written, err
 		}
+		have = append(have, sharedSeedFile{name: name, size: len(b), mod: time.Now().UnixNano()})
 		written++
 	}
 	return written, nil
+}
+
+type sharedSeedFile struct {
+	name string
+	size int
+	mod  int64
+}
+
+func sharedSeedName(name string) bool {
+	const prefix, suffix = "lf-", ".bin"
+	if !strings.HasPrefix(name, prefix) || !strings.HasSuffix(name, suffix) {
+		return false
+	}
+	hexPart := strings.TrimSuffix(strings.TrimPrefix(name, prefix), suffix)
+	if len(hexPart) != 32 {
+		return false
+	}
+	for _, r := range hexPart {
+		switch {
+		case r >= '0' && r <= '9', r >= 'a' && r <= 'f':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func listSharedSeedFiles(dir string) ([]sharedSeedFile, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	out := make([]sharedSeedFile, 0, len(entries))
+	for _, ent := range entries {
+		if !sharedSeedName(ent.Name()) {
+			continue
+		}
+		st, lerr := os.Lstat(filepath.Join(dir, ent.Name()))
+		if lerr != nil || !st.Mode().IsRegular() {
+			continue
+		}
+		out = append(out, sharedSeedFile{name: ent.Name(), size: int(st.Size()), mod: st.ModTime().UnixNano()})
+	}
+	return out, nil
+}
+
+func sharedSeedFull(have []sharedSeedFile, next int) bool {
+	if len(have) >= sharedSeedFileCap {
+		return true
+	}
+	used := 0
+	for _, f := range have {
+		used += f.size
+	}
+	return used > 0 && used+next > sharedSeedByteCap
+}
+
+// evictSharedSeeds drops the oldest content-addressed seeds until next fits.
+// Names that are not lf-<32 hex>.bin stay, including a planted symlink.
+func evictSharedSeeds(dir string, have []sharedSeedFile, next int) ([]sharedSeedFile, error) {
+	for sharedSeedFull(have, next) && len(have) > 0 {
+		old := 0
+		for i := 1; i < len(have); i++ {
+			if have[i].mod < have[old].mod {
+				old = i
+			}
+		}
+		path := filepath.Join(dir, have[old].name)
+		if err := removeRegularBeneath(dir, path); err != nil {
+			return have, err
+		}
+		have = append(have[:old], have[old+1:]...)
+	}
+	return have, nil
 }

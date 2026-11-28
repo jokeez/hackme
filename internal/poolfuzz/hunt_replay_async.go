@@ -547,15 +547,11 @@ func (s *Service) runHuntReplayJob(ctx context.Context, job huntReplayJob, now i
 	if !IsHuntCampaign(cfg) {
 		return fmt.Errorf("poolfuzz: replay job not hunt campaign")
 	}
-	// Match claim-time L2 merge so mutating execs that prefer seed_byte_corpus stay
-	// byte-identical to workers that received the post-merge corpus on the claim.
-	// The same cheap check as claim: skip the directory walk when a coverage
-	// unit is already in the campaign config.
+	// Same generation check as claim, so replay mutates the corpus the worker
+	// was given. A matching stamp skips the file read.
 	if hunt.HuntCorpusGuided(cfg) {
-		if targetID := strings.TrimSpace(jsonString(cfg["upstream_target_id"])); targetID != "" && claimSeedCorpusNeedsL2Merge(cfg) {
-			if _, err := hunt.MergeLibFuzzerSeedCorpus(cfg, hunt.RepoRoot(), targetID); err != nil {
-				return err
-			}
+		if err := s.mergeCatalogSeedCache(ctx, job.CampaignID, cfg); err != nil {
+			return err
 		}
 		applySeedByteCorpusWireTrim(cfg)
 	}
@@ -738,7 +734,7 @@ func (s *Service) finalizeHuntSubmit(ctx context.Context, p finalizeHuntSubmitPa
 			} else {
 				submitReq.InputBytes = p.expectedB
 			}
-			if skip, serr := s.crashFindingAlreadyKnown(ctx, p.req.CampaignID, submitReq); serr != nil {
+			if skip, serr := s.crashFindingAlreadyKnown(ctx, p.req.CampaignID, submitReq, p.cfg); serr != nil {
 				return serr
 			} else if skip {
 				novelFinding = false
@@ -759,7 +755,7 @@ func (s *Service) finalizeHuntSubmit(ctx context.Context, p finalizeHuntSubmitPa
 		 WHERE id=? AND campaign_id=?
 		   AND status=?
 		   AND lease_owner=CASE WHEN ?='leased' THEN ? ELSE lease_owner END`,
-			boolToInt(p.pass), p.req.DurationMS, strings.TrimSpace(p.req.Trap), p.now,
+			boolToInt(p.pass), p.req.DurationMS, sealedWorkNote(p.cfg, p.req.Trap), p.now,
 			minerBind, runSettleStatus, runSettleStatus,
 			p.req.ItemID, p.req.CampaignID, statusWhere, statusWhere, p.req.WorkerID)
 		if err != nil {

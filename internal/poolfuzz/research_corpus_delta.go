@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"hackme/internal/fuzzengine"
+	"hackme/internal/fuzzreport"
 	"hackme/internal/fuzzupstream"
 	"hackme/internal/hunt"
 )
@@ -115,11 +116,15 @@ func (s *Service) campaignCrashBucketKnown(ctx context.Context, campaignID, buck
 		return false, nil
 	}
 	var n int
+	dedup := fuzzreport.BucketToken(campaignID, bucket)
 	err := s.DB.QueryRowContext(ctx,
 		`SELECT COUNT(1) FROM fuzz_findings
 		 WHERE campaign_id=? AND json_valid(detail_json)
-		   AND json_extract(detail_json,'$.stable_crash_key')=?`,
-		campaignID, bucket).Scan(&n)
+		   AND (
+		     json_extract(detail_json,'$.stable_crash_key')=?
+		     OR json_extract(detail_json,'$.crash_dedup')=?
+		   )`,
+		campaignID, bucket, dedup).Scan(&n)
 	if err != nil {
 		return false, err
 	}
@@ -237,8 +242,11 @@ func (s *Service) AcceptResearchCorpusDelta(ctx context.Context, req ResearchCor
 			Input: u, InputBytes: append([]byte(nil), b...), Energy: energy, Edge: seed.Edge, Path: seed.Path,
 		})
 	}
-	if err := s.UpsertNamespaceCorpusSeeds(ctx, ns, seeds, now); err != nil {
-		return out, err
+	shareNS := sharesResearchNamespace(cfg)
+	if shareNS {
+		if err := s.UpsertNamespaceCorpusSeeds(ctx, ns, seeds, now); err != nil {
+			return out, err
+		}
 	}
 	out.SeedsAccepted = len(seeds)
 	if isHunt {
@@ -246,11 +254,13 @@ func (s *Service) AcceptResearchCorpusDelta(ctx context.Context, req ResearchCor
 			return out, err
 		}
 	}
-	// Claim wire reads campaign seed_byte_corpus (then L2). Pool rows alone are
-	// dropped when claim-light omits corpus_seeds or first-fit keeps boot starters.
+	// Claim wire reads campaign seed_byte_corpus (then the shared catalog cache).
+	// Pool rows alone are dropped when claim-light omits corpus_seeds or
+	// first-fit keeps boot starters. Inventory orders do not publish into that
+	// cache: catalogSharedTarget is empty for them.
 	l2Target := ""
 	if isHunt {
-		l2Target = targetID
+		l2Target = catalogSharedTarget(cfg)
 	}
 	if err := s.persistAcceptedClaimSeeds(ctx, campaignID, l2Target, seeds); err != nil {
 		return out, err
@@ -362,9 +372,11 @@ func (s *Service) AcceptResearchCorpusDelta(ctx context.Context, req ResearchCor
 		if err := s.upsertPoolCorpusSeed(ctx, campaignID, u, crashB, 12, 0, 0, true, now); err != nil {
 			return out, err
 		}
-		_ = s.UpsertNamespaceCorpusSeeds(ctx, ns, []fuzzengine.PoolCorpusSeed{{
-			Input: u, InputBytes: crashB, Energy: 8,
-		}}, now)
+		if shareNS {
+			_ = s.UpsertNamespaceCorpusSeeds(ctx, ns, []fuzzengine.PoolCorpusSeed{{
+				Input: u, InputBytes: crashB, Energy: 8,
+			}}, now)
+		}
 	}
 	return out, nil
 }
@@ -422,6 +434,9 @@ func (s *Service) persistAcceptedClaimSeeds(ctx context.Context, campaignID, l2T
 	if _, err := hunt.ExportLibFuzzerSeeds(hunt.RepoRoot(), l2Target, fresh); err != nil {
 		return fmt.Errorf("poolfuzz: export accepted seeds to L2: %w", err)
 	}
+	// Do not stamp the cache here. The directory may already hold another
+	// campaign's unit that this config has not absorbed. The next claim folds
+	// that generation and stamps only then.
 	return nil
 }
 

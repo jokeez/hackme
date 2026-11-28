@@ -10,6 +10,7 @@ import (
 
 	"hackme/internal/fuzzengine"
 	"hackme/internal/fuzzingcli"
+	"hackme/internal/fuzzreport"
 	"hackme/internal/hunt"
 )
 
@@ -378,6 +379,11 @@ func (s *Service) observePoolCorpusNovelty(ctx context.Context, campaignID strin
 	if len(inputBytes) > 0 {
 		inputBytes = fuzzengine.CompactCorpusSeed(inputBytes, fuzzengine.ParseMaxInputBytes(cfg))
 	}
+	// A sealed campaign keeps the crashing bytes only inside the customer box.
+	// The corpus row would otherwise be a second plaintext copy.
+	if crash && fuzzreport.Pub(cfg) != nil {
+		inputBytes = nil
+	}
 	if err := s.upsertPoolCorpusSeed(ctx, campaignID, input, inputBytes, energy, edge, path, crash, now); err != nil {
 		return err
 	}
@@ -497,13 +503,11 @@ func (s *Service) EnsureGuidedCorpusSeeded(ctx context.Context, campaignID strin
 		return nil
 	}
 	if IsHuntCampaign(cfg) {
-		targetID := strings.TrimSpace(jsonString(cfg["upstream_target_id"]))
-		// Claim hot path: do not walk the L2 seed directory when the campaign
-		// JSON already holds a coverage unit. No harness compile lives here.
-		if targetID != "" && claimSeedCorpusNeedsL2Merge(cfg) {
-			if _, err := hunt.MergeLibFuzzerSeedCorpus(cfg, hunt.RepoRoot(), targetID); err != nil {
-				return err
-			}
+		// Catalog orders refresh the shared seed cache when its generation
+		// changes. Inventory orders are not catalog and never enter here.
+		// A matching generation is one directory stat, not a content read.
+		if err := s.mergeCatalogSeedCache(ctx, campaignID, cfg); err != nil {
+			return err
 		}
 	} else if packID := strings.TrimSpace(jsonString(cfg["guard_pack"])); packID != "" && digPackageKey(cfg) == "deep" {
 		// Deep SKU only — smoke/audit Dig must not pull research/external seed caches.

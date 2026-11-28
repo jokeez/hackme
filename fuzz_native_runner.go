@@ -7,6 +7,7 @@ import (
 
 	"hackme/internal/fuzzengine"
 	"hackme/internal/fuzznative"
+	"hackme/internal/fuzzreport"
 )
 
 func (a *app) fuzzNativeBridgeTick(ctx context.Context) error {
@@ -30,6 +31,10 @@ func (a *app) fuzzNativeBridgeTick(ctx context.Context) error {
 
 func (a *app) enqueueNativeReproForFinding(ctx context.Context, campaignID, findingID, inputSHA string, input []byte, cfg map[string]any, now int64) {
 	if a == nil || a.db == nil || !fuzzengine.NativeReproEnabled(cfg) {
+		return
+	}
+	if fuzzreport.Pub(cfg) != nil {
+		_ = fuzznative.QueueJob(ctx, a.db, findingID, campaignID, inputSHA, nil, "", "", now)
 		return
 	}
 	guard := toString(cfg["guard_name"])
