@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"hackme/internal/fuzzengine"
 	"hackme/internal/pathsafe"
@@ -92,11 +93,13 @@ func LoadLibFuzzerSeedFiles(dir string, maxSeeds int) ([][]byte, error) {
 		if jerr != nil {
 			continue
 		}
-		st, serr := SafeStatUnder(root, abs)
-		if serr != nil || st.IsDir() || st.Size() <= 0 || st.Size() > libFuzzerSeedMaxBytes {
+		// Lstat, then O_NOFOLLOW. SafeStatUnder uses Stat and would ship the
+		// target of a planted symlink as the next campaign's seed.
+		st, ok := isRegularCorpusFileUnder(root, abs)
+		if !ok || st.Size() <= 0 || st.Size() > libFuzzerSeedMaxBytes {
 			continue
 		}
-		b, rerr := SafeReadFileUnder(root, abs)
+		b, rerr := ReadRegularCorpusFileUnder(root, abs, libFuzzerSeedMaxBytes)
 		if rerr != nil || len(b) == 0 {
 			continue
 		}
@@ -339,7 +342,7 @@ func ExportLibFuzzerSeeds(repoRoot, targetID string, seeds [][]byte) (int, error
 	if err := mkdirAllBeneath(parent, dir, 0o755); err != nil {
 		return 0, err
 	}
-	files, used, err := sharedSeedUsage(dir)
+	have, err := listSharedSeedFiles(dir)
 	if err != nil {
 		return 0, err
 	}
@@ -348,44 +351,101 @@ func ExportLibFuzzerSeeds(repoRoot, targetID string, seeds [][]byte) (int, error
 		if len(b) == 0 || len(b) > libFuzzerSeedMaxBytes {
 			continue
 		}
-		if files >= rankedLibFuzzerSeedCap || (used > 0 && used+len(b) > sharedSeedByteCap) {
-			break
-		}
 		h := sha256.Sum256(b)
 		name := fmt.Sprintf("lf-%s.bin", hex.EncodeToString(h[:16]))
 		path := filepath.Join(dir, name)
-		// Lstat, not Stat: a symlink whose target exists must not count as "already stored".
 		if st, err := os.Lstat(path); err == nil && st.Mode().IsRegular() {
 			continue
+		}
+		have, err = evictSharedSeeds(dir, have, len(b))
+		if err != nil {
+			return written, err
+		}
+		if sharedSeedFull(have, len(b)) {
+			break
 		}
 		if err := writeFileBeneath(dir, path, b, 0o600); err != nil {
 			return written, err
 		}
-		files++
-		used += len(b)
+		have = append(have, sharedSeedFile{name: name, size: len(b), mod: time.Now().UnixNano()})
 		written++
 	}
 	return written, nil
 }
 
-// sharedSeedUsage counts regular files only. A symlink is not a seed and is
-// not followed, so a planted link cannot inflate the budget or hide a file
-// outside the cache.
-func sharedSeedUsage(dir string) (files, bytes int, err error) {
+type sharedSeedFile struct {
+	name string
+	size int
+	mod  int64
+}
+
+func sharedSeedName(name string) bool {
+	const prefix, suffix = "lf-", ".bin"
+	if !strings.HasPrefix(name, prefix) || !strings.HasSuffix(name, suffix) {
+		return false
+	}
+	hexPart := strings.TrimSuffix(strings.TrimPrefix(name, prefix), suffix)
+	if len(hexPart) != 32 {
+		return false
+	}
+	for _, r := range hexPart {
+		switch {
+		case r >= '0' && r <= '9', r >= 'a' && r <= 'f':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func listSharedSeedFiles(dir string) ([]sharedSeedFile, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return 0, 0, nil
+			return nil, nil
 		}
-		return 0, 0, err
+		return nil, err
 	}
+	out := make([]sharedSeedFile, 0, len(entries))
 	for _, ent := range entries {
+		if !sharedSeedName(ent.Name()) {
+			continue
+		}
 		st, lerr := os.Lstat(filepath.Join(dir, ent.Name()))
 		if lerr != nil || !st.Mode().IsRegular() {
 			continue
 		}
-		files++
-		bytes += int(st.Size())
+		out = append(out, sharedSeedFile{name: ent.Name(), size: int(st.Size()), mod: st.ModTime().UnixNano()})
 	}
-	return files, bytes, nil
+	return out, nil
+}
+
+func sharedSeedFull(have []sharedSeedFile, next int) bool {
+	if len(have) >= rankedLibFuzzerSeedCap {
+		return true
+	}
+	used := 0
+	for _, f := range have {
+		used += f.size
+	}
+	return used > 0 && used+next > sharedSeedByteCap
+}
+
+// evictSharedSeeds drops the oldest content-addressed seeds until next fits.
+// Names that are not lf-<32 hex>.bin stay, including a planted symlink.
+func evictSharedSeeds(dir string, have []sharedSeedFile, next int) ([]sharedSeedFile, error) {
+	for sharedSeedFull(have, next) && len(have) > 0 {
+		old := 0
+		for i := 1; i < len(have); i++ {
+			if have[i].mod < have[old].mod {
+				old = i
+			}
+		}
+		path := filepath.Join(dir, have[old].name)
+		if err := removeRegularBeneath(dir, path); err != nil {
+			return have, err
+		}
+		have = append(have[:old], have[old+1:]...)
+	}
+	return have, nil
 }

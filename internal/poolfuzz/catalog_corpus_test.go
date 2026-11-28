@@ -137,3 +137,70 @@ func TestCrashUnitIsNotShared(t *testing.T) {
 		t.Fatalf("crash unit entered the shared cache: %v", err)
 	}
 }
+
+func TestInventoryDeltaStaysOutOfSharedNamespace(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HACKME_REPO_ROOT", dir)
+	db, err := store.Open(filepath.Join(dir, "inv-ns.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	svc := &Service{DB: db}
+	ctx := context.Background()
+	prevResolve := resolveCoverageHarness
+	prevExec := huntEngineSeedExec
+	t.Cleanup(func() {
+		resolveCoverageHarness = prevResolve
+		huntEngineSeedExec = prevExec
+	})
+	resolveCoverageHarness = func(context.Context, string, string, ...hunt.CoverageHarnessOpts) (string, bool, error) {
+		return "", false, nil
+	}
+	huntEngineSeedExec = func(context.Context, *Service, string, map[string]any, []byte) (bool, bool, string, error) {
+		return false, false, "", nil
+	}
+	cfg := map[string]any{
+		"pool_distributed":     true,
+		"work_kind":            "hunt_shard",
+		"campaign_type":        "hunt",
+		"hunt_source":          "inventory",
+		"upstream_target_id":   "mpack",
+		"harness_hash":         "abcdef0123456789",
+		"iterations_per_shard": 2,
+	}
+	id := "inv-ns-" + filepath.Base(dir)
+	if err := svc.RegisterCampaign(ctx, Campaign{ID: id, CampaignType: "hunt", Status: "running", BudgetRuns: 2, Config: cfg}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.EnsureWorkItems(ctx, id, time.Now().Unix()); err != nil {
+		t.Fatal(err)
+	}
+	var itemID int64
+	if err := db.QueryRowContext(ctx, `SELECT id FROM fuzz_work_items WHERE campaign_id=? LIMIT 1`, id).Scan(&itemID); err != nil {
+		t.Fatal(err)
+	}
+	leaseWorkItemForTest(t, ctx, db, id, itemID, "w1")
+	secret := []byte("customer-only-bytes")
+	out, err := svc.AcceptResearchCorpusDelta(ctx, ResearchCorpusDeltaRequest{
+		WorkerID: "w1", CampaignID: id, ItemID: itemID, Namespace: "research:mpack",
+		Seeds: []fuzzengine.PoolCorpusSeed{{InputBytes: secret, Energy: 3}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.SeedsAccepted != 1 {
+		t.Fatalf("seeds=%d", out.SeedsAccepted)
+	}
+	shared, err := svc.ListNamespaceCorpus(ctx, "research:mpack", 64)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(shared) != 0 {
+		t.Fatalf("inventory bytes landed in research:mpack (%d)", len(shared))
+	}
+	local, err := svc.loadPoolCorpusSeeds(ctx, id, 64)
+	if err != nil || len(local) < 1 {
+		t.Fatalf("campaign-local seeds=%d err=%v", len(local), err)
+	}
+}

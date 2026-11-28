@@ -58,6 +58,35 @@ func createFileBeneath(root, path string, perm os.FileMode) (*os.File, error) {
 }
 
 // mkdirAllBeneath creates dir (under root) and its parents without following symlinks.
+// removeRegularBeneath unlinks a regular file under root. A symlink is left in
+// place: Unlinkat without AT_REMOVEDIR removes the link itself, never its target,
+// and we refuse to do even that unless Lstat says the name is a regular file.
+func removeRegularBeneath(root, path string) error {
+	rel, err := relBeneath(root, path)
+	if err != nil {
+		return err
+	}
+	if rel == "." || strings.Contains(rel, string(filepath.Separator)) {
+		return fmt.Errorf("hunt safewrite: refuse to remove %s", path)
+	}
+	st, err := os.Lstat(path)
+	if err != nil {
+		return err
+	}
+	if !st.Mode().IsRegular() {
+		return fmt.Errorf("hunt safewrite: refuse to remove non-regular %s", path)
+	}
+	fd, err := openRootFD(root)
+	if err != nil {
+		return err
+	}
+	defer unix.Close(fd)
+	if err := unix.Unlinkat(fd, rel, 0); err != nil {
+		return fmt.Errorf("hunt safewrite: unlink %s: %w", path, err)
+	}
+	return nil
+}
+
 func mkdirAllBeneath(root, dir string, perm os.FileMode) error {
 	rel, err := relBeneath(root, dir)
 	if err != nil {

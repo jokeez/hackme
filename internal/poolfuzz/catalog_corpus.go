@@ -28,3 +28,14 @@ func catalogSharedTarget(cfg map[string]any) string {
 	}
 	return clean
 }
+
+// sharesResearchNamespace reports whether coverage bytes may land in the
+// research:<target> table. Inventory orders stay campaign-local: that table is
+// listed by target id, so a customer input labeled mpack would otherwise be
+// visible to the next campaign on the same id.
+func sharesResearchNamespace(cfg map[string]any) bool {
+	if cfg == nil {
+		return true
+	}
+	return strings.ToLower(strings.TrimSpace(jsonString(cfg["hunt_source"]))) != "inventory"
+}

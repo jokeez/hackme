@@ -371,15 +371,24 @@ func TestLibFuzzerSeedDir(t *testing.T) {
 	}
 }
 
-func TestExportLibFuzzerSeedsStopsAtFileCap(t *testing.T) {
+func TestExportLibFuzzerSeedsReplacesOldestAtCap(t *testing.T) {
 	dir := t.TempDir()
 	seedDir := LibFuzzerSeedDir(dir, "mpack")
 	if err := os.MkdirAll(seedDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
+	oldest := filepath.Join(seedDir, fmt.Sprintf("lf-%032x.bin", 0))
+	now := time.Now()
 	for i := 0; i < rankedLibFuzzerSeedCap; i++ {
-		name := filepath.Join(seedDir, fmt.Sprintf("have-%02d.bin", i))
-		if err := os.WriteFile(name, []byte{byte(i)}, 0o600); err != nil {
+		path := filepath.Join(seedDir, fmt.Sprintf("lf-%032x.bin", i))
+		if err := os.WriteFile(path, []byte{byte(i + 1)}, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		mt := now.Add(-time.Hour)
+		if i == 0 {
+			mt = now.Add(-48 * time.Hour)
+		}
+		if err := os.Chtimes(path, mt, mt); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -387,18 +396,64 @@ func TestExportLibFuzzerSeedsStopsAtFileCap(t *testing.T) {
 	if err := os.WriteFile(outside, []byte("secret"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Symlink(outside, filepath.Join(seedDir, "planted")); err != nil {
+	planted := filepath.Join(seedDir, "planted")
+	if err := os.Symlink(outside, planted); err != nil {
 		t.Fatal(err)
 	}
 	n, err := ExportLibFuzzerSeeds(dir, "mpack", [][]byte{[]byte("one-more")})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if n != 0 {
-		t.Fatalf("wrote %d files past the cap", n)
+	if n != 1 {
+		t.Fatalf("wrote %d, want the new unit in place of the oldest", n)
+	}
+	if _, err := os.Lstat(oldest); !os.IsNotExist(err) {
+		t.Fatalf("oldest seed still present: %v", err)
+	}
+	if _, err := os.Lstat(planted); err != nil {
+		t.Fatalf("planted symlink removed: %v", err)
 	}
 	got, err := os.ReadFile(outside)
 	if err != nil || string(got) != "secret" {
 		t.Fatalf("symlink was followed: %q err=%v", got, err)
+	}
+	ents, err := os.ReadDir(seedDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	regular := 0
+	for _, ent := range ents {
+		st, lerr := os.Lstat(filepath.Join(seedDir, ent.Name()))
+		if lerr == nil && st.Mode().IsRegular() {
+			regular++
+		}
+	}
+	if regular != rankedLibFuzzerSeedCap {
+		t.Fatalf("regular seeds=%d want %d", regular, rankedLibFuzzerSeedCap)
+	}
+}
+
+func TestLoadLibFuzzerSeedFilesSkipsSymlink(t *testing.T) {
+	dir := t.TempDir()
+	seedDir := LibFuzzerSeedDir(dir, "mpack")
+	if err := os.MkdirAll(seedDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(dir, "outside.txt")
+	if err := os.WriteFile(outside, []byte("secret-bytes"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(seedDir, "seed.bin")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(seedDir, "ok.bin"), []byte("kept"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := LoadLibFuzzerSeedFiles(seedDir, 8)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || string(got[0]) != "kept" {
+		t.Fatalf("loaded %q", got)
 	}
 }

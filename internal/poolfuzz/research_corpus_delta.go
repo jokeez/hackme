@@ -237,8 +237,11 @@ func (s *Service) AcceptResearchCorpusDelta(ctx context.Context, req ResearchCor
 			Input: u, InputBytes: append([]byte(nil), b...), Energy: energy, Edge: seed.Edge, Path: seed.Path,
 		})
 	}
-	if err := s.UpsertNamespaceCorpusSeeds(ctx, ns, seeds, now); err != nil {
-		return out, err
+	shareNS := sharesResearchNamespace(cfg)
+	if shareNS {
+		if err := s.UpsertNamespaceCorpusSeeds(ctx, ns, seeds, now); err != nil {
+			return out, err
+		}
 	}
 	out.SeedsAccepted = len(seeds)
 	if isHunt {
@@ -364,9 +367,11 @@ func (s *Service) AcceptResearchCorpusDelta(ctx context.Context, req ResearchCor
 		if err := s.upsertPoolCorpusSeed(ctx, campaignID, u, crashB, 12, 0, 0, true, now); err != nil {
 			return out, err
 		}
-		_ = s.UpsertNamespaceCorpusSeeds(ctx, ns, []fuzzengine.PoolCorpusSeed{{
-			Input: u, InputBytes: crashB, Energy: 8,
-		}}, now)
+		if shareNS {
+			_ = s.UpsertNamespaceCorpusSeeds(ctx, ns, []fuzzengine.PoolCorpusSeed{{
+				Input: u, InputBytes: crashB, Energy: 8,
+			}}, now)
+		}
 	}
 	return out, nil
 }
