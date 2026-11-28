@@ -18,6 +18,7 @@ import (
 	"hackme/internal/fuzzengine"
 	"hackme/internal/fuzzingcli"
 	"hackme/internal/fuzznative"
+	"hackme/internal/fuzzreport"
 	"hackme/internal/fuzzupstream"
 	"hackme/internal/hunt"
 	"hackme/internal/sandbox"
@@ -1989,7 +1990,7 @@ func (s *Service) SubmitWithOutcome(ctx context.Context, req SubmitRequest) (Sub
 			} else {
 				submitReq.InputBytes = expectedB
 			}
-			if skip, serr := s.crashFindingAlreadyKnown(ctx, req.CampaignID, submitReq); serr != nil {
+			if skip, serr := s.crashFindingAlreadyKnown(ctx, req.CampaignID, submitReq, cfg); serr != nil {
 				return serr
 			} else if skip {
 				novelFinding = false
@@ -2293,7 +2294,7 @@ func (s *Service) bountyAllowed(ctx context.Context, cfg map[string]any, finding
 
 // crashFindingAlreadyKnown reports whether this sanitizer/crash trap was already recorded
 // for the campaign (exact bytes or StableCrashBucket). Empty trap → not a crash novelty gate.
-func (s *Service) crashFindingAlreadyKnown(ctx context.Context, campaignID string, req SubmitRequest) (bool, error) {
+func (s *Service) crashFindingAlreadyKnown(ctx context.Context, campaignID string, req SubmitRequest, cfg map[string]any) (bool, error) {
 	trap := strings.TrimSpace(req.Trap)
 	if trap == "" {
 		return false, nil
@@ -2303,6 +2304,9 @@ func (s *Service) crashFindingAlreadyKnown(ctx context.Context, campaignID strin
 	if len(req.InputBytes) > 0 {
 		u = fuzzengine.PackInputBytesToU64(req.InputBytes)
 		sha = fuzzengine.InputBytesSHA256(req.InputBytes)
+	}
+	if fuzzreport.Pub(cfg) != nil && sha != "" {
+		sha = fuzzreport.InputFingerprint(campaignID, sha)
 	}
 	if known, err := s.campaignCrashInputKnown(ctx, campaignID, u, sha); err != nil {
 		return false, err
@@ -2323,22 +2327,31 @@ func (s *Service) insertFinding(ctx context.Context, req SubmitRequest, cfg map[
 	var inputSHA string
 	var artifactPath string
 	var repro string
+	sealPub := fuzzreport.Pub(cfg)
 	if len(inputBytes) > 0 {
 		inputSHA = fuzzengine.InputBytesSHA256(inputBytes)
-		artifactPath = fuzzartifacts.WriteInputBytes(req.CampaignID, inputSHA, inputBytes)
-		if IsHuntCampaign(cfg) {
-			repro = fuzzupstream.ReproCmdHuntNative(inputBytes)
-		} else {
-			wasmHex := wasmHexFromConfig(cfg)
-			wasmPath := fuzzartifacts.WriteWasmHex(req.CampaignID, wasmHex)
-			repro = fuzzengine.ReproCmdBytes(wasmPath, inputBytes)
+		if sealPub == nil {
+			artifactPath = fuzzartifacts.WriteInputBytes(req.CampaignID, inputSHA, inputBytes)
+			if IsHuntCampaign(cfg) {
+				repro = fuzzupstream.ReproCmdHuntNative(inputBytes)
+			} else {
+				wasmHex := wasmHexFromConfig(cfg)
+				wasmPath := fuzzartifacts.WriteWasmHex(req.CampaignID, wasmHex)
+				repro = fuzzengine.ReproCmdBytes(wasmPath, inputBytes)
+			}
 		}
 	} else {
 		inputSHA = fuzzengine.InputSHA256(req.ActualInput)
-		wasmHex := wasmHexFromConfig(cfg)
-		wasmPath := fuzzartifacts.WriteWasmHex(req.CampaignID, wasmHex)
-		artifactPath = fuzzartifacts.WriteInput(req.CampaignID, inputSHA, req.ActualInput)
-		repro = fuzzengine.ReproCmdTool(wasmPath, req.ActualInput)
+		if sealPub == nil {
+			wasmHex := wasmHexFromConfig(cfg)
+			wasmPath := fuzzartifacts.WriteWasmHex(req.CampaignID, wasmHex)
+			artifactPath = fuzzartifacts.WriteInput(req.CampaignID, inputSHA, req.ActualInput)
+			repro = fuzzengine.ReproCmdTool(wasmPath, req.ActualInput)
+		}
+	}
+	rawSHA := inputSHA
+	if sealPub != nil {
+		inputSHA = fuzzreport.InputFingerprint(req.CampaignID, rawSHA)
 	}
 	ft, sev, title := fuzzengine.ClassifyCheckFail(req.ActualInput, hasWasm, sem)
 	if IsHuntCampaign(cfg) {
@@ -2377,9 +2390,14 @@ func (s *Service) insertFinding(ctx context.Context, req SubmitRequest, cfg map[
 		"triage_label":    triage.Label,
 		"zero_day_hint":   triage.ZeroDayHint,
 	}
+	var crashDedup string
 	if trap := strings.TrimSpace(req.Trap); trap != "" {
 		if key := fuzzengine.StableCrashBucket(ft, trap); key != "" && key != "crash|generic" {
-			detailMap["stable_crash_key"] = key
+			if sealPub != nil {
+				crashDedup = fuzzreport.BucketToken(req.CampaignID, key)
+			} else {
+				detailMap["stable_crash_key"] = key
+			}
 		}
 	}
 	if isCanary, _ := s.workItemIsCanary(ctx, req.CampaignID, req.ItemID); isCanary {
@@ -2416,12 +2434,25 @@ func (s *Service) insertFinding(ctx context.Context, req SubmitRequest, cfg map[
 		detailMap["guard_pack"] = gp
 		detailMap["explain"] = fuzzingcli.ExplainPackFinding(gp, title, title)
 	}
+	storedTitle := title
 	detail, _ := json.Marshal(detailMap)
+	if sealPub != nil {
+		detailMap["title"] = title
+		detailMap["input_sha256"] = rawSHA
+		env, eerr := fuzzreport.Envelope(sealPub, detailMap, crashDedup)
+		if eerr != nil {
+			return "", "", "", eerr
+		}
+		detail = []byte(env)
+		storedTitle = "sealed"
+		artifactPath = ""
+		repro = ""
+	}
 	_, err = s.DB.ExecContext(ctx,
 		`INSERT OR IGNORE INTO fuzz_findings
 		 (id, campaign_id, finding_type, severity, title, input_sha256, artifact_path, repro_cmd, detail_json, created_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		findingID, req.CampaignID, ft, sev, title, inputSHA, artifactPath, repro, string(detail), now)
+		findingID, req.CampaignID, ft, sev, storedTitle, inputSHA, artifactPath, repro, string(detail), now)
 	if err != nil {
 		return "", "", "", err
 	}
@@ -2447,7 +2478,11 @@ func (s *Service) insertFinding(ctx context.Context, req SubmitRequest, cfg map[
 			}
 		}
 		ib := inputBytes
-		if len(ib) == 0 {
+		if sealPub != nil {
+			ib = nil
+			upstream = ""
+			guard = ""
+		} else if len(ib) == 0 {
 			ib = make([]byte, 8)
 			for i := 0; i < 8; i++ {
 				ib[i] = byte(req.ActualInput >> (8 * i))

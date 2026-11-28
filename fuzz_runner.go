@@ -14,6 +14,7 @@ import (
 	"hackme/internal/fuzzartifacts"
 	"hackme/internal/fuzzengine"
 	"hackme/internal/fuzzingcli"
+	"hackme/internal/fuzzreport"
 	"hackme/internal/logsafe"
 	"hackme/internal/poolfuzz"
 	"hackme/internal/sandbox"
@@ -519,14 +520,23 @@ func classifyWasmTrap(inputN uint64, execErr error, hasWasm bool) (findingType, 
 
 func (a *app) insertWorkerFindingClassified(ctx context.Context, campaignID string, inputN, actualInput uint64, inputBytes []byte, now int64, findingType, severity, title, wasmPath string, cfg map[string]any) error {
 	var inputSHA, artifactPath, repro string
+	sealPub := fuzzreport.Pub(cfg)
 	if len(inputBytes) > 0 {
 		inputSHA = fuzzengine.InputBytesSHA256(inputBytes)
-		artifactPath = fuzzartifacts.WriteInputBytes(campaignID, inputSHA, inputBytes)
-		repro = fuzzengine.ReproCmdBytes(wasmPath, inputBytes)
+		if sealPub == nil {
+			artifactPath = fuzzartifacts.WriteInputBytes(campaignID, inputSHA, inputBytes)
+			repro = fuzzengine.ReproCmdBytes(wasmPath, inputBytes)
+		}
 	} else {
 		inputSHA = fuzzInputSHA256(actualInput)
-		artifactPath = fuzzartifacts.WriteInput(campaignID, inputSHA, actualInput)
-		repro = fuzzengine.ReproCmdTool(wasmPath, actualInput)
+		if sealPub == nil {
+			artifactPath = fuzzartifacts.WriteInput(campaignID, inputSHA, actualInput)
+			repro = fuzzengine.ReproCmdTool(wasmPath, actualInput)
+		}
+	}
+	rawSHA := inputSHA
+	if sealPub != nil {
+		inputSHA = fuzzreport.InputFingerprint(campaignID, rawSHA)
 	}
 	triage := fuzzengine.ClassifyFinding(findingType, severity)
 	findingID := fmt.Sprintf("finding-worker-%s-%d-%d", campaignID, inputN, now)
@@ -558,11 +568,25 @@ func (a *app) insertWorkerFindingClassified(ctx context.Context, campaignID stri
 			detail["explain"] = fuzzingcli.ExplainPackFinding(gp, preview, title)
 		}
 	}
+	storedTitle := title
+	detailJSON := marshalMapJSON(detail)
+	if sealPub != nil {
+		detail["title"] = title
+		detail["input_sha256"] = rawSHA
+		env, eerr := fuzzreport.Envelope(sealPub, detail, "")
+		if eerr != nil {
+			return eerr
+		}
+		detailJSON = env
+		storedTitle = "sealed"
+		artifactPath = ""
+		repro = ""
+	}
 	if _, err := a.db.ExecContext(ctx,
 		`INSERT OR IGNORE INTO fuzz_findings
 		 (id, campaign_id, finding_type, severity, title, input_sha256, artifact_path, repro_cmd, detail_json, created_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		findingID, campaignID, findingType, severity, title, inputSHA, artifactPath, repro, marshalMapJSON(detail), now); err != nil {
+		findingID, campaignID, findingType, severity, storedTitle, inputSHA, artifactPath, repro, detailJSON, now); err != nil {
 		return err
 	}
 	_, _ = a.db.ExecContext(ctx,
@@ -576,7 +600,9 @@ func (a *app) insertWorkerFindingClassified(ctx context.Context, campaignID stri
 		campaignID, inputSHA, now, now, findingID, artifactPath)
 	if cfg != nil {
 		ib := inputBytes
-		if len(ib) == 0 {
+		if sealPub != nil {
+			ib = nil
+		} else if len(ib) == 0 {
 			ib = make([]byte, 8)
 			for i := 0; i < 8; i++ {
 				ib[i] = byte(actualInput >> (8 * i))

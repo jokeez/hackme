@@ -734,7 +734,7 @@ func (s *Service) finalizeHuntSubmit(ctx context.Context, p finalizeHuntSubmitPa
 			} else {
 				submitReq.InputBytes = p.expectedB
 			}
-			if skip, serr := s.crashFindingAlreadyKnown(ctx, p.req.CampaignID, submitReq); serr != nil {
+			if skip, serr := s.crashFindingAlreadyKnown(ctx, p.req.CampaignID, submitReq, p.cfg); serr != nil {
 				return serr
 			} else if skip {
 				novelFinding = false

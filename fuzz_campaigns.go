@@ -2798,7 +2798,7 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 		"findings_mirror_error":  poolFindingsPullErr,
 		"findings_mirror_ok":     poolFindingsPullErr == "",
 	}
-	return map[string]any{
+	report := map[string]any{
 		"ok":                 true,
 		"report_version":     "fuzz_report_v2",
 		"fuzz_engine":        engineMeta,
@@ -2902,7 +2902,8 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 			"runs_done":               runsDone,
 		},
 		"findings": findings,
-	}, nil
+	}
+	return redactSealedReport(c, report), nil
 }
 
 func (a *app) handleFuzzCampaignReport(w http.ResponseWriter, r *http.Request, campaignID string) {

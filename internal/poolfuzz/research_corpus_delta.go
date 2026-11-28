@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"hackme/internal/fuzzengine"
+	"hackme/internal/fuzzreport"
 	"hackme/internal/fuzzupstream"
 	"hackme/internal/hunt"
 )
@@ -115,11 +116,15 @@ func (s *Service) campaignCrashBucketKnown(ctx context.Context, campaignID, buck
 		return false, nil
 	}
 	var n int
+	dedup := fuzzreport.BucketToken(campaignID, bucket)
 	err := s.DB.QueryRowContext(ctx,
 		`SELECT COUNT(1) FROM fuzz_findings
 		 WHERE campaign_id=? AND json_valid(detail_json)
-		   AND json_extract(detail_json,'$.stable_crash_key')=?`,
-		campaignID, bucket).Scan(&n)
+		   AND (
+		     json_extract(detail_json,'$.stable_crash_key')=?
+		     OR json_extract(detail_json,'$.crash_dedup')=?
+		   )`,
+		campaignID, bucket, dedup).Scan(&n)
 	if err != nil {
 		return false, err
 	}
