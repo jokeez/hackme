@@ -309,6 +309,137 @@ func TestCatalogClaimFollowsSharedCacheGeneration(t *testing.T) {
 	}
 }
 
+func TestFullCatalogCorpusStillAbsorbsSharedSeed(t *testing.T) {
+	t.Setenv("HACKME_POOL_SEED_CORPUS_MAX_ITEMS", "4")
+	t.Setenv("HACKME_POOL_SEED_CORPUS_MAX_BYTES", "100000")
+	t.Setenv("HACKME_POOL_HUNT_REPLAY", "0")
+	t.Setenv("HACKME_POOL_HUNT_REPLAY_ASYNC", "0")
+	dir := t.TempDir()
+	t.Setenv("HACKME_REPO_ROOT", dir)
+	seedDir := filepath.Join(dir, ".cache", "hunt-lf-seeds", "mpack")
+	if err := os.MkdirAll(seedDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(seedDir, "other.bin"), []byte("from-other-order"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	db, err := store.Open(filepath.Join(dir, "full.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	svc := &Service{DB: db}
+	ctx := context.Background()
+	cfg := map[string]any{
+		"pool_distributed":     true,
+		"work_kind":            "hunt_shard",
+		"campaign_type":        "hunt",
+		"hunt_source":          "catalog",
+		"upstream_target_id":   "mpack",
+		"seed_byte_corpus":     []any{"aa", "bb", "cc", "dd"},
+		"iterations_per_shard": 2,
+	}
+	hunt.ApplyPoolGuidedDefaults(cfg, "mpack")
+	if err := svc.RegisterCampaign(ctx, Campaign{ID: "mpack-full", CampaignType: "hunt", Status: "running", BudgetRuns: 1, Config: cfg}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.EnsureGuidedCorpusSeeded(ctx, "mpack-full", cfg, time.Now().Unix()); err != nil {
+		t.Fatal(err)
+	}
+	list, _ := cfg["seed_byte_corpus"].([]any)
+	if len(list) == 0 || list[0] != "aa" {
+		t.Fatalf("own front lost: %#v", list)
+	}
+	if !seedCorpusHas(list, hex.EncodeToString([]byte("from-other-order"))) {
+		t.Fatalf("shared unit dropped at cap: %#v", list)
+	}
+	if len(list) > 4 {
+		t.Fatalf("corpus grew past the wire cap: %d", len(list))
+	}
+
+	if err := os.WriteFile(filepath.Join(seedDir, "later.bin"), []byte("later-unit"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.EnsureGuidedCorpusSeeded(ctx, "mpack-full", cfg, time.Now().Unix()); err != nil {
+		t.Fatal(err)
+	}
+	list, _ = cfg["seed_byte_corpus"].([]any)
+	if !seedCorpusHas(list, hex.EncodeToString([]byte("later-unit"))) {
+		t.Fatalf("later unit skipped after stamp: %#v", list)
+	}
+	if len(list) == 0 || list[0] != "aa" {
+		t.Fatalf("own front lost on second fold: %#v", list)
+	}
+}
+
+func TestPersistDoesNotConsumeUnmergedGeneration(t *testing.T) {
+	t.Setenv("HACKME_POOL_HUNT_REPLAY", "0")
+	t.Setenv("HACKME_POOL_HUNT_REPLAY_ASYNC", "0")
+	dir := t.TempDir()
+	t.Setenv("HACKME_REPO_ROOT", dir)
+	seedDir := filepath.Join(dir, ".cache", "hunt-lf-seeds", "mpack")
+	if err := os.MkdirAll(seedDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(seedDir, "early.bin"), []byte("early-unit"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	db, err := store.Open(filepath.Join(dir, "stamp.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	svc := &Service{DB: db}
+	ctx := context.Background()
+	cfg := map[string]any{
+		"pool_distributed":     true,
+		"work_kind":            "hunt_shard",
+		"campaign_type":        "hunt",
+		"hunt_source":          "catalog",
+		"upstream_target_id":   "mpack",
+		"seed_byte_corpus":     []any{"aa"},
+		"iterations_per_shard": 2,
+	}
+	hunt.ApplyPoolGuidedDefaults(cfg, "mpack")
+	id := "mpack-stamp"
+	if err := svc.RegisterCampaign(ctx, Campaign{ID: id, CampaignType: "hunt", Status: "running", BudgetRuns: 1, Config: cfg}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.EnsureGuidedCorpusSeeded(ctx, id, cfg, time.Now().Unix()); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(seedDir, "other.bin"), []byte("other-campaign"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.persistAcceptedClaimSeeds(ctx, id, catalogSharedTarget(cfg), []fuzzengine.PoolCorpusSeed{
+		{InputBytes: []byte("fresh-unit"), Energy: 2},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	var raw string
+	if err := db.QueryRowContext(ctx, `SELECT config_json FROM fuzz_campaigns WHERE id=?`, id).Scan(&raw); err != nil {
+		t.Fatal(err)
+	}
+	stored := parseConfigJSON(raw)
+	gen, err := hunt.SharedSeedGeneration(dir, "mpack")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if jsonString(stored["catalog_seed_gen"]) == gen {
+		t.Fatal("persist stamped a generation this campaign has not folded")
+	}
+	if err := svc.mergeCatalogSeedCache(ctx, id, stored); err != nil {
+		t.Fatal(err)
+	}
+	list, _ := stored["seed_byte_corpus"].([]any)
+	if !seedCorpusHas(list, hex.EncodeToString([]byte("other-campaign"))) {
+		t.Fatalf("other campaign unit missing after fold: %#v", list)
+	}
+	if len(list) == 0 || list[0] != hex.EncodeToString([]byte("fresh-unit")) {
+		t.Fatalf("just-accepted unit not first: %#v", list)
+	}
+}
+
 func seedCorpusHas(list []any, want string) bool {
 	for _, item := range list {
 		s, _ := item.(string)

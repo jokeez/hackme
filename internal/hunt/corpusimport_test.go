@@ -443,7 +443,7 @@ func TestSharedSeedGenerationIgnoresSymlink(t *testing.T) {
 		t.Fatal(err)
 	}
 	before, err := SharedSeedGeneration(dir, "mpack")
-	if err != nil || before == "0:0:0" {
+	if err != nil || before == "0:0:0:0" {
 		t.Fatalf("gen %q err=%v", before, err)
 	}
 	outside := filepath.Join(dir, "outside.txt")

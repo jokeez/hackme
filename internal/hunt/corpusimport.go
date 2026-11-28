@@ -34,6 +34,20 @@ func LibFuzzerSeedDir(repoRoot, targetID string) string {
 	return filepath.Join(repoRoot, ".cache", "hunt-lf-seeds", catalogTargetSegment(targetID))
 }
 
+// loadableSeedName is the set of directory entries LoadLibFuzzerSeedFiles will
+// read. The generation fingerprint must count the same names, or a file the
+// loader skips would move the stamp without ever entering a campaign.
+func loadableSeedName(name string) bool {
+	if name == "" || name == "." || name == ".." || strings.Contains(name, string(filepath.Separator)) {
+		return false
+	}
+	low := strings.ToLower(name)
+	if strings.HasPrefix(low, ".") || strings.HasPrefix(low, "crash-") || low == "readme" {
+		return false
+	}
+	return true
+}
+
 // SharedSeedGeneration is a cheap fingerprint of the catalog seed cache.
 // It stats regular files only (no content read, no symlink follow). A new or
 // removed seed changes it; a planted symlink does not.
@@ -42,28 +56,35 @@ func SharedSeedGeneration(repoRoot, targetID string) (string, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return "0:0:0", nil
+			return "0:0:0:0", nil
 		}
 		return "", err
 	}
-	var n, total int
-	var maxMod int64
+	var n int
+	var total int64
+	var maxMod, sumMod int64
 	for _, ent := range entries {
 		name := ent.Name()
-		if name == "" || name == "." || name == ".." || strings.Contains(name, string(filepath.Separator)) {
+		if !loadableSeedName(name) {
 			continue
 		}
 		st, lerr := os.Lstat(filepath.Join(dir, name))
-		if lerr != nil || !st.Mode().IsRegular() || st.Size() <= 0 {
+		if lerr != nil || !st.Mode().IsRegular() {
+			continue
+		}
+		sz := st.Size()
+		if sz <= 0 || sz > libFuzzerSeedMaxBytes {
 			continue
 		}
 		n++
-		total += int(st.Size())
-		if mt := st.ModTime().UnixNano(); mt > maxMod {
+		total += sz
+		mt := st.ModTime().UnixNano()
+		sumMod += mt
+		if mt > maxMod {
 			maxMod = mt
 		}
 	}
-	return fmt.Sprintf("%d:%d:%d", n, total, maxMod), nil
+	return fmt.Sprintf("%d:%d:%d:%d", n, total, maxMod, sumMod), nil
 }
 
 // LoadLibFuzzerSeedFiles reads seed inputs from a libFuzzer corpus directory.
@@ -117,8 +138,7 @@ func LoadLibFuzzerSeedFiles(dir string, maxSeeds int) ([][]byte, error) {
 			continue
 		}
 		name := ent.Name()
-		low := strings.ToLower(name)
-		if strings.HasPrefix(low, ".") || strings.HasPrefix(low, "crash-") || low == "readme" {
+		if !loadableSeedName(name) {
 			continue
 		}
 		abs, jerr := SafeJoinUnder(dir, name)

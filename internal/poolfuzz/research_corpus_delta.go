@@ -429,25 +429,10 @@ func (s *Service) persistAcceptedClaimSeeds(ctx context.Context, campaignID, l2T
 	if _, err := hunt.ExportLibFuzzerSeeds(hunt.RepoRoot(), l2Target, fresh); err != nil {
 		return fmt.Errorf("poolfuzz: export accepted seeds to L2: %w", err)
 	}
-	// The units are already in this campaign's corpus. Catch the stamp up so
-	// the next claim does not re-read the directory it just wrote.
-	gen, err := hunt.SharedSeedGeneration(hunt.RepoRoot(), l2Target)
-	if err != nil {
-		return err
-	}
-	return s.withCampaignSettle(campaignID, func() error {
-		var cfgJSON string
-		if err := s.DB.QueryRowContext(ctx, `SELECT config_json FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&cfgJSON); err != nil {
-			return err
-		}
-		stored := parseConfigJSON(cfgJSON)
-		if jsonString(stored["catalog_seed_gen"]) == gen {
-			return nil
-		}
-		stored["catalog_seed_gen"] = gen
-		_, err := s.DB.ExecContext(ctx, `UPDATE fuzz_campaigns SET config_json=? WHERE id=?`, marshalConfigJSON(stored), campaignID)
-		return err
-	})
+	// Do not stamp the cache here. The directory may already hold another
+	// campaign's unit that this config has not absorbed. The next claim folds
+	// that generation and stamps only then.
+	return nil
 }
 
 func (s *Service) requireResearchLease(ctx context.Context, workerID, campaignID string, itemID int64) error {

@@ -61,7 +61,7 @@ func (s *Service) mergeCatalogSeedCache(ctx context.Context, campaignID string, 
 		return nil
 	}
 	if s == nil || s.DB == nil || strings.TrimSpace(campaignID) == "" {
-		if _, err := hunt.MergeLibFuzzerSeedCorpus(cfg, root, targetID); err != nil {
+		if err := absorbCatalogSeeds(cfg, root, targetID); err != nil {
 			return err
 		}
 		cfg["catalog_seed_gen"] = gen
@@ -71,7 +71,7 @@ func (s *Service) mergeCatalogSeedCache(ctx context.Context, campaignID string, 
 		var cfgJSON string
 		err := s.DB.QueryRowContext(ctx, `SELECT config_json FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&cfgJSON)
 		if err == sql.ErrNoRows {
-			if _, merr := hunt.MergeLibFuzzerSeedCorpus(cfg, root, targetID); merr != nil {
+			if merr := absorbCatalogSeeds(cfg, root, targetID); merr != nil {
 				return merr
 			}
 			cfg["catalog_seed_gen"] = gen
@@ -86,7 +86,7 @@ func (s *Service) mergeCatalogSeedCache(ctx context.Context, campaignID string, 
 			return err
 		}
 		if jsonString(fresh["catalog_seed_gen"]) != genNow {
-			if _, err := hunt.MergeLibFuzzerSeedCorpus(fresh, root, targetID); err != nil {
+			if err := absorbCatalogSeeds(fresh, root, targetID); err != nil {
 				return err
 			}
 			fresh["catalog_seed_gen"] = genNow
@@ -102,4 +102,20 @@ func (s *Service) mergeCatalogSeedCache(ctx context.Context, campaignID string, 
 		}
 		return nil
 	})
+}
+
+// absorbCatalogSeeds reads the shared cache and folds it into cfg. The stamp
+// is the caller's job, and only after this returns, so a generation is never
+// marked seen before its bytes are in the campaign corpus.
+func absorbCatalogSeeds(cfg map[string]any, root, targetID string) error {
+	seeds, err := hunt.LoadLibFuzzerSeedFiles(hunt.LibFuzzerSeedDir(root, targetID), 0)
+	if err != nil {
+		return err
+	}
+	if len(seeds) == 0 {
+		return nil
+	}
+	seeds = hunt.RankLibFuzzerSeeds(seeds, 0)
+	cfg["seed_byte_corpus"] = foldSharedSeedCorpus(cfg["seed_byte_corpus"], seeds)
+	return nil
 }

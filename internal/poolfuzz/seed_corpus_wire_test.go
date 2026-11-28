@@ -6,6 +6,29 @@ import (
 	"testing"
 )
 
+func TestFoldSharedSeedCorpusKeepsFrontAndNewUnit(t *testing.T) {
+	t.Setenv("HACKME_POOL_SEED_CORPUS_MAX_ITEMS", "4")
+	t.Setenv("HACKME_POOL_SEED_CORPUS_MAX_BYTES", "100000")
+	own := []any{"aa", "bb", "cc", "dd"}
+	out := foldSharedSeedCorpus(own, [][]byte{[]byte("from-other")})
+	if len(out) > 4 {
+		t.Fatalf("len=%d", len(out))
+	}
+	if out[0] != "aa" {
+		t.Fatalf("front lost: %#v", out)
+	}
+	want := hex.EncodeToString([]byte("from-other"))
+	found := false
+	for _, item := range out {
+		if item == want {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("new shared unit trimmed off: %#v", out)
+	}
+}
+
 func TestTrimSeedByteCorpusForWireCapsItems(t *testing.T) {
 	t.Setenv("HACKME_POOL_SEED_CORPUS_MAX_ITEMS", "3")
 	t.Setenv("HACKME_POOL_SEED_CORPUS_MAX_BYTES", "100000")
