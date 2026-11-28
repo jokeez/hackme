@@ -284,6 +284,10 @@ type LibFuzzerSessionOpts struct {
 	// into the live corpus directory and -reload makes libFuzzer pick them up
 	// before the lease ends. Nil keeps a single local run unchanged.
 	PullSeeds func(context.Context) ([][]byte, error)
+	// PublishSeeds, when set, is called on that same cadence with units this
+	// wall grew. The coordinator writes them into the shared catalog cache
+	// before the lease ends. Nil, and any wall under two minutes, stays local.
+	PublishSeeds func(context.Context, [][]byte) error
 }
 
 // RunLibFuzzerImportSession runs libFuzzer for wallSec and imports corpus files into L2 seed cache.
@@ -443,13 +447,19 @@ func RunLibFuzzerSession(ctx context.Context, opts LibFuzzerSessionOpts) (int, e
 	if flag := libFuzzerSeedFlag(opts.RngSeed); flag != "" {
 		args = append(args, flag)
 	}
-	reloadSec := 0
-	if opts.PullSeeds != nil {
-		reloadSec = libFuzzerReloadSec(wallSec)
-	}
-	if reloadSec > 0 {
+	reloadSec := libFuzzerReloadSec(wallSec)
+	if opts.PullSeeds != nil && reloadSec > 0 {
 		args = append(args, "-reload="+fmt.Sprint(reloadSec))
-		go pullLibFuzzerSeeds(runCtx, corpusDir, time.Duration(reloadSec)*time.Second, opts.PullSeeds)
+	}
+	// share stops as soon as the fuzzer process returns. The deferred stop
+	// covers an early return; the explicit stop below runs before any corpus
+	// read so a late install cannot land after this function returns.
+	var share *libFuzzerShare
+	defer func() { share.stop() }()
+	if reloadSec > 0 && (opts.PullSeeds != nil || opts.PublishSeeds != nil) {
+		known := newPublishCursor()
+		known.absorbNames(corpusDir)
+		share = startLibFuzzerShare(runCtx, corpusDir, time.Duration(reloadSec)*time.Second, opts.PullSeeds, opts.PublishSeeds, known)
 	}
 	env := append(os.Environ(),
 		"ASAN_OPTIONS="+LibFuzzerASANOptionsForWall(wallSec),
@@ -483,6 +493,7 @@ func RunLibFuzzerSession(ctx context.Context, opts LibFuzzerSessionOpts) (int, e
 		Stdout:      stderrFile,
 		Stderr:      stderrFile,
 	})
+	share.stop()
 	// Read the still-open fd — never re-open session.stderr by path (harness can
 	// unlink+symlink to host secrets inside the RW corpus Dir bind).
 	sessionLog := readOpenSessionLog(stderrFile)
@@ -777,7 +788,7 @@ func libFuzzerReloadSec(wallSec int) int {
 
 // pullLibFuzzerSeeds writes units from other shards into the live corpus.
 // libFuzzer -reload picks up new files; this does not delete what is already there.
-func pullLibFuzzerSeeds(ctx context.Context, corpusDir string, every time.Duration, pull func(context.Context) ([][]byte, error)) {
+func pullLibFuzzerSeeds(ctx context.Context, corpusDir string, every time.Duration, pull func(context.Context) ([][]byte, error), known *publishCursor, share *libFuzzerShare) {
 	if pull == nil || every <= 0 {
 		return
 	}
@@ -789,8 +800,19 @@ func pullLibFuzzerSeeds(ctx context.Context, corpusDir string, every time.Durati
 			return
 		case <-tick.C:
 			seeds, err := pull(ctx)
+			if ctx.Err() != nil || !share.allowWrite() {
+				return
+			}
 			if err != nil || len(seeds) == 0 {
 				continue
+			}
+			// Remember before the write so a publish tick does not echo a
+			// unit that another shard already put in the shared cache.
+			if known != nil {
+				known.rememberBytes(seeds)
+			}
+			if ctx.Err() != nil || !share.allowWrite() {
+				return
 			}
 			_, _ = InstallEngineSeedFiles(corpusDir, seeds)
 		}

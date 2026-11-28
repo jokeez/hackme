@@ -3,8 +3,10 @@ package poolfuzz
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strings"
 
+	"hackme/internal/fuzzengine"
 	"hackme/internal/fuzzupstream"
 	"hackme/internal/hunt"
 )
@@ -102,6 +104,40 @@ func (s *Service) mergeCatalogSeedCache(ctx context.Context, campaignID string, 
 		}
 		return nil
 	})
+}
+
+// PublishCatalogLeaseSeeds drops units a running catalog shard just grew into
+// the shared cache, before its wall ends. Inventory and customer harnesses
+// name no shared target, so they write nothing. Crash inputs and boot starters
+// are dropped. The caller must hold the work-item lease. The write is
+// ExportLibFuzzerSeeds only: no campaign rewrite, no prove, no build.
+func (s *Service) PublishCatalogLeaseSeeds(ctx context.Context, workerID, campaignID string, itemID int64, seeds []fuzzengine.PoolCorpusSeed) (int, error) {
+	if s == nil || s.DB == nil {
+		return 0, fmt.Errorf("poolfuzz: catalog publish unavailable")
+	}
+	if err := s.requireResearchLease(ctx, workerID, campaignID, itemID); err != nil {
+		return 0, err
+	}
+	var cfgJSON string
+	if err := s.DB.QueryRowContext(ctx, `SELECT config_json FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&cfgJSON); err != nil {
+		return 0, err
+	}
+	targetID := catalogSharedTarget(parseConfigJSON(cfgJSON))
+	if targetID == "" {
+		return 0, nil
+	}
+	fresh := make([][]byte, 0, len(seeds))
+	for _, seed := range seeds {
+		if seed.Crash || len(seed.InputBytes) == 0 || genericBootSeed(seed.InputBytes) {
+			continue
+		}
+		fresh = append(fresh, seed.InputBytes)
+	}
+	fresh = capAcceptedSeedBytes(fresh)
+	if len(fresh) == 0 {
+		return 0, nil
+	}
+	return hunt.ExportLibFuzzerSeeds(hunt.RepoRoot(), targetID, fresh)
 }
 
 // CatalogLeaseSeedWindow is the live corpus a leased catalog shard may pull

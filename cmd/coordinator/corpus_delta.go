@@ -169,4 +169,65 @@ func addCorpusDeltaRoute(mux *http.ServeMux, adminToken, workerToken string, all
 			"seeds":      outSeeds,
 		})
 	})
+	// Mid-wall share. Same auth and lease check as catalog_seeds. The handler
+	// only exports bytes into the catalog cache; it does not build or prove.
+	mux.HandleFunc("/api/fuzz/work/catalog_publish", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if !coordinatorWorkPOSTAuthed(r, adminToken, workerToken, allowInsecure) {
+			w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
+			http.Error(w, "coordinator authentication required", http.StatusUnauthorized)
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxCoordinatorJSONBodyBytes)
+		var req struct {
+			WorkerID   string `json:"worker_id"`
+			CampaignID string `json:"campaign_id"`
+			ItemID     int64  `json:"item_id"`
+			Seeds      []struct {
+				InputBytes string `json:"input_bytes"`
+			} `json:"seeds"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid json", http.StatusBadRequest)
+			return
+		}
+		workerID := strings.TrimSpace(req.WorkerID)
+		if !validCoordinatorWorkerID(workerID) {
+			http.Error(w, "invalid worker_id", http.StatusBadRequest)
+			return
+		}
+		seeds := make([]fuzzengine.PoolCorpusSeed, 0, len(req.Seeds))
+		for _, s := range req.Seeds {
+			raw := strings.TrimSpace(s.InputBytes)
+			if raw == "" {
+				continue
+			}
+			b, err := base64.StdEncoding.DecodeString(raw)
+			if err != nil {
+				http.Error(w, "invalid input_bytes", http.StatusBadRequest)
+				return
+			}
+			seeds = append(seeds, fuzzengine.PoolCorpusSeed{InputBytes: b})
+		}
+		written, err := pf.PublishCatalogLeaseSeeds(r.Context(), workerID, strings.TrimSpace(req.CampaignID), req.ItemID, seeds)
+		if err != nil {
+			msg := err.Error()
+			code := http.StatusBadRequest
+			if strings.Contains(msg, "active lease") {
+				code = http.StatusForbidden
+			}
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.WriteHeader(code)
+			_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "reason": msg})
+			return
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"ok":      true,
+			"written": written,
+		})
+	})
 }

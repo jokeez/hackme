@@ -2,10 +2,12 @@ package poolfuzz
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -567,6 +569,190 @@ func TestCatalogLeaseSeedWindowSkipsUnchangedAndInventory(t *testing.T) {
 	_, seeds, unchanged, err = svc.CatalogLeaseSeedWindow(ctx, "w1", "lease-inv", invItem, "", 0)
 	if err != nil || !unchanged || len(seeds) != 0 {
 		t.Fatalf("inventory pull unchanged=%v n=%d err=%v", unchanged, len(seeds), err)
+	}
+}
+
+func TestCatalogMidWallPublishReachesNextLease(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HACKME_REPO_ROOT", dir)
+	db, err := store.Open(filepath.Join(dir, "midwall.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	svc := &Service{DB: db}
+	ctx := context.Background()
+	cfg := map[string]any{
+		"campaign_type":      "hunt",
+		"hunt_source":        "catalog",
+		"upstream_target_id": "mpack",
+		"pool_distributed":   true,
+		"work_kind":          "hunt_shard",
+	}
+	if err := svc.RegisterCampaign(ctx, Campaign{ID: "mid-mpack", CampaignType: "hunt", Status: "running", BudgetRuns: 2, Config: cfg}); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().Unix()
+	if err := svc.EnsureWorkItems(ctx, "mid-mpack", now); err != nil {
+		t.Fatal(err)
+	}
+	var itemIDs []int64
+	rows, err := db.QueryContext(ctx, `SELECT id FROM fuzz_work_items WHERE campaign_id=? ORDER BY id`, "mid-mpack")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			t.Fatal(err)
+		}
+		itemIDs = append(itemIDs, id)
+	}
+	rows.Close()
+	if len(itemIDs) < 2 {
+		t.Fatalf("want two leases, got %v", itemIDs)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE fuzz_work_items SET status='leased', lease_owner=?, lease_until=? WHERE id=?`, "w1", now+120, itemIDs[0]); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE fuzz_work_items SET status='leased', lease_owner=?, lease_until=? WHERE id=?`, "w2", now+120, itemIDs[1]); err != nil {
+		t.Fatal(err)
+	}
+
+	corpus := filepath.Join(dir, "live-corpus")
+	if err := os.MkdirAll(corpus, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	stamp := time.Now()
+	plant := func(name string, body []byte) {
+		t.Helper()
+		path := filepath.Join(corpus, name)
+		if err := os.WriteFile(path, body, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chtimes(path, stamp, stamp); err != nil {
+			t.Fatal(err)
+		}
+	}
+	plant("old.bin", []byte("already-on-disk"))
+	plant("grown.bin", []byte("grown-mid-wall"))
+	plant("boot.json", []byte("{}"))
+	plant("arr.json", []byte("[]"))
+	plant("null.json", []byte("null"))
+	plant("z.bin", []byte{0x00})
+	plant("hi.bin", []byte{0x80})
+	plant("crash-deadbeef", []byte("crash-artifact"))
+	secret := filepath.Join(dir, "secret")
+	if err := os.WriteFile(secret, []byte("symlink-secret-bytes"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(secret, filepath.Join(corpus, "via-link.bin")); err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256([]byte("already-on-disk"))
+	units := hunt.CollectLibFuzzerPublishUnits(corpus, map[string]struct{}{
+		hex.EncodeToString(sum[:]): {},
+	}, 0, 0)
+	if len(units) != 1 || string(units[0]) != "grown-mid-wall" {
+		t.Fatalf("collector = %q", units)
+	}
+
+	inv := map[string]any{
+		"campaign_type":      "hunt",
+		"hunt_source":        "inventory",
+		"upstream_target_id": "mpack",
+		"pool_distributed":   true,
+		"work_kind":          "hunt_shard",
+	}
+	if err := svc.RegisterCampaign(ctx, Campaign{ID: "mid-inv", CampaignType: "hunt", Status: "running", BudgetRuns: 1, Config: inv}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.EnsureWorkItems(ctx, "mid-inv", now); err != nil {
+		t.Fatal(err)
+	}
+	var invItem int64
+	if err := db.QueryRowContext(ctx, `SELECT id FROM fuzz_work_items WHERE campaign_id=?`, "mid-inv").Scan(&invItem); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE fuzz_work_items SET status='leased', lease_owner=?, lease_until=? WHERE id=?`, "w1", now+120, invItem); err != nil {
+		t.Fatal(err)
+	}
+	if n, err := svc.PublishCatalogLeaseSeeds(ctx, "w1", "mid-inv", invItem, []fuzzengine.PoolCorpusSeed{
+		{InputBytes: []byte("inventory-secret-unit")},
+	}); err != nil || n != 0 {
+		t.Fatalf("inventory publish n=%d err=%v", n, err)
+	}
+	cust := map[string]any{
+		"campaign_type":      "hunt",
+		"hunt_source":        "customer_repo",
+		"upstream_target_id": "mpack",
+		"pool_distributed":   true,
+		"work_kind":          "hunt_shard",
+	}
+	if err := svc.RegisterCampaign(ctx, Campaign{ID: "mid-cust", CampaignType: "hunt", Status: "running", BudgetRuns: 1, Config: cust}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.EnsureWorkItems(ctx, "mid-cust", now); err != nil {
+		t.Fatal(err)
+	}
+	var custItem int64
+	if err := db.QueryRowContext(ctx, `SELECT id FROM fuzz_work_items WHERE campaign_id=?`, "mid-cust").Scan(&custItem); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE fuzz_work_items SET status='leased', lease_owner=?, lease_until=? WHERE id=?`, "w1", now+120, custItem); err != nil {
+		t.Fatal(err)
+	}
+	if n, err := svc.PublishCatalogLeaseSeeds(ctx, "w1", "mid-cust", custItem, []fuzzengine.PoolCorpusSeed{
+		{InputBytes: []byte("customer-secret-unit")},
+	}); err != nil || n != 0 {
+		t.Fatalf("customer publish n=%d err=%v", n, err)
+	}
+	seedDir := filepath.Join(dir, ".cache", "hunt-lf-seeds", "mpack")
+	if _, err := os.Stat(seedDir); !os.IsNotExist(err) {
+		t.Fatalf("non-catalog publish created the shared cache: %v", err)
+	}
+	if _, err := svc.PublishCatalogLeaseSeeds(ctx, "other", "mid-mpack", itemIDs[0], []fuzzengine.PoolCorpusSeed{
+		{InputBytes: []byte("grown-mid-wall")},
+	}); err == nil || !strings.Contains(err.Error(), "active lease") {
+		t.Fatalf("missing lease err=%v", err)
+	}
+
+	posted := []fuzzengine.PoolCorpusSeed{
+		{InputBytes: units[0]},
+		{InputBytes: []byte("crash-artifact"), Crash: true},
+		{InputBytes: []byte("{}")},
+		{InputBytes: []byte("[]")},
+		{InputBytes: []byte("null")},
+		{InputBytes: []byte{0x00}},
+		{InputBytes: []byte{0x80}},
+	}
+	n, err := svc.PublishCatalogLeaseSeeds(ctx, "w1", "mid-mpack", itemIDs[0], posted)
+	if err != nil || n != 1 {
+		t.Fatalf("catalog publish n=%d err=%v", n, err)
+	}
+	got := map[string]bool{}
+	ents, err := os.ReadDir(seedDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, ent := range ents {
+		b, err := os.ReadFile(filepath.Join(seedDir, ent.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		got[string(b)] = true
+	}
+	if !got["grown-mid-wall"] {
+		t.Fatalf("shared cache = %#v", got)
+	}
+	for _, banned := range []string{"already-on-disk", "crash-artifact", "{}", "[]", "null", "symlink-secret-bytes", "inventory-secret-unit", "customer-secret-unit", string([]byte{0x00}), string([]byte{0x80})} {
+		if got[banned] {
+			t.Fatalf("published %q: %#v", banned, got)
+		}
+	}
+	_, seen, unchanged, err := svc.CatalogLeaseSeedWindow(ctx, "w2", "mid-mpack", itemIDs[1], "", 0)
+	if err != nil || unchanged || len(seen) != 1 || string(seen[0]) != "grown-mid-wall" {
+		t.Fatalf("second lease unchanged=%v seeds=%q err=%v", unchanged, seen, err)
 	}
 }
 

@@ -116,6 +116,7 @@ func RunHuntEngineShard(ctx context.Context, run ResearchSlotRun, cr ClaimResp) 
 	}
 	dictBytes := coverageEngineDict(cr)
 	var pull func(context.Context) ([][]byte, error)
+	var publish func(context.Context, [][]byte) error
 	var have atomic.Value
 	if strings.EqualFold(strings.TrimSpace(cr.HuntSource), "catalog") && strings.TrimSpace(run.CoordURL) != "" {
 		pull = func(pctx context.Context) ([][]byte, error) {
@@ -128,6 +129,18 @@ func RunHuntEngineShard(ctx context.Context, run ResearchSlotRun, cr ClaimResp) 
 				have.Store(gen)
 			}
 			return seeds, nil
+		}
+		// Inventory and customer harnesses never get here. AFL has no shared
+		// libFuzzer cache. The session itself waits until the wall is long
+		// enough for a reload, and a failed post does not end the shard.
+		if engine == hunt.EngineLibFuzzer {
+			publish = func(pctx context.Context, units [][]byte) error {
+				if err := postCatalogLeaseSeeds(pctx, run, cr, units); err != nil {
+					fmt.Fprintf(os.Stderr, "hunt_engine: catalog_publish: %v\n", err)
+					return err
+				}
+				return nil
+			}
 		}
 	}
 	res := hunt.RunEngineShard(ctx, hunt.EngineShardOpts{
@@ -144,6 +157,7 @@ func RunHuntEngineShard(ctx context.Context, run ResearchSlotRun, cr ClaimResp) 
 		SourceRel:            strings.TrimSpace(cr.HuntSourceRel),
 		RngSeed:              cr.InputN,
 		PullSeeds:            pull,
+		PublishSeeds:         publish,
 	})
 	out.EngineVersion = res.EngineVersion
 	out.CorpusBefore = res.CorpusBefore
@@ -397,7 +411,10 @@ func fetchCatalogLeaseSeeds(ctx context.Context, run ResearchSlotRun, cr ClaimRe
 		return "", nil, err
 	}
 	defer res.Body.Close()
-	raw, _ := io.ReadAll(io.LimitReader(res.Body, 1<<20))
+	raw, err := readCatalogSeedBody(res.Body)
+	if err != nil {
+		return "", nil, err
+	}
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
 		return "", nil, fmt.Errorf("catalog_seeds HTTP %d", res.StatusCode)
 	}
@@ -425,6 +442,94 @@ func fetchCatalogLeaseSeeds(ctx context.Context, run ResearchSlotRun, cr ClaimRe
 		}
 	}
 	return wrap.Generation, out, nil
+}
+
+// catalogSeedResponseMaxBytes fits one claim window: 96 seeds of 64KiB,
+// base64-encoded, plus the JSON wrapper. 96 * 64KiB * 4/3 is 8MiB of payload;
+// the extra room is the wrapper. A larger body is an error, not a short read,
+// so have_gen is left alone and the next tick does not pretend the window parsed.
+const catalogSeedResponseMaxBytes = 12 << 20
+
+func readCatalogSeedBody(r io.Reader) ([]byte, error) {
+	raw, err := io.ReadAll(io.LimitReader(r, catalogSeedResponseMaxBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(raw) > catalogSeedResponseMaxBytes {
+		return nil, fmt.Errorf("catalog_seeds response exceeds %d bytes", catalogSeedResponseMaxBytes)
+	}
+	return raw, nil
+}
+
+// postCatalogLeaseSeeds shares units grown since the previous tick. The body
+// stays inside the claim wire cap. Crashes and boot starters are not sent.
+func postCatalogLeaseSeeds(ctx context.Context, run ResearchSlotRun, cr ClaimResp, seeds [][]byte) error {
+	base := strings.TrimRight(strings.TrimSpace(run.CoordURL), "/")
+	if base == "" || len(seeds) == 0 {
+		return nil
+	}
+	payload := make([]map[string]string, 0, len(seeds))
+	total := 0
+	for _, b := range seeds {
+		if len(b) == 0 || len(b) > 65536 || trivialCorpusUnit(b) {
+			continue
+		}
+		if len(payload) >= hunt.LibFuzzerPublishTickItems {
+			break
+		}
+		if total+len(b) > hunt.LibFuzzerPublishTickBytes && len(payload) > 0 {
+			break
+		}
+		payload = append(payload, map[string]string{
+			"input_bytes": base64.StdEncoding.EncodeToString(b),
+		})
+		total += len(b)
+	}
+	if len(payload) == 0 {
+		return nil
+	}
+	body, err := json.Marshal(map[string]any{
+		"worker_id":   run.WorkerID,
+		"campaign_id": cr.CampaignID,
+		"item_id":     cr.ItemID,
+		"seeds":       payload,
+	})
+	if err != nil {
+		return err
+	}
+	reqCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, base+"/api/fuzz/work/catalog_publish", bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if run.Token != "" {
+		req.Header.Set("X-Hackme-Admin-Token", run.Token)
+	}
+	cl := run.HTTPClient
+	if cl == nil {
+		cl = netutil.HTTPClientNoRedirect(15 * time.Second)
+	}
+	res, err := cl.Do(req)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	raw, _ := io.ReadAll(io.LimitReader(res.Body, 1<<20))
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		return fmt.Errorf("catalog_publish HTTP %d", res.StatusCode)
+	}
+	var wrap struct {
+		OK bool `json:"ok"`
+	}
+	if err := json.Unmarshal(raw, &wrap); err != nil {
+		return err
+	}
+	if !wrap.OK {
+		return fmt.Errorf("catalog_publish rejected")
+	}
+	return nil
 }
 
 // collectCoverageEngineSeeds merges claim inputs for LF/AFL leases.

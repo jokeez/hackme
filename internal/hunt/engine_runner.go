@@ -61,9 +61,11 @@ type EngineShardOpts struct {
 	ArtifactDB           *sql.DB // coordinator prove path; workers fetch via URL
 	PinPath              string
 	SourceRel            string
-	// RngSeed and PullSeeds are forwarded to the libFuzzer session. AFL ignores them.
-	RngSeed   uint64
-	PullSeeds func(context.Context) ([][]byte, error)
+	// RngSeed, PullSeeds, and PublishSeeds are forwarded to the libFuzzer session.
+	// AFL ignores them. PublishSeeds shares units grown during the wall.
+	RngSeed      uint64
+	PullSeeds    func(context.Context) ([][]byte, error)
+	PublishSeeds func(context.Context, [][]byte) error
 }
 
 // LookPathFn is overridable in tests (defaults to exec.LookPath).
@@ -261,6 +263,7 @@ func runLibFuzzerEngineShard(ctx context.Context, repoRoot, targetID string, wal
 		SkipGenericBoot: len(opts.SeedFiles) > 0,
 		RngSeed:         opts.RngSeed,
 		PullSeeds:       opts.PullSeeds,
+		PublishSeeds:    opts.PublishSeeds,
 	}
 	// Inventory with in-process LLVMFuzzerTestOneInput (e.g. heavywire fuzz_parse.c).
 	if pin := strings.TrimSpace(opts.PinPath); pin != "" {

@@ -89,6 +89,37 @@ func TestCatalogSeedsRequireAuthAndLease(t *testing.T) {
 	}
 }
 
+func TestCatalogPublishRequiresAuthAndLease(t *testing.T) {
+	mux, _, id, itemID := corpusDeltaMux(t)
+	body, _ := json.Marshal(map[string]any{
+		"worker_id": "w1", "campaign_id": id, "item_id": itemID,
+		"seeds": []map[string]string{
+			{"input_bytes": base64.StdEncoding.EncodeToString([]byte("grown-mid-wall"))},
+		},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/fuzz/work/catalog_publish", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("want 401, got %d", rec.Code)
+	}
+	body, _ = json.Marshal(map[string]any{
+		"worker_id": "w2", "campaign_id": id, "item_id": itemID,
+		"seeds": []map[string]string{
+			{"input_bytes": base64.StdEncoding.EncodeToString([]byte("grown-mid-wall"))},
+		},
+	})
+	req = httptest.NewRequest(http.MethodPost, "/api/fuzz/work/catalog_publish", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Hackme-Admin-Token", "worker-tok")
+	rec = httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("want 403, got %d %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestCorpusDeltaUnauthenticatedRejected(t *testing.T) {
 	mux, _, id, itemID := corpusDeltaMux(t)
 	body, _ := json.Marshal(map[string]any{

@@ -1,9 +1,14 @@
 package workerfuzzloop
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -186,6 +191,75 @@ func TestCollectEngineDeltaRefusesIntermediateDirSymlink(t *testing.T) {
 	seeds, _ := collectEngineDelta(hunt.EngineShardResult{CorpusDir: dir}, nil, 32)
 	if len(seeds) != 1 || string(seeds[0].InputBytes) != "ok" {
 		t.Fatalf("dir symlink must not enumerate host; got %#v", seeds)
+	}
+}
+
+func TestFetchCatalogLeaseSeedsInstallsWindowOverOneMiB(t *testing.T) {
+	const n = 12
+	const seedLen = 65536
+	rawSeeds := make([][]byte, n)
+	wire := make([]string, n)
+	for i := 0; i < n; i++ {
+		b := bytes.Repeat([]byte{byte(i + 1)}, seedLen)
+		rawSeeds[i] = b
+		wire[i] = base64.StdEncoding.EncodeToString(b)
+	}
+	payload, err := json.Marshal(map[string]any{
+		"ok": true, "unchanged": false, "generation": "g-big", "seeds": wire,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(payload) <= 1<<20 {
+		t.Fatalf("fixture is %d bytes, want a body over 1MiB", len(payload))
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Hackme-Admin-Token") != "tok" {
+			http.Error(w, "auth", http.StatusUnauthorized)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(payload)
+	}))
+	defer srv.Close()
+	gen, got, err := fetchCatalogLeaseSeeds(context.Background(), ResearchSlotRun{
+		CoordURL: srv.URL, Token: "tok", WorkerID: "w1",
+	}, ClaimResp{CampaignID: "c", ItemID: 7}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gen != "g-big" || len(got) != n {
+		t.Fatalf("gen=%q seeds=%d err=%v", gen, len(got), err)
+	}
+	for i := range rawSeeds {
+		if string(got[i]) != string(rawSeeds[i]) {
+			t.Fatalf("seed %d mismatch", i)
+		}
+	}
+	dir := t.TempDir()
+	installed, err := hunt.InstallEngineSeedFiles(dir, got)
+	if err != nil || installed != n {
+		t.Fatalf("installed=%d err=%v", installed, err)
+	}
+	ents, err := os.ReadDir(dir)
+	if err != nil || len(ents) != n {
+		t.Fatalf("corpus files=%d err=%v", len(ents), err)
+	}
+
+	huge := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		buf := bytes.Repeat([]byte("x"), 64<<10)
+		for written := 0; written <= catalogSeedResponseMaxBytes; written += len(buf) {
+			if _, err := w.Write(buf); err != nil {
+				return
+			}
+		}
+	}))
+	defer huge.Close()
+	gen, got, err = fetchCatalogLeaseSeeds(context.Background(), ResearchSlotRun{
+		CoordURL: huge.URL, Token: "tok", WorkerID: "w1",
+	}, ClaimResp{CampaignID: "c", ItemID: 7}, "g-big")
+	if err == nil || gen != "" || len(got) != 0 {
+		t.Fatalf("over-cap gen=%q seeds=%d err=%v", gen, len(got), err)
 	}
 }
 
