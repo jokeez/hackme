@@ -366,4 +366,39 @@ func TestLibFuzzerSeedDir(t *testing.T) {
 	if got != want {
 		t.Fatalf("got %q want %q", got, want)
 	}
+	if LibFuzzerSeedDir("/repo", "../jsmn") != filepath.Join("/repo", ".cache", "hunt-lf-seeds", "_") {
+		t.Fatal("path-like target id must not leave the cache parent")
+	}
+}
+
+func TestExportLibFuzzerSeedsStopsAtFileCap(t *testing.T) {
+	dir := t.TempDir()
+	seedDir := LibFuzzerSeedDir(dir, "mpack")
+	if err := os.MkdirAll(seedDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < rankedLibFuzzerSeedCap; i++ {
+		name := filepath.Join(seedDir, fmt.Sprintf("have-%02d.bin", i))
+		if err := os.WriteFile(name, []byte{byte(i)}, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	outside := filepath.Join(dir, "outside.txt")
+	if err := os.WriteFile(outside, []byte("secret"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(seedDir, "planted")); err != nil {
+		t.Fatal(err)
+	}
+	n, err := ExportLibFuzzerSeeds(dir, "mpack", [][]byte{[]byte("one-more")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Fatalf("wrote %d files past the cap", n)
+	}
+	got, err := os.ReadFile(outside)
+	if err != nil || string(got) != "secret" {
+		t.Fatalf("symlink was followed: %q err=%v", got, err)
+	}
 }

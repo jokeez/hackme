@@ -19,6 +19,10 @@ const (
 	// rankedLibFuzzerSeedCap matches the claim wire item budget (96). A smaller
 	// cap dropped freshly exported coverage units before first-fit trim ran.
 	rankedLibFuzzerSeedCap = 96
+	// sharedSeedByteCap stops one catalog target from filling the disk. The
+	// file cap matches what a claim can ship; bytes past that are not useful
+	// to the next campaign and are a write amplifier.
+	sharedSeedByteCap = 2 << 20
 )
 
 // LibFuzzerSeedDir is the on-disk import path for libFuzzer corpus files per catalog target.
@@ -335,10 +339,17 @@ func ExportLibFuzzerSeeds(repoRoot, targetID string, seeds [][]byte) (int, error
 	if err := mkdirAllBeneath(parent, dir, 0o755); err != nil {
 		return 0, err
 	}
+	files, used, err := sharedSeedUsage(dir)
+	if err != nil {
+		return 0, err
+	}
 	written := 0
 	for _, b := range seeds {
 		if len(b) == 0 || len(b) > libFuzzerSeedMaxBytes {
 			continue
+		}
+		if files >= rankedLibFuzzerSeedCap || (used > 0 && used+len(b) > sharedSeedByteCap) {
+			break
 		}
 		h := sha256.Sum256(b)
 		name := fmt.Sprintf("lf-%s.bin", hex.EncodeToString(h[:16]))
@@ -350,7 +361,31 @@ func ExportLibFuzzerSeeds(repoRoot, targetID string, seeds [][]byte) (int, error
 		if err := writeFileBeneath(dir, path, b, 0o600); err != nil {
 			return written, err
 		}
+		files++
+		used += len(b)
 		written++
 	}
 	return written, nil
+}
+
+// sharedSeedUsage counts regular files only. A symlink is not a seed and is
+// not followed, so a planted link cannot inflate the budget or hide a file
+// outside the cache.
+func sharedSeedUsage(dir string) (files, bytes int, err error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 0, 0, nil
+		}
+		return 0, 0, err
+	}
+	for _, ent := range entries {
+		st, lerr := os.Lstat(filepath.Join(dir, ent.Name()))
+		if lerr != nil || !st.Mode().IsRegular() {
+			continue
+		}
+		files++
+		bytes += int(st.Size())
+	}
+	return files, bytes, nil
 }
