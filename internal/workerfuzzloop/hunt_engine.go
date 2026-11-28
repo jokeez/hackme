@@ -1,14 +1,20 @@
 package workerfuzzloop
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"hackme/internal/fuzzengine"
@@ -109,6 +115,21 @@ func RunHuntEngineShard(ctx context.Context, run ResearchSlotRun, cr ClaimResp) 
 		}
 	}
 	dictBytes := coverageEngineDict(cr)
+	var pull func(context.Context) ([][]byte, error)
+	var have atomic.Value
+	if strings.EqualFold(strings.TrimSpace(cr.HuntSource), "catalog") && strings.TrimSpace(run.CoordURL) != "" {
+		pull = func(pctx context.Context) ([][]byte, error) {
+			prev, _ := have.Load().(string)
+			gen, seeds, err := fetchCatalogLeaseSeeds(pctx, run, cr, prev)
+			if err != nil {
+				return nil, err
+			}
+			if gen != "" {
+				have.Store(gen)
+			}
+			return seeds, nil
+		}
+	}
 	res := hunt.RunEngineShard(ctx, hunt.EngineShardOpts{
 		RepoRoot:             repoRoot,
 		TargetID:             targetID,
@@ -121,6 +142,8 @@ func RunHuntEngineShard(ctx context.Context, run ResearchSlotRun, cr ClaimResp) 
 		HarnessContentSHA256: strings.TrimSpace(cr.HarnessContentSHA256),
 		PinPath:              strings.TrimSpace(cr.HuntPinPath),
 		SourceRel:            strings.TrimSpace(cr.HuntSourceRel),
+		RngSeed:              cr.InputN,
+		PullSeeds:            pull,
 	})
 	out.EngineVersion = res.EngineVersion
 	out.CorpusBefore = res.CorpusBefore
@@ -335,6 +358,73 @@ func coverageEngineDict(cr ClaimResp) []byte {
 		return []byte(text)
 	}
 	return nil
+}
+
+// fetchCatalogLeaseSeeds asks the coordinator for catalog units that landed
+// after this shard started. A matching generation returns no bytes. Inventory
+// claims never call this.
+func fetchCatalogLeaseSeeds(ctx context.Context, run ResearchSlotRun, cr ClaimResp, haveGen string) (string, [][]byte, error) {
+	base := strings.TrimRight(strings.TrimSpace(run.CoordURL), "/")
+	if base == "" {
+		return "", nil, nil
+	}
+	body, err := json.Marshal(map[string]any{
+		"worker_id":   run.WorkerID,
+		"campaign_id": cr.CampaignID,
+		"item_id":     cr.ItemID,
+		"have_gen":    haveGen,
+		"input_n":     cr.InputN,
+	})
+	if err != nil {
+		return "", nil, err
+	}
+	reqCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, base+"/api/fuzz/work/catalog_seeds", bytes.NewReader(body))
+	if err != nil {
+		return "", nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if run.Token != "" {
+		req.Header.Set("X-Hackme-Admin-Token", run.Token)
+	}
+	cl := run.HTTPClient
+	if cl == nil {
+		cl = netutil.HTTPClientNoRedirect(15 * time.Second)
+	}
+	res, err := cl.Do(req)
+	if err != nil {
+		return "", nil, err
+	}
+	defer res.Body.Close()
+	raw, _ := io.ReadAll(io.LimitReader(res.Body, 1<<20))
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		return "", nil, fmt.Errorf("catalog_seeds HTTP %d", res.StatusCode)
+	}
+	var wrap struct {
+		OK         bool     `json:"ok"`
+		Unchanged  bool     `json:"unchanged"`
+		Generation string   `json:"generation"`
+		Seeds      []string `json:"seeds"`
+	}
+	if err := json.Unmarshal(raw, &wrap); err != nil {
+		return "", nil, err
+	}
+	if !wrap.OK || wrap.Unchanged {
+		return wrap.Generation, nil, nil
+	}
+	out := make([][]byte, 0, len(wrap.Seeds))
+	for _, s := range wrap.Seeds {
+		b, err := base64.StdEncoding.DecodeString(strings.TrimSpace(s))
+		if err != nil || len(b) == 0 {
+			continue
+		}
+		out = append(out, b)
+		if len(out) >= 96 {
+			break
+		}
+	}
+	return wrap.Generation, out, nil
 }
 
 // collectCoverageEngineSeeds merges claim inputs for LF/AFL leases.

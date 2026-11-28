@@ -110,4 +110,63 @@ func addCorpusDeltaRoute(mux *http.ServeMux, adminToken, workerToken string, all
 			"findings":          out.Findings,
 		})
 	})
+	// Live pull while a catalog lease is still running. Same auth and lease
+	// check as corpus_delta. Inventory orders get an empty unchanged body.
+	mux.HandleFunc("/api/fuzz/work/catalog_seeds", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if !coordinatorWorkPOSTAuthed(r, adminToken, workerToken, allowInsecure) {
+			w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
+			http.Error(w, "coordinator authentication required", http.StatusUnauthorized)
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxCoordinatorJSONBodyBytes)
+		var req struct {
+			WorkerID   string `json:"worker_id"`
+			CampaignID string `json:"campaign_id"`
+			ItemID     int64  `json:"item_id"`
+			HaveGen    string `json:"have_gen"`
+			InputN     uint64 `json:"input_n"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid json", http.StatusBadRequest)
+			return
+		}
+		workerID := strings.TrimSpace(req.WorkerID)
+		if !validCoordinatorWorkerID(workerID) {
+			http.Error(w, "invalid worker_id", http.StatusBadRequest)
+			return
+		}
+		gen, seeds, unchanged, err := pf.CatalogLeaseSeedWindow(r.Context(), workerID, strings.TrimSpace(req.CampaignID), req.ItemID, req.HaveGen, req.InputN)
+		if err != nil {
+			msg := err.Error()
+			code := http.StatusBadRequest
+			if strings.Contains(msg, "active lease") {
+				code = http.StatusForbidden
+			}
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.WriteHeader(code)
+			_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "reason": msg})
+			return
+		}
+		outSeeds := make([]string, 0, len(seeds))
+		for _, b := range seeds {
+			if len(b) == 0 {
+				continue
+			}
+			outSeeds = append(outSeeds, base64.StdEncoding.EncodeToString(b))
+			if len(outSeeds) >= 96 {
+				break
+			}
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"ok":         true,
+			"unchanged":  unchanged,
+			"generation": gen,
+			"seeds":      outSeeds,
+		})
+	})
 }

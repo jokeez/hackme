@@ -495,6 +495,81 @@ func TestPersistDoesNotConsumeUnmergedGeneration(t *testing.T) {
 	}
 }
 
+func TestCatalogLeaseSeedWindowSkipsUnchangedAndInventory(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HACKME_REPO_ROOT", dir)
+	db, err := store.Open(filepath.Join(dir, "lease.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	svc := &Service{DB: db}
+	ctx := context.Background()
+	cfg := map[string]any{
+		"campaign_type":      "hunt",
+		"hunt_source":        "catalog",
+		"upstream_target_id": "mpack",
+		"pool_distributed":   true,
+		"work_kind":          "hunt_shard",
+	}
+	if err := svc.RegisterCampaign(ctx, Campaign{ID: "lease-mpack", CampaignType: "hunt", Status: "running", BudgetRuns: 1, Config: cfg}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.EnsureWorkItems(ctx, "lease-mpack", time.Now().Unix()); err != nil {
+		t.Fatal(err)
+	}
+	var itemID int64
+	if err := db.QueryRowContext(ctx, `SELECT id FROM fuzz_work_items WHERE campaign_id=?`, "lease-mpack").Scan(&itemID); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().Unix()
+	if _, err := db.ExecContext(ctx, `UPDATE fuzz_work_items SET status='leased', lease_owner=?, lease_until=? WHERE id=?`, "w1", now+60, itemID); err != nil {
+		t.Fatal(err)
+	}
+	seedDir := hunt.LibFuzzerSeedDir(dir, "mpack")
+	if err := os.MkdirAll(seedDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(seedDir, "unit.bin"), []byte("from-other-shard"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	gen, seeds, unchanged, err := svc.CatalogLeaseSeedWindow(ctx, "w1", "lease-mpack", itemID, "", 0)
+	if err != nil || unchanged || gen == "" || len(seeds) != 1 || string(seeds[0]) != "from-other-shard" {
+		t.Fatalf("gen=%q unchanged=%v seeds=%q err=%v", gen, unchanged, seeds, err)
+	}
+	_, again, unchanged, err := svc.CatalogLeaseSeedWindow(ctx, "w1", "lease-mpack", itemID, gen, 0)
+	if err != nil || !unchanged || len(again) != 0 {
+		t.Fatalf("second pull unchanged=%v n=%d err=%v", unchanged, len(again), err)
+	}
+	if _, _, _, err := svc.CatalogLeaseSeedWindow(ctx, "other", "lease-mpack", itemID, "", 0); err == nil {
+		t.Fatal("lease holder was not checked")
+	}
+	inv := map[string]any{
+		"campaign_type":      "hunt",
+		"hunt_source":        "inventory",
+		"upstream_target_id": "mpack",
+		"pool_distributed":   true,
+		"work_kind":          "hunt_shard",
+	}
+	if err := svc.RegisterCampaign(ctx, Campaign{ID: "lease-inv", CampaignType: "hunt", Status: "running", BudgetRuns: 1, Config: inv}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.EnsureWorkItems(ctx, "lease-inv", now); err != nil {
+		t.Fatal(err)
+	}
+	var invItem int64
+	if err := db.QueryRowContext(ctx, `SELECT id FROM fuzz_work_items WHERE campaign_id=?`, "lease-inv").Scan(&invItem); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE fuzz_work_items SET status='leased', lease_owner=?, lease_until=? WHERE id=?`, "w1", now+60, invItem); err != nil {
+		t.Fatal(err)
+	}
+	_, seeds, unchanged, err = svc.CatalogLeaseSeedWindow(ctx, "w1", "lease-inv", invItem, "", 0)
+	if err != nil || !unchanged || len(seeds) != 0 {
+		t.Fatalf("inventory pull unchanged=%v n=%d err=%v", unchanged, len(seeds), err)
+	}
+}
+
 func seedCorpusHas(list []any, want string) bool {
 	for _, item := range list {
 		s, _ := item.(string)

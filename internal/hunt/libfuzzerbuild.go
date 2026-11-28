@@ -277,6 +277,13 @@ type LibFuzzerSessionOpts struct {
 	// SkipGenericBoot refuses {} / [] / null starters when the caller already
 	// supplied claim seeds. Planting those hid a missed seed_byte_corpus.
 	SkipGenericBoot bool
+	// RngSeed is this shard's libFuzzer -seed. Zero keeps libFuzzer's random
+	// seed. A non-zero value makes two leases walk different mutations.
+	RngSeed uint64
+	// PullSeeds, when set, is called during a long wall. New units are written
+	// into the live corpus directory and -reload makes libFuzzer pick them up
+	// before the lease ends. Nil keeps a single local run unchanged.
+	PullSeeds func(context.Context) ([][]byte, error)
 }
 
 // RunLibFuzzerImportSession runs libFuzzer for wallSec and imports corpus files into L2 seed cache.
@@ -433,6 +440,17 @@ func RunLibFuzzerSession(ctx context.Context, opts LibFuzzerSessionOpts) (int, e
 	// job multiplies processes; cap that driver at 2 even on a heavy wall.
 	forkJobs := libFuzzerSessionForkJobs(wallSec, stdinBin != "")
 	args := libFuzzerSessionArgs(corpusDir, filepath.Join(crashDir, "crash-"), wallSec, dictPath, forkJobs)
+	if flag := libFuzzerSeedFlag(opts.RngSeed); flag != "" {
+		args = append(args, flag)
+	}
+	reloadSec := 0
+	if opts.PullSeeds != nil {
+		reloadSec = libFuzzerReloadSec(wallSec)
+	}
+	if reloadSec > 0 {
+		args = append(args, "-reload="+fmt.Sprint(reloadSec))
+		go pullLibFuzzerSeeds(runCtx, corpusDir, time.Duration(reloadSec)*time.Second, opts.PullSeeds)
+	}
 	env := append(os.Environ(),
 		"ASAN_OPTIONS="+LibFuzzerASANOptionsForWall(wallSec),
 		"UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=0",
@@ -735,6 +753,48 @@ func libFuzzerSessionArgs(corpusDir, crashPrefix string, wallSec int, dictPath s
 		args = append(args, "-dict="+dictPath)
 	}
 	return args
+}
+
+// libFuzzerSeedFlag is empty when the caller wants libFuzzer's own random seed.
+// A leased shard passes its input number so the fleet does not repeat one stream.
+func libFuzzerSeedFlag(seed uint64) string {
+	if seed == 0 {
+		return ""
+	}
+	// libFuzzer treats 0 as "pick a random seed". Force the low 31 bits odd.
+	n := uint32(seed&0x7fffffff) | 1
+	return "-seed=" + fmt.Sprint(n)
+}
+
+// libFuzzerReloadSec is how often a long wall re-reads the corpus directory.
+// Short walls finish before a pull would matter. Zero means do not pass -reload.
+func libFuzzerReloadSec(wallSec int) int {
+	if wallSec >= 120 {
+		return 20
+	}
+	return 0
+}
+
+// pullLibFuzzerSeeds writes units from other shards into the live corpus.
+// libFuzzer -reload picks up new files; this does not delete what is already there.
+func pullLibFuzzerSeeds(ctx context.Context, corpusDir string, every time.Duration, pull func(context.Context) ([][]byte, error)) {
+	if pull == nil || every <= 0 {
+		return
+	}
+	tick := time.NewTicker(every)
+	defer tick.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-tick.C:
+			seeds, err := pull(ctx)
+			if err != nil || len(seeds) == 0 {
+				continue
+			}
+			_, _ = InstallEngineSeedFiles(corpusDir, seeds)
+		}
+	}
 }
 
 func countCorpusFiles(dir string) (int, error) {

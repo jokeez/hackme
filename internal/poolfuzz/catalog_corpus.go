@@ -104,6 +104,41 @@ func (s *Service) mergeCatalogSeedCache(ctx context.Context, campaignID string, 
 	})
 }
 
+// CatalogLeaseSeedWindow is the live corpus a leased catalog shard may pull
+// before its wall ends. A matching generation is one stat: the file bytes are
+// not read. Inventory and customer harnesses return no seeds. The caller must
+// already hold the work-item lease.
+func (s *Service) CatalogLeaseSeedWindow(ctx context.Context, workerID, campaignID string, itemID int64, haveGen string, shift uint64) (gen string, seeds [][]byte, unchanged bool, err error) {
+	if s == nil || s.DB == nil {
+		return "", nil, true, nil
+	}
+	if err := s.requireResearchLease(ctx, workerID, campaignID, itemID); err != nil {
+		return "", nil, false, err
+	}
+	var cfgJSON string
+	if err := s.DB.QueryRowContext(ctx, `SELECT config_json FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&cfgJSON); err != nil {
+		return "", nil, false, err
+	}
+	cfg := parseConfigJSON(cfgJSON)
+	targetID := catalogSharedTarget(cfg)
+	if targetID == "" {
+		return "", nil, true, nil
+	}
+	root := hunt.RepoRoot()
+	gen, err = hunt.SharedSeedGeneration(root, targetID)
+	if err != nil {
+		return "", nil, false, err
+	}
+	if gen == strings.TrimSpace(haveGen) {
+		return gen, nil, true, nil
+	}
+	seeds, err = hunt.SampleLibFuzzerSeedWindow(root, targetID, shift, 0)
+	if err != nil {
+		return gen, nil, false, err
+	}
+	return gen, seeds, false, nil
+}
+
 // spreadCatalogClaimSeeds fills this claim from the on-disk cache. The campaign
 // config keeps the newest fold; the claim adds a shard-specific older slice
 // when the cache holds more than one wire budget. Inventory is not catalog,
