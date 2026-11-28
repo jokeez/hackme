@@ -2,6 +2,7 @@ package poolfuzz
 
 import (
 	"context"
+	"encoding/hex"
 	"os"
 	"path/filepath"
 	"testing"
@@ -203,4 +204,117 @@ func TestInventoryDeltaStaysOutOfSharedNamespace(t *testing.T) {
 	if err != nil || len(local) < 1 {
 		t.Fatalf("campaign-local seeds=%d err=%v", len(local), err)
 	}
+}
+
+func TestCatalogClaimFollowsSharedCacheGeneration(t *testing.T) {
+	t.Setenv("HACKME_POOL_HUNT_REPLAY", "0")
+	t.Setenv("HACKME_POOL_HUNT_REPLAY_ASYNC", "0")
+	dir := t.TempDir()
+	t.Setenv("HACKME_REPO_ROOT", dir)
+	seedDir := filepath.Join(dir, ".cache", "hunt-lf-seeds", "mpack")
+	if err := os.MkdirAll(seedDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(seedDir, "early.bin"), []byte("from-earlier-order"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	db, err := store.Open(filepath.Join(dir, "gen.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	svc := &Service{DB: db}
+	ctx := context.Background()
+	hash := "aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899"
+	pinned := "70696e6e6564"
+	cfg := map[string]any{
+		"pool_distributed":     true,
+		"work_kind":            "hunt_shard",
+		"campaign_type":        "hunt",
+		"hunt_source":          "catalog",
+		"upstream_target_id":   "mpack",
+		"harness_hash":         hash,
+		"iterations_per_shard": 4,
+		"max_input_bytes":      256,
+		"depth_tier":           "oss_cve",
+		"check_semantics":      "native_crash",
+		"seed_byte_corpus":     []any{pinned},
+	}
+	hunt.ApplyPoolGuidedDefaults(cfg, "mpack")
+	id := "mpack-gen"
+	if err := svc.RegisterCampaign(ctx, Campaign{ID: id, CampaignType: "hunt", Status: "running", BudgetRuns: 2, Config: cfg}); err != nil {
+		t.Fatal(err)
+	}
+	hunt.SetHarnessObjectDir("")
+	t.Cleanup(func() { hunt.SetHarnessObjectDir("") })
+	if err := hunt.PutHarnessArtifact(ctx, db, hash, []byte("gen-harness"), "mpack"); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.EnsureWorkItems(ctx, id, time.Now().Unix()); err != nil {
+		t.Fatal(err)
+	}
+	early := hex.EncodeToString([]byte("from-earlier-order"))
+	w, ok, err := svc.Claim(ctx, "w-gen-1", time.Now().Unix())
+	if err != nil || !ok {
+		t.Fatalf("claim ok=%v err=%v", ok, err)
+	}
+	if len(w.SeedByteCorpus) == 0 || w.SeedByteCorpus[0] != pinned {
+		t.Fatalf("own unit not first: %#v", w.SeedByteCorpus)
+	}
+	if !seedCorpusHas(w.SeedByteCorpus, early) {
+		t.Fatalf("earlier shared unit missing: %#v", w.SeedByteCorpus)
+	}
+
+	// Unchanged cache, stamp already stored. A file that is not in the corpus
+	// must stay out while the generation matches.
+	gen, err := hunt.SharedSeedGeneration(dir, "mpack")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var raw string
+	if err := db.QueryRowContext(ctx, `SELECT config_json FROM fuzz_campaigns WHERE id=?`, id).Scan(&raw); err != nil {
+		t.Fatal(err)
+	}
+	stored := parseConfigJSON(raw)
+	if jsonString(stored["catalog_seed_gen"]) != gen {
+		t.Fatalf("stamp %q want %q", jsonString(stored["catalog_seed_gen"]), gen)
+	}
+	outside := filepath.Join(dir, "outside.txt")
+	if err := os.WriteFile(outside, []byte("secret-bytes"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(seedDir, "planted")); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.mergeCatalogSeedCache(ctx, id, stored); err != nil {
+		t.Fatal(err)
+	}
+	if seedCorpusHas(stored["seed_byte_corpus"].([]any), hex.EncodeToString([]byte("secret-bytes"))) {
+		t.Fatal("symlink target entered the corpus")
+	}
+
+	if err := os.WriteFile(filepath.Join(seedDir, "later.bin"), []byte("from-later-order"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	w2, ok, err := svc.Claim(ctx, "w-gen-2", time.Now().Unix())
+	if err != nil || !ok {
+		t.Fatalf("second claim ok=%v err=%v", ok, err)
+	}
+	later := hex.EncodeToString([]byte("from-later-order"))
+	if !seedCorpusHas(w2.SeedByteCorpus, later) {
+		t.Fatalf("later shared unit missing: %#v", w2.SeedByteCorpus)
+	}
+	if len(w2.SeedByteCorpus) == 0 || w2.SeedByteCorpus[0] != pinned {
+		t.Fatalf("own unit lost the front: %#v", w2.SeedByteCorpus)
+	}
+}
+
+func seedCorpusHas(list []any, want string) bool {
+	for _, item := range list {
+		s, _ := item.(string)
+		if s == want {
+			return true
+		}
+	}
+	return false
 }

@@ -1,9 +1,12 @@
 package poolfuzz
 
 import (
+	"context"
+	"database/sql"
 	"strings"
 
 	"hackme/internal/fuzzupstream"
+	"hackme/internal/hunt"
 )
 
 // catalogSharedTarget is the catalog id whose on-disk seed cache is shared
@@ -38,4 +41,65 @@ func sharesResearchNamespace(cfg map[string]any) bool {
 		return true
 	}
 	return strings.ToLower(strings.TrimSpace(jsonString(cfg["hunt_source"]))) != "inventory"
+}
+
+// mergeCatalogSeedCache pulls the shared catalog seed directory into cfg when
+// its generation changed, and stores that generation on the campaign. The
+// next claim then stats the directory and does not read the files again.
+// Inventory and customer harness orders are not catalog, so they return first.
+func (s *Service) mergeCatalogSeedCache(ctx context.Context, campaignID string, cfg map[string]any) error {
+	targetID := catalogSharedTarget(cfg)
+	if targetID == "" || cfg == nil {
+		return nil
+	}
+	root := hunt.RepoRoot()
+	gen, err := hunt.SharedSeedGeneration(root, targetID)
+	if err != nil {
+		return err
+	}
+	if jsonString(cfg["catalog_seed_gen"]) == gen {
+		return nil
+	}
+	if s == nil || s.DB == nil || strings.TrimSpace(campaignID) == "" {
+		if _, err := hunt.MergeLibFuzzerSeedCorpus(cfg, root, targetID); err != nil {
+			return err
+		}
+		cfg["catalog_seed_gen"] = gen
+		return nil
+	}
+	return s.withCampaignSettle(campaignID, func() error {
+		var cfgJSON string
+		err := s.DB.QueryRowContext(ctx, `SELECT config_json FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&cfgJSON)
+		if err == sql.ErrNoRows {
+			if _, merr := hunt.MergeLibFuzzerSeedCorpus(cfg, root, targetID); merr != nil {
+				return merr
+			}
+			cfg["catalog_seed_gen"] = gen
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		fresh := parseConfigJSON(cfgJSON)
+		genNow, err := hunt.SharedSeedGeneration(root, targetID)
+		if err != nil {
+			return err
+		}
+		if jsonString(fresh["catalog_seed_gen"]) != genNow {
+			if _, err := hunt.MergeLibFuzzerSeedCorpus(fresh, root, targetID); err != nil {
+				return err
+			}
+			fresh["catalog_seed_gen"] = genNow
+			if _, err := s.DB.ExecContext(ctx, `UPDATE fuzz_campaigns SET config_json=? WHERE id=?`, marshalConfigJSON(fresh), campaignID); err != nil {
+				return err
+			}
+		}
+		if raw, ok := fresh["seed_byte_corpus"]; ok {
+			cfg["seed_byte_corpus"] = raw
+		}
+		if g := jsonString(fresh["catalog_seed_gen"]); g != "" {
+			cfg["catalog_seed_gen"] = g
+		}
+		return nil
+	})
 }

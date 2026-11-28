@@ -34,6 +34,38 @@ func LibFuzzerSeedDir(repoRoot, targetID string) string {
 	return filepath.Join(repoRoot, ".cache", "hunt-lf-seeds", catalogTargetSegment(targetID))
 }
 
+// SharedSeedGeneration is a cheap fingerprint of the catalog seed cache.
+// It stats regular files only (no content read, no symlink follow). A new or
+// removed seed changes it; a planted symlink does not.
+func SharedSeedGeneration(repoRoot, targetID string) (string, error) {
+	dir := LibFuzzerSeedDir(repoRoot, targetID)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "0:0:0", nil
+		}
+		return "", err
+	}
+	var n, total int
+	var maxMod int64
+	for _, ent := range entries {
+		name := ent.Name()
+		if name == "" || name == "." || name == ".." || strings.Contains(name, string(filepath.Separator)) {
+			continue
+		}
+		st, lerr := os.Lstat(filepath.Join(dir, name))
+		if lerr != nil || !st.Mode().IsRegular() || st.Size() <= 0 {
+			continue
+		}
+		n++
+		total += int(st.Size())
+		if mt := st.ModTime().UnixNano(); mt > maxMod {
+			maxMod = mt
+		}
+	}
+	return fmt.Sprintf("%d:%d:%d", n, total, maxMod), nil
+}
+
 // LoadLibFuzzerSeedFiles reads seed inputs from a libFuzzer corpus directory.
 func LoadLibFuzzerSeedFiles(dir string, maxSeeds int) ([][]byte, error) {
 	dir = strings.TrimSpace(dir)

@@ -547,15 +547,11 @@ func (s *Service) runHuntReplayJob(ctx context.Context, job huntReplayJob, now i
 	if !IsHuntCampaign(cfg) {
 		return fmt.Errorf("poolfuzz: replay job not hunt campaign")
 	}
-	// Match claim-time L2 merge so mutating execs that prefer seed_byte_corpus stay
-	// byte-identical to workers that received the post-merge corpus on the claim.
-	// The same cheap check as claim: skip the directory walk when a coverage
-	// unit is already in the campaign config.
+	// Same generation check as claim, so replay mutates the corpus the worker
+	// was given. A matching stamp skips the file read.
 	if hunt.HuntCorpusGuided(cfg) {
-		if targetID := catalogSharedTarget(cfg); targetID != "" && claimSeedCorpusNeedsL2Merge(cfg) {
-			if _, err := hunt.MergeLibFuzzerSeedCorpus(cfg, hunt.RepoRoot(), targetID); err != nil {
-				return err
-			}
+		if err := s.mergeCatalogSeedCache(ctx, job.CampaignID, cfg); err != nil {
+			return err
 		}
 		applySeedByteCorpusWireTrim(cfg)
 	}

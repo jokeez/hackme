@@ -433,6 +433,45 @@ func TestExportLibFuzzerSeedsReplacesOldestAtCap(t *testing.T) {
 	}
 }
 
+func TestSharedSeedGenerationIgnoresSymlink(t *testing.T) {
+	dir := t.TempDir()
+	seedDir := LibFuzzerSeedDir(dir, "mpack")
+	if err := os.MkdirAll(seedDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(seedDir, "ok.bin"), []byte("kept"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	before, err := SharedSeedGeneration(dir, "mpack")
+	if err != nil || before == "0:0:0" {
+		t.Fatalf("gen %q err=%v", before, err)
+	}
+	outside := filepath.Join(dir, "outside.txt")
+	if err := os.WriteFile(outside, []byte("secret"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(seedDir, "planted")); err != nil {
+		t.Fatal(err)
+	}
+	after, err := SharedSeedGeneration(dir, "mpack")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after != before {
+		t.Fatalf("symlink changed generation %q -> %q", before, after)
+	}
+	if err := os.WriteFile(filepath.Join(seedDir, "more.bin"), []byte("more"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	grown, err := SharedSeedGeneration(dir, "mpack")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if grown == before {
+		t.Fatal("new seed did not change generation")
+	}
+}
+
 func TestLoadLibFuzzerSeedFilesSkipsSymlink(t *testing.T) {
 	dir := t.TempDir()
 	seedDir := LibFuzzerSeedDir(dir, "mpack")

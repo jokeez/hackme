@@ -497,13 +497,11 @@ func (s *Service) EnsureGuidedCorpusSeeded(ctx context.Context, campaignID strin
 		return nil
 	}
 	if IsHuntCampaign(cfg) {
-		// Claim hot path: do not walk the shared seed directory when the campaign
-		// JSON already holds a coverage unit, and do not read it at all for an
-		// inventory order. No harness compile lives here.
-		if targetID := catalogSharedTarget(cfg); targetID != "" && claimSeedCorpusNeedsL2Merge(cfg) {
-			if _, err := hunt.MergeLibFuzzerSeedCorpus(cfg, hunt.RepoRoot(), targetID); err != nil {
-				return err
-			}
+		// Catalog orders refresh the shared seed cache when its generation
+		// changes. Inventory orders are not catalog and never enter here.
+		// A matching generation is one directory stat, not a content read.
+		if err := s.mergeCatalogSeedCache(ctx, campaignID, cfg); err != nil {
+			return err
 		}
 	} else if packID := strings.TrimSpace(jsonString(cfg["guard_pack"])); packID != "" && digPackageKey(cfg) == "deep" {
 		// Deep SKU only — smoke/audit Dig must not pull research/external seed caches.
