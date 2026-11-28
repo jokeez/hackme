@@ -552,7 +552,7 @@ func (s *Service) runHuntReplayJob(ctx context.Context, job huntReplayJob, now i
 	// The same cheap check as claim: skip the directory walk when a coverage
 	// unit is already in the campaign config.
 	if hunt.HuntCorpusGuided(cfg) {
-		if targetID := strings.TrimSpace(jsonString(cfg["upstream_target_id"])); targetID != "" && claimSeedCorpusNeedsL2Merge(cfg) {
+		if targetID := catalogSharedTarget(cfg); targetID != "" && claimSeedCorpusNeedsL2Merge(cfg) {
 			if _, err := hunt.MergeLibFuzzerSeedCorpus(cfg, hunt.RepoRoot(), targetID); err != nil {
 				return err
 			}

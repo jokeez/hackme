@@ -136,6 +136,7 @@ func TestHuntL2LibFuzzerSeedBootstrap(t *testing.T) {
 		"work_kind":             "hunt_shard",
 		"campaign_type":         "hunt",
 		"upstream_target_id":    "jsmn",
+		"hunt_source":           "catalog",
 		"harness_hash":          "abc123",
 		"iterations_per_shard":  4,
 		"max_input_bytes":       256,

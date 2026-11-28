@@ -246,11 +246,13 @@ func (s *Service) AcceptResearchCorpusDelta(ctx context.Context, req ResearchCor
 			return out, err
 		}
 	}
-	// Claim wire reads campaign seed_byte_corpus (then L2). Pool rows alone are
-	// dropped when claim-light omits corpus_seeds or first-fit keeps boot starters.
+	// Claim wire reads campaign seed_byte_corpus (then the shared catalog cache).
+	// Pool rows alone are dropped when claim-light omits corpus_seeds or
+	// first-fit keeps boot starters. Inventory orders do not publish into that
+	// cache: catalogSharedTarget is empty for them.
 	l2Target := ""
 	if isHunt {
-		l2Target = targetID
+		l2Target = catalogSharedTarget(cfg)
 	}
 	if err := s.persistAcceptedClaimSeeds(ctx, campaignID, l2Target, seeds); err != nil {
 		return out, err

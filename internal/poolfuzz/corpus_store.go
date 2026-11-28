@@ -497,10 +497,10 @@ func (s *Service) EnsureGuidedCorpusSeeded(ctx context.Context, campaignID strin
 		return nil
 	}
 	if IsHuntCampaign(cfg) {
-		targetID := strings.TrimSpace(jsonString(cfg["upstream_target_id"]))
-		// Claim hot path: do not walk the L2 seed directory when the campaign
-		// JSON already holds a coverage unit. No harness compile lives here.
-		if targetID != "" && claimSeedCorpusNeedsL2Merge(cfg) {
+		// Claim hot path: do not walk the shared seed directory when the campaign
+		// JSON already holds a coverage unit, and do not read it at all for an
+		// inventory order. No harness compile lives here.
+		if targetID := catalogSharedTarget(cfg); targetID != "" && claimSeedCorpusNeedsL2Merge(cfg) {
 			if _, err := hunt.MergeLibFuzzerSeedCorpus(cfg, hunt.RepoRoot(), targetID); err != nil {
 				return err
 			}
